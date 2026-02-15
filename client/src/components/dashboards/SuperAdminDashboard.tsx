@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, Users, ClipboardList, CheckCircle, UserPlus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/integrations/api";
 import { useNavigate } from "react-router-dom";
 import { CreateUserDialog } from "@/components/users/CreateUserDialog";
 
@@ -13,18 +13,21 @@ export function SuperAdminDashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [branches, requests, users, active] = await Promise.all([
-        supabase.from("branches").select("id", { count: "exact", head: true }),
-        supabase.from("branch_requests").select("id", { count: "exact", head: true }).eq("status", "Pending"),
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("branches").select("id", { count: "exact", head: true }).eq("is_active", true),
-      ]);
-      setStats({
-        totalBranches: branches.count || 0,
-        pendingRequests: requests.count || 0,
-        totalUsers: users.count || 0,
-        activeBranches: active.count || 0,
-      });
+      try {
+        const [branches, users] = await Promise.all([
+          apiClient.branches.getAll(),
+          apiClient.users.getAll(),
+        ]);
+        const activeBranches = branches.filter((b: any) => (b.isActive ?? b.is_active) === true).length;
+        setStats({
+          totalBranches: branches.length || 0,
+          pendingRequests: 0,
+          totalUsers: users.length || 0,
+          activeBranches,
+        });
+      } catch (error) {
+        setStats({ totalBranches: 0, pendingRequests: 0, totalUsers: 0, activeBranches: 0 });
+      }
     };
     fetchStats();
   }, []);

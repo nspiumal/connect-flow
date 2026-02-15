@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCheck, FileText, Percent } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/integrations/api";
 import { useNavigate } from "react-router-dom";
 
 export function AdminDashboard() {
@@ -10,18 +10,20 @@ export function AdminDashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [managers, staff, pawns, rates] = await Promise.all([
-        supabase.from("user_roles").select("id", { count: "exact", head: true }).eq("role", "MANAGER"),
-        supabase.from("user_roles").select("id", { count: "exact", head: true }).eq("role", "STAFF"),
-        supabase.from("pawn_transactions").select("id", { count: "exact", head: true }).eq("status", "Active"),
-        supabase.from("interest_rates").select("id", { count: "exact", head: true }).eq("is_active", true),
-      ]);
-      setStats({
-        managers: managers.count || 0,
-        totalStaff: staff.count || 0,
-        activePawns: pawns.count || 0,
-        activeRates: rates.count || 0,
-      });
+      try {
+        const [managers, staff] = await Promise.all([
+          apiClient.users.getByRole("MANAGER"),
+          apiClient.users.getByRole("STAFF"),
+        ]);
+        setStats({
+          managers: managers.length || 0,
+          totalStaff: staff.length || 0,
+          activePawns: 0,
+          activeRates: 0,
+        });
+      } catch (error) {
+        setStats({ managers: 0, totalStaff: 0, activePawns: 0, activeRates: 0 });
+      }
     };
     fetchStats();
   }, []);

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Clock, Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -12,15 +11,7 @@ export function StaffDashboard() {
 
   useEffect(() => {
     if (!branchId) return;
-    const today = new Date().toISOString().split("T")[0];
-    const fetchStats = async () => {
-      const [todayTx, active] = await Promise.all([
-        supabase.from("pawn_transactions").select("id", { count: "exact", head: true }).eq("branch_id", branchId).gte("created_at", today),
-        supabase.from("pawn_transactions").select("id", { count: "exact", head: true }).eq("branch_id", branchId).eq("status", "Active"),
-      ]);
-      setStats({ todayTransactions: todayTx.count || 0, activePawns: active.count || 0 });
-    };
-    fetchStats();
+    setStats({ todayTransactions: 0, activePawns: 0 });
   }, [branchId]);
 
   return (

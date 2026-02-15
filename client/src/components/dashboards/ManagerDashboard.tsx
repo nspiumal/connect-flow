@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Users, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -12,15 +11,7 @@ export function ManagerDashboard() {
 
   useEffect(() => {
     if (!branchId) return;
-    const fetchStats = async () => {
-      const [pawns, staff, recent] = await Promise.all([
-        supabase.from("pawn_transactions").select("id", { count: "exact", head: true }).eq("branch_id", branchId).eq("status", "Active"),
-        supabase.from("user_roles").select("id", { count: "exact", head: true }).eq("branch_id", branchId).eq("role", "STAFF"),
-        supabase.from("pawn_transactions").select("id", { count: "exact", head: true }).eq("branch_id", branchId).gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString()),
-      ]);
-      setStats({ activePawns: pawns.count || 0, staffCount: staff.count || 0, recentTransactions: recent.count || 0 });
-    };
-    fetchStats();
+    setStats({ activePawns: 0, staffCount: 0, recentTransactions: 0 });
   }, [branchId]);
 
   const widgets = [

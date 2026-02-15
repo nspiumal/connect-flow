@@ -9,6 +9,7 @@ interface UserProfile {
   email: string;
   phone?: string;
   role?: AppRole;
+  branchId?: string;
   branch?: string;
 }
 
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: userData.email || email,
         phone: userData.phone,
         role: userData.role || demoUser.role,
+        branchId: userData.branchId,
         branch: userData.branch,
       };
 

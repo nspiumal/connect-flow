@@ -1,11 +1,14 @@
 package com.connectflow.controller;
 
+import com.connectflow.dto.CreateUserRequest;
+import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.UserDTO;
 import com.connectflow.model.UserRole;
 import com.connectflow.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -25,6 +28,18 @@ public class UserController {
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         List<UserDTO> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/paginated")
+    @Operation(summary = "Get users with pagination")
+    public ResponseEntity<PageResponse<UserDTO>> getUsersPaginated(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(defaultValue = "fullName") String sortBy,
+        @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        PageResponse<UserDTO> response = userService.getAllUsersPaginated(page, size, sortBy, sortDir);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
@@ -55,6 +70,17 @@ public class UserController {
     public ResponseEntity<List<UserDTO>> getUsersByBranch(@PathVariable UUID branchId) {
         List<UserDTO> users = userService.getUsersByBranch(branchId);
         return ResponseEntity.ok(users);
+    }
+
+    @PostMapping
+    @Operation(summary = "Create a new user")
+    public ResponseEntity<UserDTO> createUser(@RequestBody CreateUserRequest request) {
+        try {
+            UserDTO created = userService.createUser(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }
 

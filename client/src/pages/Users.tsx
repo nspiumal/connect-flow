@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import apiClient from "@/integrations/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateUserDialog } from "@/components/users/CreateUserDialog";
-import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 
 const ROLE_COLORS: Record<string, string> = {
   SUPERADMIN: "destructive",
@@ -18,12 +20,18 @@ const ROLE_COLORS: Record<string, string> = {
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [sortBy, setSortBy] = useState("fullName");
+  const [sortDir, setSortDir] = useState("asc");
   const { role } = useAuth();
 
   const fetchUsers = async () => {
     try {
-      const data = await apiClient.users.getAll();
-      const normalized = data.map((u: any) => ({
+      const response = await apiClient.users.getPaginated(currentPage, pageSize, sortBy, sortDir);
+      const normalized = response.content.map((u: any) => ({
         id: u.id,
         full_name: u.fullName,
         email: u.email,
@@ -31,12 +39,14 @@ export default function UsersPage() {
         branchName: u.branch || "—",
       }));
       setUsers(normalized);
+      setTotalPages(response.totalPages);
+      setTotalElements(response.totalElements);
     } catch (error: any) {
       console.error("Failed to fetch users:", error);
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, [currentPage, pageSize, sortBy, sortDir]);
 
   return (
     <div className="space-y-6">
@@ -77,6 +87,53 @@ export default function UsersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} users
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">Rows per page:</Label>
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(0); }}>
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm">
+              Page {currentPage + 1} of {totalPages || 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage >= totalPages - 1}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <CreateUserDialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) fetchUsers(); }} />
     </div>
   );

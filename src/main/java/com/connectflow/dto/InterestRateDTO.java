@@ -1,10 +1,11 @@
 package com.connectflow.dto;
 
-import com.connectflow.model.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -12,14 +13,13 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserDTO {
+public class InterestRateDTO {
     private UUID id;
-    private String fullName;
-    private String email;
-    private String phone;
-    private UserRole.Role role;
-    private UUID branchId;
-    private String branch;
+    private String name;
+    private BigDecimal ratePercent;
+    private Integer periodMonths;
+    private String customerType;
+    private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

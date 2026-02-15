@@ -7,10 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Power } from "lucide-react";
+import apiClient from "@/integrations/api";
 
 export default function InterestRates() {
   const [rates, setRates] = useState<any[]>([]);
@@ -19,35 +18,67 @@ export default function InterestRates() {
   const [ratePercent, setRatePercent] = useState("");
   const [periodMonths, setPeriodMonths] = useState("6");
   const [customerType, setCustomerType] = useState("Regular");
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const fetchRates = async () => {
-    const { data } = await supabase.from("interest_rates").select("*").order("created_at", { ascending: false });
-    if (data) setRates(data);
+    try {
+      const data = await apiClient.interestRates.getAll();
+      setRates(data);
+    } catch (error: any) {
+      console.error('Failed to fetch interest rates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch interest rates",
+        variant: "destructive",
+      });
+    }
   };
 
   useEffect(() => { fetchRates(); }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { error } = await supabase.from("interest_rates").insert({
-      name,
-      rate_percent: parseFloat(ratePercent),
-      period_months: parseInt(periodMonths),
-      customer_type: customerType,
-      created_by: user!.id,
-    });
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Rate created" });
-    setShowDialog(false);
-    setName(""); setRatePercent(""); setPeriodMonths("6"); setCustomerType("Regular");
-    fetchRates();
+  const handleAdd = async () => {
+    try {
+      await apiClient.interestRates.create({
+        name,
+        ratePercent: parseFloat(ratePercent),
+        periodMonths: parseInt(periodMonths),
+        customerType,
+        isActive: true,
+      });
+      toast({
+        title: "Success",
+        description: "Interest rate created successfully",
+      });
+      setShowDialog(false);
+      setName("");
+      setRatePercent("");
+      setPeriodMonths("6");
+      setCustomerType("Regular");
+      fetchRates();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create interest rate",
+        variant: "destructive",
+      });
+    }
   };
 
-  const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from("interest_rates").update({ is_active: !current }).eq("id", id);
-    fetchRates();
+  const toggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      await apiClient.interestRates.toggleActive(id);
+      toast({
+        title: "Success",
+        description: `Interest rate ${currentStatus ? 'deactivated' : 'activated'} successfully`,
+      });
+      fetchRates();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update interest rate status",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -73,17 +104,17 @@ export default function InterestRates() {
               {rates.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>{r.rate_percent}%</TableCell>
-                  <TableCell>{r.period_months} months</TableCell>
-                  <TableCell><Badge variant="outline">{r.customer_type}</Badge></TableCell>
-                  <TableCell><Badge variant={r.is_active ? "default" : "secondary"}>{r.is_active ? "Active" : "Inactive"}</Badge></TableCell>
+                  <TableCell>{r.ratePercent}%</TableCell>
+                  <TableCell>{r.periodMonths} months</TableCell>
+                  <TableCell><Badge variant="outline">{r.customerType}</Badge></TableCell>
+                  <TableCell><Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? "Active" : "Inactive"}</Badge></TableCell>
                   <TableCell>
-                    <Button size="sm" variant="outline" onClick={() => toggleActive(r.id, r.is_active)}><Power className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleActive(r.id, r.isActive)}><Power className="h-3 w-3" /></Button>
                   </TableCell>
                 </TableRow>
               ))}
               {rates.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No rates configured</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No interest rates found</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -92,7 +123,7 @@ export default function InterestRates() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
           <DialogHeader><DialogTitle>Create Interest Rate</DialogTitle></DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleAdd} className="space-y-4">
             <div><Label>Rate Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Standard 6-month" /></div>
             <div><Label>Rate (%)</Label><Input type="number" step="0.01" value={ratePercent} onChange={(e) => setRatePercent(e.target.value)} required /></div>
             <div><Label>Period (months)</Label>

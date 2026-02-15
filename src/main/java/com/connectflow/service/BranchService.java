@@ -1,10 +1,15 @@
 package com.connectflow.service;
 
 import com.connectflow.dto.BranchDTO;
+import com.connectflow.dto.PageResponse;
 import com.connectflow.model.Branch;
 import com.connectflow.repository.BranchRepository;
 import com.connectflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -86,6 +91,31 @@ public class BranchService {
     }
 
     /**
+     * Get all branches with pagination
+     */
+    public PageResponse<BranchDTO> getAllBranchesPaginated(int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+            ? Sort.by(sortBy).descending()
+            : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Branch> branchPage = branchRepository.findAll(pageable);
+
+        List<BranchDTO> content = branchPage.getContent().stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+
+        return new PageResponse<>(
+            content,
+            branchPage.getNumber(),
+            branchPage.getSize(),
+            branchPage.getTotalElements(),
+            branchPage.getTotalPages(),
+            branchPage.isLast()
+        );
+    }
+
+    /**
      * Convert Branch entity to BranchDTO
      */
     private BranchDTO convertToDTO(Branch branch) {
@@ -108,4 +138,3 @@ public class BranchService {
             .build();
     }
 }
-

@@ -1,10 +1,12 @@
 package com.connectflow.controller;
 
 import com.connectflow.dto.BranchDTO;
+import com.connectflow.dto.PageResponse;
 import com.connectflow.service.BranchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/branches")
 @RequiredArgsConstructor
@@ -27,10 +30,25 @@ public class BranchController {
         return ResponseEntity.ok(branches);
     }
 
+    @GetMapping("/paginated")
+    @Operation(summary = "Get branches with pagination")
+    public ResponseEntity<PageResponse<BranchDTO>> getBranchesPaginated(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(defaultValue = "name") String sortBy,
+        @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        PageResponse<BranchDTO> response = branchService.getAllBranchesPaginated(page, size, sortBy, sortDir);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/active")
     @Operation(summary = "Get all active branches")
     public ResponseEntity<List<BranchDTO>> getAllActiveBranches() {
+        log.info("GET /branches/active called");
         List<BranchDTO> branches = branchService.getAllActiveBranches();
+        log.info("Returning {} active branches", branches.size());
+        branches.forEach(b -> log.debug("Branch: {} (ID: {})", b.getName(), b.getId()));
         return ResponseEntity.ok(branches);
     }
 
