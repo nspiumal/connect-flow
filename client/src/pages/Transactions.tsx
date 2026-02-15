@@ -46,6 +46,7 @@ export default function Transactions() {
   const [uploadedImages, setUploadedImages] = useState<any[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageBlobUrls, setImageBlobUrls] = useState<{[key: string]: string}>({});
 
   const fetchTransactions = async () => {
     try {
@@ -79,12 +80,75 @@ export default function Transactions() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Not available",
-      description: "Create transaction endpoint not connected yet.",
-      variant: "destructive",
-    });
-    setShowCreate(false);
+
+    // Validate required fields
+    if (!customerName || !customerNic || !itemDescription || !loanAmount || !selectedRateId || !periodMonths) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Prepare transaction data
+      const transactionData = {
+        customerName,
+        customerNic,
+        customerAddress,
+        customerPhone,
+        customerType: "Regular", // Default customer type
+        itemDescription,
+        itemWeightGrams: itemWeight ? parseFloat(itemWeight) : 0,
+        itemKarat: parseInt(itemKarat),
+        appraisedValue: appraisedValue ? parseFloat(appraisedValue) : 0,
+        loanAmount: parseFloat(loanAmount),
+        interestRateId: selectedRateId,
+        periodMonths: parseInt(periodMonths),
+        remarks,
+        imageUrls: imagePreviews, // Base64 encoded images
+      };
+
+      // Call API to create transaction
+      const response = await apiClient.pawnTransactions.create(transactionData);
+
+      toast({
+        title: "Success",
+        description: `Transaction created successfully! Pawn ID: ${response.pawnId || response.pawn_id}`,
+      });
+
+      // Reset form
+      setCustomerName("");
+      setCustomerNic("");
+      setCustomerAddress("");
+      setCustomerPhone("");
+      setItemDescription("");
+      setItemWeight("");
+      setItemKarat("24");
+      setAppraisedValue("");
+      setLoanAmount("");
+      setSelectedRateId("");
+      setPeriodMonths("6");
+      setRemarks("");
+      setUploadedImages([]);
+      setImagePreviews([]);
+
+      // Close dialog and refresh transactions
+      setShowCreate(false);
+      fetchTransactions();
+    } catch (error: any) {
+      console.error("Failed to create transaction:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create transaction",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openEditDialog = (transaction: any) => {
@@ -164,6 +228,53 @@ export default function Transactions() {
       });
     } finally {
       setUploadingImages(false);
+    }
+  };
+
+  // Function to load image with Bearer token
+  const loadImageWithAuth = async (imageUrl: string, transactionId: string, imageIndex: number) => {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+      const token = localStorage.getItem("token");
+
+      let fullImageUrl = imageUrl;
+      if (!imageUrl.startsWith("http") && !imageUrl.startsWith("data:")) {
+        if (imageUrl.includes("pawn-transactions")) {
+          const filename = imageUrl.split("pawn-transactions/")[1];
+          fullImageUrl = `${apiBaseUrl}/images/pawn-transactions/${filename}`;
+        } else {
+          fullImageUrl = `${apiBaseUrl}${imageUrl}`;
+        }
+      }
+
+      // Fetch image with Bearer token
+      const response = await fetch(fullImageUrl, {
+        method: 'GET',
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {}
+      });
+
+      if (!response.ok) {
+        console.error(`Failed to load image: ${fullImageUrl} (Status: ${response.status})`);
+        return null;
+      }
+
+      // Convert response to blob URL
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Cache the blob URL
+      const cacheKey = `${transactionId}-${imageIndex}`;
+      setImageBlobUrls(prev => ({
+        ...prev,
+        [cacheKey]: blobUrl
+      }));
+
+      return blobUrl;
+    } catch (error) {
+      console.error(`Error loading image: ${imageUrl}`, error);
+      return null;
     }
   };
 
@@ -378,6 +489,36 @@ export default function Transactions() {
               </div>
             </div>
 
+            {/* Images Gallery */}
+            {selectedTransaction?.imageUrls && selectedTransaction.imageUrls.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Item Images ({selectedTransaction.imageUrls.length})
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {selectedTransaction.imageUrls.map((imageUrl: string, index: number) => (
+                    <ImageWithAuth
+                      key={index}
+                      imageUrl={imageUrl}
+                      transactionId={selectedTransaction.id}
+                      imageIndex={index}
+                      loadImageWithAuth={loadImageWithAuth}
+                      imageBlobUrls={imageBlobUrls}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No Images Message */}
+            {(!selectedTransaction?.imageUrls || selectedTransaction.imageUrls.length === 0) && (
+              <div className="p-3 bg-muted rounded-lg text-center text-sm text-muted-foreground">
+                <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                No images available for this transaction
+              </div>
+            )}
+
             {/* Status Selection */}
             <div className="space-y-2">
               <Label htmlFor="status">Transaction Status</Label>
@@ -451,3 +592,73 @@ export default function Transactions() {
     </div>
   );
 }
+
+// Component to load and display image with Bearer token authentication
+function ImageWithAuth({
+  imageUrl,
+  transactionId,
+  imageIndex,
+  loadImageWithAuth,
+  imageBlobUrls,
+}: {
+  imageUrl: string;
+  transactionId: string;
+  imageIndex: number;
+  loadImageWithAuth: (imageUrl: string, transactionId: string, imageIndex: number) => Promise<string | null>;
+  imageBlobUrls: {[key: string]: string};
+}) {
+  const [displayUrl, setDisplayUrl] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  const cacheKey = `${transactionId}-${imageIndex}`;
+
+  useEffect(() => {
+    // Check if already cached
+    if (imageBlobUrls[cacheKey]) {
+      setDisplayUrl(imageBlobUrls[cacheKey]);
+      setLoading(false);
+      return;
+    }
+
+    // Load image with Bearer token
+    const loadImage = async () => {
+      const blobUrl = await loadImageWithAuth(imageUrl, transactionId, imageIndex);
+      if (blobUrl) {
+        setDisplayUrl(blobUrl);
+      }
+      setLoading(false);
+    };
+
+    loadImage();
+  }, [cacheKey, imageBlobUrls, imageUrl, transactionId, imageIndex, loadImageWithAuth]);
+
+  if (loading) {
+    return (
+      <div className="w-full h-24 object-cover rounded border bg-muted flex items-center justify-center">
+        <span className="text-xs text-muted-foreground">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!displayUrl) {
+    return (
+      <div className="w-full h-24 object-cover rounded border bg-muted flex items-center justify-center">
+        <span className="text-xs text-muted-foreground">Failed to load</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative group">
+      <img
+        src={displayUrl}
+        alt={`Item ${imageIndex + 1}`}
+        className="w-full h-24 object-cover rounded border hover:border-blue-500 cursor-pointer transition-all"
+      />
+      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded transition-all flex items-center justify-center">
+        <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-xs">#{imageIndex + 1}</span>
+      </div>
+    </div>
+  );
+}
+

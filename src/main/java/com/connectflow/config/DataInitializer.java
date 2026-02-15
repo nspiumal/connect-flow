@@ -310,21 +310,29 @@ public class DataInitializer implements CommandLineRunner {
                 .findFirst()
                 .orElse(null);
 
-            // Sample image URLs (placeholder images)
+            // Sample image URLs (use actual uploaded images)
             String imageUrls1 = null;
             String imageUrls2 = null;
             String imageUrls3 = null;
+            String imageUrls4 = null;
+            String imageUrls5 = null;
             try {
                 imageUrls1 = objectMapper.writeValueAsString(Arrays.asList(
-                    "https://via.placeholder.com/300x200/FFD700/000000?text=Gold+Ring",
-                    "https://via.placeholder.com/300x200/FFD700/000000?text=Detail+View"
+                    "/uploads/pawn-transactions/PW0001_ring_01.jpg",
+                    "/uploads/pawn-transactions/PW0001_ring_02.jpg"
                 ));
                 imageUrls2 = objectMapper.writeValueAsString(Arrays.asList(
-                    "https://via.placeholder.com/300x200/FFD700/000000?text=Gold+Necklace"
+                    "/uploads/pawn-transactions/PW0002_necklace_01.jpg"
                 ));
                 imageUrls3 = objectMapper.writeValueAsString(Arrays.asList(
-                    "https://via.placeholder.com/300x200/FFD700/000000?text=Gold+Bracelet",
-                    "https://via.placeholder.com/300x200/FFD700/000000?text=Bracelet+Close"
+                    "/uploads/pawn-transactions/PW0003_bracelet_01.jpg",
+                    "/uploads/pawn-transactions/PW0003_bracelet_02.jpg"
+                ));
+                imageUrls4 = objectMapper.writeValueAsString(Arrays.asList(
+                    "/uploads/pawn-transactions/PW0004_earrings_01.jpg"
+                ));
+                imageUrls5 = objectMapper.writeValueAsString(Arrays.asList(
+                    "/uploads/pawn-transactions/PW0005_chain_01.jpg"
                 ));
             } catch (Exception e) {
                 log.warn("Could not create image URLs JSON", e);
@@ -426,7 +434,7 @@ public class DataInitializer implements CommandLineRunner {
                 .maturityDate(LocalDate.now().minusMonths(1))
                 .status("Completed")
                 .remarks("Loan repaid in full with interest")
-                .imageUrls(imageUrls1)
+                .imageUrls(imageUrls4)
                 .createdBy(manager.getId())
                 .build());
 
@@ -451,7 +459,7 @@ public class DataInitializer implements CommandLineRunner {
                 .maturityDate(LocalDate.now().plusMonths(6).minusDays(2))
                 .status("Active")
                 .remarks("Loyal customer - preferential rate applied")
-                .imageUrls(imageUrls2)
+                .imageUrls(imageUrls5)
                 .createdBy(staff.getId())
                 .build());
 
