@@ -206,6 +206,11 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to fetch blacklist');
       return response.json();
     },
+    getPaginated: async (page: number = 0, size: number = 10, sortBy: string = 'createdAt', sortDir: string = 'desc') => {
+      const response = await authFetch(`${API_BASE_URL}/blacklist/paginated?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`);
+      if (!response.ok) throw new Error('Failed to fetch blacklist');
+      return response.json();
+    },
     getActive: async () => {
       const response = await authFetch(`${API_BASE_URL}/blacklist/active`);
       if (!response.ok) throw new Error('Failed to fetch active blacklist');
@@ -378,6 +383,47 @@ export const apiClient = {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Failed to delete image');
+      return response.json();
+    },
+  },
+
+  /**
+   * Customers API
+   */
+  customers: {
+    getAll: async (page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+      const response = await authFetch(`${API_BASE_URL}/customers?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`);
+      if (!response.ok) throw new Error('Failed to fetch customers');
+      return response.json();
+    },
+
+    search: async (query: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+      const response = await authFetch(`${API_BASE_URL}/customers/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`);
+      if (!response.ok) throw new Error('Failed to search customers');
+      return response.json();
+    },
+
+    getByNic: async (nic: string) => {
+      const response = await authFetch(`${API_BASE_URL}/customers/nic/${nic}`);
+      if (!response.ok) throw new Error('Customer not found');
+      return response.json();
+    },
+
+    getById: async (id: string) => {
+      const response = await authFetch(`${API_BASE_URL}/customers/${id}`);
+      if (!response.ok) throw new Error('Customer not found');
+      return response.json();
+    },
+
+    getByType: async (type: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+      const response = await authFetch(`${API_BASE_URL}/customers/type/${type}?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`);
+      if (!response.ok) throw new Error('Failed to fetch customers by type');
+      return response.json();
+    },
+
+    checkNicExists: async (nic: string) => {
+      const response = await authFetch(`${API_BASE_URL}/customers/check-nic/${nic}`);
+      if (!response.ok) throw new Error('Failed to check NIC');
       return response.json();
     },
   },
