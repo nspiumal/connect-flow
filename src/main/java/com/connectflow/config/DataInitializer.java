@@ -2,12 +2,14 @@ package com.connectflow.config;
 
 import com.connectflow.model.Blacklist;
 import com.connectflow.model.Branch;
+import com.connectflow.model.Customer;
 import com.connectflow.model.InterestRate;
 import com.connectflow.model.PawnTransaction;
 import com.connectflow.model.User;
 import com.connectflow.model.UserRole;
 import com.connectflow.repository.BlacklistRepository;
 import com.connectflow.repository.BranchRepository;
+import com.connectflow.repository.CustomerRepository;
 import com.connectflow.repository.InterestRateRepository;
 import com.connectflow.repository.PawnTransactionRepository;
 import com.connectflow.repository.UserRepository;
@@ -32,6 +34,7 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final InterestRateRepository interestRateRepository;
+    private final CustomerRepository customerRepository;
     private final BlacklistRepository blacklistRepository;
     private final PawnTransactionRepository pawnTransactionRepository;
     private final ObjectMapper objectMapper;
@@ -299,6 +302,54 @@ public class DataInitializer implements CommandLineRunner {
         if (transactionCount == 0) {
             log.info("Creating sample pawn transactions...");
 
+            // Create customers first
+            Customer customer1 = customerRepository.save(Customer.builder()
+                .fullName("Rajesh Kumar")
+                .nic("852369741V")
+                .phone("+94-77-1234567")
+                .address("45 Temple Road, Colombo")
+                .customerType("Regular")
+                .isActive(true)
+                .build());
+
+            Customer customer2 = customerRepository.save(Customer.builder()
+                .fullName("Sita Perera")
+                .nic("654987321V")
+                .phone("+94-75-3216549")
+                .address("89 Hill Street, Galle")
+                .customerType("Regular")
+                .isActive(true)
+                .build());
+
+            Customer customer3 = customerRepository.save(Customer.builder()
+                .fullName("Anita Silva")
+                .nic("369852147V")
+                .phone("+94-70-9876543")
+                .address("12 Lake View, Kandy")
+                .customerType("VIP")
+                .isActive(true)
+                .build());
+
+            Customer customer4 = customerRepository.save(Customer.builder()
+                .fullName("Hemantha Jayaweer")
+                .nic("741258963V")
+                .phone("+94-72-5555555")
+                .address("56 Beach Road, Negombo")
+                .customerType("Regular")
+                .isActive(true)
+                .build());
+
+            Customer customer5 = customerRepository.save(Customer.builder()
+                .fullName("Kumar Fernando")
+                .nic("987456123V")
+                .phone("+94-77-8887777")
+                .address("23 Market Street, Matara")
+                .customerType("Loyal")
+                .isActive(true)
+                .build());
+
+            log.info("Created {} customers", 5);
+
             // Get interest rates
             InterestRate rate6Month = interestRateRepository.findAll().stream()
                 .filter(r -> r.getPeriodMonths() == 6 && "Regular".equals(r.getCustomerType()))
@@ -342,6 +393,8 @@ public class DataInitializer implements CommandLineRunner {
             pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0001")
                 .branchId(mainBranch.getId())
+                .customerId(customer1.getId())
+                .customer(customer1)
                 .customerName("Rajesh Kumar")
                 .customerNic("852369741V")
                 .customerAddress("45 Temple Road, Colombo")
@@ -367,10 +420,12 @@ public class DataInitializer implements CommandLineRunner {
             pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0002")
                 .branchId(mainBranch.getId())
-                .customerName("Priya Sharma")
-                .customerNic("963258741V")
+                .customerId(customer3.getId())
+                .customer(customer3)
+                .customerName("Anita Silva")
+                .customerNic("369852147V")
                 .customerAddress("12 Lake View, Kandy")
-                .customerPhone("+94-71-9876543")
+                .customerPhone("+94-70-9876543")
                 .customerType("VIP")
                 .itemDescription("24K Gold Necklace - 28.3g")
                 .itemWeightGrams(new BigDecimal("28.30"))
@@ -392,10 +447,12 @@ public class DataInitializer implements CommandLineRunner {
             pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0003")
                 .branchId(eastBranch.getId())
-                .customerName("Mohamed Hassan")
-                .customerNic("741852963V")
-                .customerAddress("78 Beach Road, Negombo")
-                .customerPhone("+94-76-5551234")
+                .customerId(customer4.getId())
+                .customer(customer4)
+                .customerName("Hemantha Jayaweer")
+                .customerNic("741258963V")
+                .customerAddress("56 Beach Road, Negombo")
+                .customerPhone("+94-72-5555555")
                 .customerType("Regular")
                 .itemDescription("22K Gold Bracelet Set (2 pieces) - 42.0g")
                 .itemWeightGrams(new BigDecimal("42.00"))
@@ -417,6 +474,8 @@ public class DataInitializer implements CommandLineRunner {
             pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0004")
                 .branchId(mainBranch.getId())
+                .customerId(customer2.getId())
+                .customer(customer2)
                 .customerName("Sita Perera")
                 .customerNic("654987321V")
                 .customerAddress("89 Hill Street, Galle")
@@ -442,6 +501,8 @@ public class DataInitializer implements CommandLineRunner {
             pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0005")
                 .branchId(eastBranch.getId())
+                .customerId(customer5.getId())
+                .customer(customer5)
                 .customerName("Kumar Fernando")
                 .customerNic("987456123V")
                 .customerAddress("23 Market Street, Matara")

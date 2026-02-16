@@ -3,8 +3,10 @@ package com.connectflow.service;
 import com.connectflow.dto.CreatePawnTransactionRequest;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.PawnTransactionDTO;
+import com.connectflow.model.Customer;
 import com.connectflow.model.PawnTransaction;
 import com.connectflow.repository.BranchRepository;
+import com.connectflow.repository.CustomerRepository;
 import com.connectflow.repository.InterestRateRepository;
 import com.connectflow.repository.PawnTransactionRepository;
 import com.connectflow.repository.UserRepository;
@@ -36,6 +38,7 @@ public class PawnTransactionService {
     private final PawnTransactionRepository pawnTransactionRepository;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
     private final InterestRateRepository interestRateRepository;
     private final ObjectMapper objectMapper;
     private final AtomicInteger pawnIdCounter = new AtomicInteger(1);
@@ -180,6 +183,7 @@ public class PawnTransactionService {
 
     /**
      * Create new pawn transaction
+     * Automatically creates or updates customer record
      */
     public PawnTransactionDTO createTransaction(CreatePawnTransactionRequest request, UUID branchId, UUID createdBy) {
         // Validate required fields
@@ -193,8 +197,51 @@ public class PawnTransactionService {
             throw new IllegalArgumentException("Item description is required");
         }
 
+        // Log customer creation via pawn transaction
+        log.info("Creating pawn transaction with customer details - Name: {}, NIC: {}, Type: {}",
+                request.getCustomerName(), request.getCustomerNic(), request.getCustomerType());
+
+        // Create or update customer
+        Customer customer = createOrUpdateCustomer(request);
+        log.info("Customer created/updated with ID: {}", customer.getId());
+
         // Generate pawn ID
         String pawnId = generatePawnId();
+
+        // Calculate dates if not provided
+        java.time.LocalDate pawnDate = request.getPawnDate();
+        java.time.LocalDate maturityDate = request.getMaturityDate();
+
+        if (pawnDate == null) {
+            pawnDate = java.time.LocalDate.now();
+            log.info("Pawn date not provided, using today: {}", pawnDate);
+        }
+
+        if (maturityDate == null && request.getPeriodMonths() != null) {
+            maturityDate = pawnDate.plusMonths(request.getPeriodMonths());
+            log.info("Maturity date not provided, calculated: {}", maturityDate);
+        }
+
+        // Get interest rate percent - use provided value or fetch from database
+        java.math.BigDecimal interestRatePercent = request.getInterestRatePercent();
+        if (interestRatePercent == null && request.getInterestRateId() != null) {
+            log.info("Interest rate percent not provided, fetching from database for rate ID: {}", request.getInterestRateId());
+            var optionalRate = interestRateRepository.findById(request.getInterestRateId());
+            if (optionalRate.isPresent()) {
+                interestRatePercent = optionalRate.get().getRatePercent();
+                log.info("Fetched interest rate percent: {}", interestRatePercent);
+            } else {
+                log.warn("Interest rate not found for ID: {}", request.getInterestRateId());
+                // Use default if not found
+                interestRatePercent = new java.math.BigDecimal("8.50");
+            }
+        }
+
+        if (interestRatePercent == null) {
+            // Final fallback
+            interestRatePercent = new java.math.BigDecimal("8.50");
+            log.warn("No interest rate percent available, using default: {}", interestRatePercent);
+        }
 
         // Convert image URLs list to JSON string
         String imageUrlsJson = null;
@@ -209,6 +256,8 @@ public class PawnTransactionService {
         PawnTransaction transaction = PawnTransaction.builder()
                 .pawnId(pawnId)
                 .branchId(branchId)
+                .customerId(customer.getId()) // Link to customer
+                .customer(customer) // Set customer reference
                 .customerName(request.getCustomerName().trim())
                 .customerNic(request.getCustomerNic().trim())
                 .customerAddress(request.getCustomerAddress())
@@ -220,10 +269,10 @@ public class PawnTransactionService {
                 .appraisedValue(request.getAppraisedValue())
                 .loanAmount(request.getLoanAmount())
                 .interestRateId(request.getInterestRateId())
-                .interestRatePercent(request.getInterestRatePercent())
+                .interestRatePercent(interestRatePercent) // Use resolved rate percent
                 .periodMonths(request.getPeriodMonths() != null ? request.getPeriodMonths() : 6)
-                .pawnDate(request.getPawnDate())
-                .maturityDate(request.getMaturityDate())
+                .pawnDate(pawnDate)
+                .maturityDate(maturityDate)
                 .status("Active")
                 .remarks(request.getRemarks())
                 .imageUrls(imageUrlsJson)
@@ -232,6 +281,38 @@ public class PawnTransactionService {
 
         PawnTransaction saved = pawnTransactionRepository.save(transaction);
         return convertToDTO(saved);
+    }
+
+    /**
+     * Create or update customer based on NIC
+     */
+    private Customer createOrUpdateCustomer(CreatePawnTransactionRequest request) {
+        // Check if customer exists by NIC
+        Optional<Customer> existingCustomer = customerRepository.findByNic(request.getCustomerNic());
+
+        if (existingCustomer.isPresent()) {
+            // Update existing customer
+            Customer customer = existingCustomer.get();
+            customer.setFullName(request.getCustomerName().trim());
+            customer.setPhone(request.getCustomerPhone());
+            customer.setAddress(request.getCustomerAddress());
+            customer.setCustomerType(request.getCustomerType() != null ? request.getCustomerType() : "Regular");
+            customer.setIsActive(true);
+            log.info("Updated existing customer with NIC: {}", request.getCustomerNic());
+            return customerRepository.save(customer);
+        } else {
+            // Create new customer
+            Customer newCustomer = Customer.builder()
+                    .fullName(request.getCustomerName().trim())
+                    .nic(request.getCustomerNic().trim())
+                    .phone(request.getCustomerPhone())
+                    .address(request.getCustomerAddress())
+                    .customerType(request.getCustomerType() != null ? request.getCustomerType() : "Regular")
+                    .isActive(true)
+                    .build();
+            log.info("Created new customer with NIC: {}", request.getCustomerNic());
+            return customerRepository.save(newCustomer);
+        }
     }
 
     /**

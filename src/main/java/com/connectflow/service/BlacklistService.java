@@ -1,6 +1,7 @@
 package com.connectflow.service;
 
 import com.connectflow.dto.BlacklistDTO;
+import com.connectflow.dto.PageResponse;
 import com.connectflow.model.Blacklist;
 import com.connectflow.model.Branch;
 import com.connectflow.model.User;
@@ -8,6 +9,10 @@ import com.connectflow.repository.BlacklistRepository;
 import com.connectflow.repository.BranchRepository;
 import com.connectflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +34,31 @@ public class BlacklistService {
         return blacklistRepository.findAll().stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all blacklisted customers with pagination
+     */
+    public PageResponse<BlacklistDTO> getAllBlacklistedPaginated(int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+            ? Sort.by(sortBy).descending()
+            : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Blacklist> blacklistPage = blacklistRepository.findAll(pageable);
+
+        List<BlacklistDTO> content = blacklistPage.getContent().stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+
+        return new PageResponse<>(
+            content,
+            blacklistPage.getNumber(),
+            blacklistPage.getSize(),
+            blacklistPage.getTotalElements(),
+            blacklistPage.getTotalPages(),
+            blacklistPage.isLast()
+        );
     }
 
     public List<BlacklistDTO> getActiveBlacklisted() {

@@ -1,6 +1,7 @@
 package com.connectflow.controller;
 
 import com.connectflow.dto.BlacklistDTO;
+import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.UserDTO;
 import com.connectflow.service.BlacklistService;
 import com.connectflow.service.UserService;
@@ -35,6 +36,19 @@ public class BlacklistController {
         List<BlacklistDTO> blacklist = blacklistService.getAllBlacklisted();
         log.info("Returning {} blacklisted customers", blacklist.size());
         return ResponseEntity.ok(blacklist);
+    }
+
+    @GetMapping("/paginated")
+    @Operation(summary = "Get all blacklisted customers with pagination")
+    public ResponseEntity<PageResponse<BlacklistDTO>> getAllBlacklistedPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("GET /blacklist/paginated - page: {}, size: {}, sortBy: {}, sortDir: {}", page, size, sortBy, sortDir);
+        PageResponse<BlacklistDTO> response = blacklistService.getAllBlacklistedPaginated(page, size, sortBy, sortDir);
+        log.info("Returning {} blacklisted customers (page {} of {})", response.getContent().size(), page + 1, response.getTotalPages());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/active")

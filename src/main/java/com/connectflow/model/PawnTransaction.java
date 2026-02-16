@@ -29,6 +29,13 @@ public class PawnTransaction {
     @Column(name = "branch_id", nullable = false, columnDefinition = "uuid")
     private UUID branchId;
 
+    @Column(name = "customer_id", nullable = false, columnDefinition = "uuid")
+    private UUID customerId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "customer_id", insertable = false, updatable = false)
+    private Customer customer;
+
     @Column(name = "customer_name", nullable = false)
     private String customerName;
 

@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Search, Edit, X, Image as ImageIcon } from "lucide-react";
+import { Plus, Search, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { LoadingOverlay } from "@/components/LoadingOverlay";
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -23,6 +24,13 @@ export default function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rates, setRates] = useState<any[]>([]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
   const { toast } = useToast();
   const { role } = useAuth();
 
@@ -50,9 +58,11 @@ export default function Transactions() {
 
   const fetchTransactions = async () => {
     try {
-      const response = await apiClient.pawnTransactions.getPaginated(0, 100, 'pawnDate', 'desc');
+      const response = await apiClient.pawnTransactions.getPaginated(currentPage, pageSize, 'pawnDate', 'desc');
       console.log("Fetched transactions:", response);
       setTransactions(response.content || []);
+      setTotalPages(response.totalPages || 0);
+      setTotalElements(response.totalElements || 0);
     } catch (error: any) {
       console.error("Failed to fetch transactions:", error);
       toast({
@@ -76,7 +86,8 @@ export default function Transactions() {
   useEffect(() => {
     fetchTransactions();
     fetchRates();
-  }, [statusFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, currentPage, pageSize]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +105,27 @@ export default function Transactions() {
     try {
       setLoading(true);
 
+      // Get the interest rate percent from selected rate
+      const selectedRate = rates.find(r => r.id === selectedRateId);
+      if (!selectedRate) {
+        toast({
+          title: "Error",
+          description: "Please select a valid interest rate",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Calculate dates
+      const today = new Date();
+      const pawnDate = today.toISOString().split('T')[0]; // Today's date
+
+      // Calculate maturity date (today + period months)
+      const maturityDate = new Date(today);
+      maturityDate.setMonth(maturityDate.getMonth() + parseInt(periodMonths));
+      const maturityDateStr = maturityDate.toISOString().split('T')[0];
+
       // Prepare transaction data
       const transactionData = {
         customerName,
@@ -107,7 +139,10 @@ export default function Transactions() {
         appraisedValue: appraisedValue ? parseFloat(appraisedValue) : 0,
         loanAmount: parseFloat(loanAmount),
         interestRateId: selectedRateId,
+        interestRatePercent: selectedRate.rate_percent || selectedRate.ratePercent, // Get percent from selected rate
         periodMonths: parseInt(periodMonths),
+        pawnDate, // Today's date
+        maturityDate: maturityDateStr, // Calculated maturity date
         remarks,
         imageUrls: imagePreviews, // Base64 encoded images
       };
@@ -291,6 +326,8 @@ export default function Transactions() {
 
   return (
     <div className="space-y-6">
+      <LoadingOverlay isLoading={loading} message="Loading transactions..." />
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Pawn Transactions</h1>
         {(role !== "STAFF" || role === "STAFF") && branchId && (
@@ -315,50 +352,105 @@ export default function Transactions() {
       </div>
 
       <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Pawn ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>NIC</TableHead>
-                <TableHead>Loan Amount</TableHead>
-                <TableHead>Rate %</TableHead>
-                <TableHead>Maturity</TableHead>
-                <TableHead>Status</TableHead>
-                {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN") && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="font-mono font-medium">{t.pawnId || t.pawn_id}</TableCell>
-                  <TableCell>{t.customerName || t.customer_name}</TableCell>
-                  <TableCell>{t.customerNic || t.customer_nic}</TableCell>
-                  <TableCell>Rs. {Number(t.loanAmount || t.loan_amount).toLocaleString()}</TableCell>
-                  <TableCell>{t.interestRatePercent || t.interest_rate_percent}%</TableCell>
-                  <TableCell>{t.maturityDate || t.maturity_date}</TableCell>
-                  <TableCell><Badge variant={statusBadge(t.status) as any}>{t.status}</Badge></TableCell>
-                  {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN") && (
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(t)}
-                        disabled={loading}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                    </TableCell>
-                  )}
+        <CardContent className="space-y-4 p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Pawn ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>NIC</TableHead>
+                  <TableHead>Loan Amount</TableHead>
+                  <TableHead>Rate %</TableHead>
+                  <TableHead>Maturity</TableHead>
+                  <TableHead>Status</TableHead>
+                  {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN") && <TableHead>Actions</TableHead>}
                 </TableRow>
-              ))}
-              {transactions.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Transactions endpoint not connected yet</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="font-mono font-medium">{t.pawnId || t.pawn_id}</TableCell>
+                    <TableCell>{t.customerName || t.customer_name}</TableCell>
+                    <TableCell>{t.customerNic || t.customer_nic}</TableCell>
+                    <TableCell>Rs. {Number(t.loanAmount || t.loan_amount).toLocaleString()}</TableCell>
+                    <TableCell>{t.interestRatePercent || t.interest_rate_percent}%</TableCell>
+                    <TableCell>{t.maturityDate || t.maturity_date}</TableCell>
+                    <TableCell><Badge variant={statusBadge(t.status) as any}>{t.status}</Badge></TableCell>
+                    {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN") && (
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(t)}
+                          disabled={loading}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+                {transactions.length === 0 && (
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No transactions found</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between border-t px-6 py-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Rows per page:</Label>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value));
+                    setCurrentPage(0);
+                  }}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Showing {transactions.length > 0 ? currentPage * pageSize + 1 : 0} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} transactions
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                disabled={currentPage === 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <span className="text-sm px-2">
+                Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                disabled={currentPage >= totalPages - 1 || totalPages === 0}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
