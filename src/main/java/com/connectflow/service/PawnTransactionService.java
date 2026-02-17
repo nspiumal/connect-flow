@@ -1,5 +1,6 @@
 package com.connectflow.service;
 
+import com.connectflow.dto.BlacklistDTO;
 import com.connectflow.dto.CreatePawnTransactionRequest;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.PawnTransactionDTO;
@@ -40,6 +41,7 @@ public class PawnTransactionService {
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
     private final InterestRateRepository interestRateRepository;
+    private final BlacklistService blacklistService;
     private final ObjectMapper objectMapper;
     private final AtomicInteger pawnIdCounter = new AtomicInteger(1);
 
@@ -184,6 +186,7 @@ public class PawnTransactionService {
     /**
      * Create new pawn transaction
      * Automatically creates or updates customer record
+     * Checks if customer is blacklisted before creation
      */
     public PawnTransactionDTO createTransaction(CreatePawnTransactionRequest request, UUID branchId, UUID createdBy) {
         // Validate required fields
@@ -195,6 +198,22 @@ public class PawnTransactionService {
         }
         if (request.getItemDescription() == null || request.getItemDescription().trim().isEmpty()) {
             throw new IllegalArgumentException("Item description is required");
+        }
+
+        // ✅ CHECK BLACKLIST BY NIC
+        String nic = request.getCustomerNic().trim();
+        List<BlacklistDTO> blacklistedByNic = blacklistService.checkByNic(nic);
+        if (!blacklistedByNic.isEmpty()) {
+            log.warn("Customer with NIC {} is blacklisted. Blocking transaction creation.", nic);
+            throw new IllegalArgumentException("Customer is blacklisted. Cannot create transaction for NIC: " + nic + ". Reason: " + blacklistedByNic.get(0).getReason());
+        }
+
+        // ✅ CHECK BLACKLIST BY MOBILE NUMBER (if provided)
+        if (request.getCustomerPhone() != null && !request.getCustomerPhone().trim().isEmpty()) {
+            String phone = request.getCustomerPhone().trim();
+            // Note: This would require adding a phone-based search to BlacklistService
+            // For now, we log this for manual review
+            log.info("Blacklist check for phone {} would be performed if implemented", phone);
         }
 
         // Log customer creation via pawn transaction
@@ -336,6 +355,50 @@ public class PawnTransactionService {
 
         transaction.setRemarks(remarks);
         PawnTransaction updated = pawnTransactionRepository.save(transaction);
+        return convertToDTO(updated);
+    }
+
+    /**
+     * Update transaction block reason and automatically add customer to blacklist with optional police report
+     */
+    public PawnTransactionDTO updateBlockReason(UUID id, String blockReason, String policeReportNumber,
+                                                 String policeReportDate, UUID branchId, UUID userId) {
+        PawnTransaction transaction = pawnTransactionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
+
+        transaction.setStatus("Blocked");
+        PawnTransaction updated = pawnTransactionRepository.save(transaction);
+        log.info("Transaction {} blocked with reason: {}", id, blockReason);
+
+        // Automatically add customer to blacklist with police report details
+        try {
+            BlacklistDTO blacklistEntry = new BlacklistDTO();
+            blacklistEntry.setCustomerName(transaction.getCustomerName());
+            blacklistEntry.setCustomerNic(transaction.getCustomerNic());
+            blacklistEntry.setReason(blockReason);
+            blacklistEntry.setPoliceReportNumber(policeReportNumber);
+
+            // Convert policeReportDate string to LocalDate if provided
+            if (policeReportDate != null && !policeReportDate.trim().isEmpty()) {
+                try {
+                    blacklistEntry.setPoliceReportDate(java.time.LocalDate.parse(policeReportDate));
+                } catch (Exception e) {
+                    log.warn("Failed to parse police report date: {}", policeReportDate);
+                }
+            }
+
+            blacklistEntry.setBranchId(branchId);
+            blacklistEntry.setAddedBy(userId);
+            blacklistEntry.setIsActive(true);
+
+            blacklistService.addToBlacklist(blacklistEntry);
+            log.info("Customer {} added to blacklist with reason: {}, police report: {}",
+                    transaction.getCustomerNic(), blockReason, policeReportNumber);
+        } catch (Exception e) {
+            log.error("Failed to add customer to blacklist: {}", e.getMessage());
+            // Continue even if blacklist fails - transaction is still blocked
+        }
+
         return convertToDTO(updated);
     }
 

@@ -21,6 +21,9 @@ export default function Transactions() {
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [editStatus, setEditStatus] = useState("");
   const [editRemarks, setEditRemarks] = useState("");
+  const [editBlockReason, setEditBlockReason] = useState("");
+  const [editPoliceReportNumber, setEditPoliceReportNumber] = useState("");
+  const [editPoliceReportDate, setEditPoliceReportDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rates, setRates] = useState<any[]>([]);
@@ -190,11 +193,22 @@ export default function Transactions() {
     setSelectedTransaction(transaction);
     setEditStatus(transaction.status);
     setEditRemarks(transaction.remarks || "");
+    setEditBlockReason(transaction.blockReason || transaction.block_reason || "");
     setShowEditDialog(true);
   };
 
   const handleUpdateTransaction = async () => {
     if (!selectedTransaction) return;
+
+    // Validate block reason if status is Blocked
+    if (editStatus === "Blocked" && !editBlockReason.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide a block reason when setting status to Blocked",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -209,6 +223,16 @@ export default function Transactions() {
         await apiClient.pawnTransactions.updateRemarks(selectedTransaction.id, editRemarks);
       }
 
+      // Update block reason if status is Blocked
+      if (editStatus === "Blocked" && editBlockReason !== (selectedTransaction.blockReason || selectedTransaction.block_reason || "")) {
+        // Call API to update block reason with police report details
+        await apiClient.pawnTransactions.updateBlockReason(selectedTransaction.id, {
+          blockReason: editBlockReason,
+          policeReportNumber: editPoliceReportNumber || null,
+          policeReportDate: editPoliceReportDate || null,
+        });
+      }
+
       toast({
         title: "Success",
         description: "Transaction updated successfully",
@@ -218,6 +242,9 @@ export default function Transactions() {
       setSelectedTransaction(null);
       setEditStatus("");
       setEditRemarks("");
+      setEditBlockReason("");
+      setEditPoliceReportNumber("");
+      setEditPoliceReportDate("");
       fetchTransactions(); // Refresh the list
     } catch (error: any) {
       console.error("Failed to update transaction:", error);
@@ -347,6 +374,7 @@ export default function Transactions() {
             <SelectItem value="Active">Active</SelectItem>
             <SelectItem value="Completed">Completed</SelectItem>
             <SelectItem value="Defaulted">Defaulted</SelectItem>
+            <SelectItem value="Blocked">Blocked</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -364,7 +392,7 @@ export default function Transactions() {
                   <TableHead>Rate %</TableHead>
                   <TableHead>Maturity</TableHead>
                   <TableHead>Status</TableHead>
-                  {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN") && <TableHead>Actions</TableHead>}
+                  {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN" || role === "STAFF") && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -377,7 +405,7 @@ export default function Transactions() {
                     <TableCell>{t.interestRatePercent || t.interest_rate_percent}%</TableCell>
                     <TableCell>{t.maturityDate || t.maturity_date}</TableCell>
                     <TableCell><Badge variant={statusBadge(t.status) as any}>{t.status}</Badge></TableCell>
-                    {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN") && (
+                    {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN" || role === "STAFF") && (
                       <TableCell>
                         <Button
                           variant="outline"
@@ -548,7 +576,7 @@ export default function Transactions() {
 
       {/* Edit Transaction Dialog - Combined Status & Remarks */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Edit Transaction {selectedTransaction?.pawnId || selectedTransaction?.pawn_id}
@@ -637,9 +665,56 @@ export default function Transactions() {
                       <span className="text-sm text-muted-foreground">- Payment overdue</span>
                     </div>
                   </SelectItem>
+                  <SelectItem value="Blocked">
+                    <div className="flex items-center">
+                      <Badge variant="destructive" className="mr-2">Blocked</Badge>
+                      <span className="text-sm text-muted-foreground">- Transaction blocked</span>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Block Reason - Only show when Blocked status is selected */}
+            {editStatus === "Blocked" && (
+              <div className="space-y-2 border-l-4 border-destructive bg-destructive/5 p-3 rounded-sm">
+                <Label htmlFor="blockReason">Block Reason</Label>
+                <Textarea
+                  id="blockReason"
+                  value={editBlockReason}
+                  onChange={(e) => setEditBlockReason(e.target.value)}
+                  placeholder="Enter the reason for blocking this transaction..."
+                  rows={4}
+                  className="resize-none"
+                  required
+                />
+                <p className="text-xs text-destructive font-medium">
+                  * Reason is required when blocking a transaction
+                </p>
+
+                {/* Police Report Number */}
+                <div className="space-y-2 pt-3 border-t border-destructive/20">
+                  <Label htmlFor="policeReportNumber">Police Report Number (Optional)</Label>
+                  <Input
+                    id="policeReportNumber"
+                    value={editPoliceReportNumber}
+                    onChange={(e) => setEditPoliceReportNumber(e.target.value)}
+                    placeholder="e.g., PR-2026-12345"
+                  />
+                </div>
+
+                {/* Police Report Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="policeReportDate">Police Report Date (Optional)</Label>
+                  <Input
+                    id="policeReportDate"
+                    type="date"
+                    value={editPoliceReportDate}
+                    onChange={(e) => setEditPoliceReportDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Remarks */}
             <div className="space-y-2">
@@ -666,6 +741,9 @@ export default function Transactions() {
                   setSelectedTransaction(null);
                   setEditStatus("");
                   setEditRemarks("");
+                  setEditBlockReason("");
+                  setEditPoliceReportNumber("");
+                  setEditPoliceReportDate("");
                 }}
                 disabled={loading}
               >

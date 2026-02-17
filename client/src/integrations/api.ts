@@ -330,6 +330,15 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to update transaction remarks');
       return response.json();
     },
+    updateBlockReason: async (id: string, data: any) => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/block-reason`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update transaction block reason');
+      return response.json();
+    },
   },
 
   /**

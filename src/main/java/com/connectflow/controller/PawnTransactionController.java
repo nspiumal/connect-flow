@@ -194,5 +194,53 @@ public class PawnTransactionController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @PatchMapping("/{id}/block-reason")
+    @Operation(summary = "Update transaction block reason and add customer to blacklist with optional police report")
+    public ResponseEntity<PawnTransactionDTO> updateBlockReason(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body) {
+        log.info("PATCH /pawn-transactions/{}/block-reason", id);
+        String blockReason = (String) body.get("blockReason");
+        String policeReportNumber = (String) body.get("policeReportNumber");
+        String policeReportDate = (String) body.get("policeReportDate");
+
+        if (blockReason == null || blockReason.trim().isEmpty()) {
+            log.error("Block reason is required");
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Get authenticated user from SecurityContext
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            log.error("No authentication found");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = authentication.getPrincipal().toString();
+        log.info("Authenticated user email: {}", email);
+
+        // Get user details including branch_id
+        Optional<UserDTO> currentUser = userService.getUserByEmail(email);
+        if (currentUser.isEmpty()) {
+            log.error("User not found for email: {}", email);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        UserDTO user = currentUser.get();
+        if (user.getBranchId() == null) {
+            log.error("User {} does not have a branch assigned", email);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        try {
+            PawnTransactionDTO updated = pawnTransactionService.updateBlockReason(
+                    id, blockReason, policeReportNumber, policeReportDate, user.getBranchId(), user.getId());
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            log.error("Error updating transaction block reason: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
 }
 
