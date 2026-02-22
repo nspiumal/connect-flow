@@ -9,8 +9,5 @@ import java.util.UUID;
 @Repository
 public interface InterestRateRepository extends JpaRepository<InterestRate, UUID> {
     List<InterestRate> findByIsActiveTrue();
-    List<InterestRate> findByCustomerType(String customerType);
-    List<InterestRate> findByCustomerTypeAndIsActiveTrue(String customerType);
-    List<InterestRate> findByPeriodMonths(Integer periodMonths);
 }
 

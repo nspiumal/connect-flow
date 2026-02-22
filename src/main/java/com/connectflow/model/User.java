@@ -29,6 +29,9 @@ public class User {
     @Column
     private String phone;
 
+    @Column(name = "pin")
+    private String pin;
+
     @Column(nullable = false)
     private String password;
 

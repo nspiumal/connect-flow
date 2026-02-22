@@ -2,7 +2,9 @@ package com.connectflow.controller;
 
 import com.connectflow.dto.CreateUserRequest;
 import com.connectflow.dto.PageResponse;
+import com.connectflow.dto.SetPinRequest;
 import com.connectflow.dto.UserDTO;
+import com.connectflow.dto.VerifyPinRequest;
 import com.connectflow.model.UserRole;
 import com.connectflow.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,14 +44,6 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Get user by ID")
-    public ResponseEntity<UserDTO> getUserById(@PathVariable UUID id) {
-        Optional<UserDTO> user = userService.getUserById(id);
-        return user.map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
     @GetMapping("/email/{email}")
     @Operation(summary = "Get user by email")
     public ResponseEntity<UserDTO> getUserByEmail(@PathVariable String email) {
@@ -81,6 +75,58 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    // PIN Management Endpoints - Place these BEFORE generic /{id} endpoint
+    @PatchMapping("/{id}/pin")
+    @Operation(summary = "Set PIN for a user (typically branch manager)")
+    public ResponseEntity<?> setPin(@PathVariable UUID id, @RequestBody SetPinRequest request) {
+        try {
+            UserDTO updated = userService.setPin(id, request.getPin());
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/verify-pin")
+    @Operation(summary = "Verify PIN for a user")
+    public ResponseEntity<?> verifyPin(@PathVariable UUID id, @RequestBody VerifyPinRequest request) {
+        try {
+            boolean isValid = userService.verifyPin(id, request.getPin());
+            if (isValid) {
+                return ResponseEntity.ok().body(new java.util.HashMap<String, Boolean>() {{
+                    put("valid", true);
+                }});
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid PIN");
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/has-pin")
+    @Operation(summary = "Check if user has a PIN set")
+    public ResponseEntity<?> hasPinSet(@PathVariable UUID id) {
+        try {
+            boolean hasPinSet = userService.hasPinSet(id);
+            return ResponseEntity.ok().body(new java.util.HashMap<String, Boolean>() {{
+                put("hasPinSet", hasPinSet);
+            }});
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get user by ID")
+    public ResponseEntity<UserDTO> getUserById(@PathVariable UUID id) {
+        Optional<UserDTO> user = userService.getUserById(id);
+        return user.map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }
 

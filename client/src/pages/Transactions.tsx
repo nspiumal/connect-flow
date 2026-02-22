@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,10 @@ export default function Transactions() {
   const [editBlockReason, setEditBlockReason] = useState("");
   const [editPoliceReportNumber, setEditPoliceReportNumber] = useState("");
   const [editPoliceReportDate, setEditPoliceReportDate] = useState("");
+  const [editIdType, setEditIdType] = useState("NIC");
+  const [editGender, setEditGender] = useState("");
+  const [editItemContent, setEditItemContent] = useState("");
+  const [editItemCondition, setEditItemCondition] = useState("Good");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rates, setRates] = useState<any[]>([]);
@@ -36,6 +41,7 @@ export default function Transactions() {
 
   const { toast } = useToast();
   const { role } = useAuth();
+  const navigate = useNavigate();
 
   // Mock branchId - in real app this would come from user context
   const branchId = "mock-branch-id";
@@ -43,9 +49,13 @@ export default function Transactions() {
   // Form state
   const [customerName, setCustomerName] = useState("");
   const [customerNic, setCustomerNic] = useState("");
+  const [idType, setIdType] = useState("NIC");
+  const [gender, setGender] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [itemDescription, setItemDescription] = useState("");
+  const [itemContent, setItemContent] = useState("");
+  const [itemCondition, setItemCondition] = useState("Good");
   const [itemWeight, setItemWeight] = useState("");
   const [itemKarat, setItemKarat] = useState("24");
   const [appraisedValue, setAppraisedValue] = useState("");
@@ -96,7 +106,7 @@ export default function Transactions() {
     e.preventDefault();
 
     // Validate required fields
-    if (!customerName || !customerNic || !itemDescription || !loanAmount || !selectedRateId || !periodMonths) {
+    if (!customerName || !customerNic || !customerAddress || !itemDescription || !loanAmount || !selectedRateId || !periodMonths) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
@@ -133,10 +143,14 @@ export default function Transactions() {
       const transactionData = {
         customerName,
         customerNic,
+        idType,
+        gender,
         customerAddress,
         customerPhone,
         customerType: "Regular", // Default customer type
         itemDescription,
+        itemContent,
+        itemCondition,
         itemWeightGrams: itemWeight ? parseFloat(itemWeight) : 0,
         itemKarat: parseInt(itemKarat),
         appraisedValue: appraisedValue ? parseFloat(appraisedValue) : 0,
@@ -161,9 +175,13 @@ export default function Transactions() {
       // Reset form
       setCustomerName("");
       setCustomerNic("");
+      setIdType("NIC");
+      setGender("");
       setCustomerAddress("");
       setCustomerPhone("");
       setItemDescription("");
+      setItemContent("");
+      setItemCondition("Good");
       setItemWeight("");
       setItemKarat("24");
       setAppraisedValue("");
@@ -194,6 +212,10 @@ export default function Transactions() {
     setEditStatus(transaction.status);
     setEditRemarks(transaction.remarks || "");
     setEditBlockReason(transaction.blockReason || transaction.block_reason || "");
+    setEditIdType(transaction.idType || transaction.id_type || "NIC");
+    setEditGender(transaction.gender || "");
+    setEditItemContent(transaction.itemContent || transaction.item_content || "");
+    setEditItemCondition(transaction.itemCondition || transaction.item_condition || "Good");
     setShowEditDialog(true);
   };
 
@@ -317,6 +339,14 @@ export default function Transactions() {
         } : {}
       });
 
+      if (response.status === 401) {
+        console.error("401 Unauthorized - redirecting to login");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        return null;
+      }
+
       if (!response.ok) {
         console.error(`Failed to load image: ${fullImageUrl} (Status: ${response.status})`);
         return null;
@@ -357,9 +387,18 @@ export default function Transactions() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Pawn Transactions</h1>
-        {(role !== "STAFF" || role === "STAFF") && branchId && (
-          <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" /> New Transaction</Button>
-        )}
+        <div className="flex gap-2">
+          {(role !== "STAFF" || role === "STAFF") && branchId && (
+            <>
+              <Button onClick={() => navigate("/transactions/create")} variant="default">
+                <Plus className="mr-2 h-4 w-4" /> Create Pawning
+              </Button>
+              <Button onClick={() => setShowCreate(true)} variant="outline">
+                <Plus className="mr-2 h-4 w-4" /> Quick Add
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-4">
@@ -410,7 +449,7 @@ export default function Transactions() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openEditDialog(t)}
+                          onClick={() => navigate(`/transactions/edit/${t.id}`)}
                           disabled={loading}
                         >
                           <Edit className="h-4 w-4 mr-1" />
@@ -489,7 +528,7 @@ export default function Transactions() {
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Customer Name</Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} required /></div>
               <div><Label>NIC</Label><Input value={customerNic} onChange={(e) => setCustomerNic(e.target.value)} required /></div>
-              <div><Label>Address</Label><Input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} /></div>
+              <div><Label>Address</Label><Input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} required /></div>
               <div><Label>Phone</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} /></div>
             </div>
             <hr />
@@ -591,12 +630,28 @@ export default function Transactions() {
                   <p className="font-medium">{selectedTransaction?.customerName || selectedTransaction?.customer_name}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">NIC:</span>
+                  <span className="text-muted-foreground">Gender:</span>
+                  <p className="font-medium">{selectedTransaction?.gender || "Not specified"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">{selectedTransaction?.idType || selectedTransaction?.id_type || "NIC"}:</span>
                   <p className="font-medium">{selectedTransaction?.customerNic || selectedTransaction?.customer_nic}</p>
                 </div>
+                <div>
+                  <span className="text-muted-foreground">Phone:</span>
+                  <p className="font-medium">{selectedTransaction?.customerPhone || selectedTransaction?.customer_phone || "N/A"}</p>
+                </div>
                 <div className="col-span-2">
-                  <span className="text-muted-foreground">Item:</span>
+                  <span className="text-muted-foreground">Item Description:</span>
                   <p className="font-medium">{selectedTransaction?.itemDescription || selectedTransaction?.item_description}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Item Type:</span>
+                  <p className="font-medium">{selectedTransaction?.itemContent || selectedTransaction?.item_content || "Not specified"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Condition:</span>
+                  <p className="font-medium">{selectedTransaction?.itemCondition || selectedTransaction?.item_condition || "Good"}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Loan Amount:</span>

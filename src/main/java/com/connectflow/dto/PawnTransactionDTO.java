@@ -21,13 +21,11 @@ public class PawnTransactionDTO {
     private String branchName;
     private String customerName;
     private String customerNic;
+    private String idType;
+    private String gender;
     private String customerAddress;
     private String customerPhone;
     private String customerType;
-    private String itemDescription;
-    private BigDecimal itemWeightGrams;
-    private Integer itemKarat;
-    private BigDecimal appraisedValue;
     private BigDecimal loanAmount;
     private UUID interestRateId;
     private String interestRateName;
@@ -37,7 +35,7 @@ public class PawnTransactionDTO {
     private LocalDate maturityDate;
     private String status;
     private String remarks;
-    private List<String> imageUrls; // List of image URLs
+    private List<ItemDetailDTO> itemDetails; // Item details from PawnTransactionItem
     private UUID createdBy;
     private String createdByName;
     private LocalDateTime createdAt;

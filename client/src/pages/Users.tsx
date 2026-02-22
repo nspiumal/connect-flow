@@ -8,7 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import apiClient from "@/integrations/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateUserDialog } from "@/components/users/CreateUserDialog";
-import { UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
+import { PinManagementDialog } from "@/components/users/PinManagementDialog";
+import { UserPlus, ChevronLeft, ChevronRight, Lock } from "lucide-react";
+
+interface User {
+  id: string;
+  full_name: string;
+  email: string;
+  roles: string[];
+  branchName: string;
+}
 
 const ROLE_COLORS: Record<string, string> = {
   SUPERADMIN: "destructive",
@@ -18,35 +27,37 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [selectedUserForPin, setSelectedUserForPin] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [sortBy, setSortBy] = useState("fullName");
-  const [sortDir, setSortDir] = useState("asc");
   const { role } = useAuth();
 
   const fetchUsers = async () => {
     try {
-      const response = await apiClient.users.getPaginated(currentPage, pageSize, sortBy, sortDir);
-      const normalized = response.content.map((u: any) => ({
-        id: u.id,
-        full_name: u.fullName,
-        email: u.email,
-        roles: u.role ? [u.role] : [],
-        branchName: u.branch || "—",
+      const response = await apiClient.users.getPaginated(currentPage, pageSize, "fullName", "asc");
+      const normalized: User[] = response.content.map((u: Record<string, unknown>) => ({
+        id: u.id as string,
+        full_name: u.fullName as string,
+        email: u.email as string,
+        roles: u.role ? [u.role as string] : [],
+        branchName: (u.branch as string) || "—",
       }));
       setUsers(normalized);
-      setTotalPages(response.totalPages);
-      setTotalElements(response.totalElements);
-    } catch (error: any) {
+      setTotalPages(response.totalPages as number);
+      setTotalElements(response.totalElements as number);
+    } catch (error) {
       console.error("Failed to fetch users:", error);
     }
   };
 
-  useEffect(() => { fetchUsers(); }, [currentPage, pageSize, sortBy, sortDir]);
+  useEffect(() => {
+    fetchUsers();
+  }, [currentPage, pageSize]);
 
   return (
     <div className="space-y-6">
@@ -65,6 +76,7 @@ export default function UsersPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Branch</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -74,14 +86,36 @@ export default function UsersPage() {
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
                     {u.roles.map((r: string) => (
-                      <Badge key={r} variant={ROLE_COLORS[r] as any} className="mr-1">{r}</Badge>
+                      <Badge
+                        key={r}
+                        variant={ROLE_COLORS[r] as "default" | "secondary" | "destructive" | "outline"}
+                        className="mr-1"
+                      >
+                        {r}
+                      </Badge>
                     ))}
                   </TableCell>
                   <TableCell>{u.branchName}</TableCell>
+                  <TableCell className="text-right">
+                    {(role === "SUPERADMIN" || role === "ADMIN") && u.roles.includes("MANAGER") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUserForPin(u);
+                          setShowPinDialog(true);
+                        }}
+                        className="gap-2"
+                      >
+                        <Lock className="h-4 w-4" />
+                        PIN
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {users.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -135,6 +169,16 @@ export default function UsersPage() {
       </div>
 
       <CreateUserDialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) fetchUsers(); }} />
+
+      {selectedUserForPin && (
+        <PinManagementDialog
+          userId={selectedUserForPin.id}
+          userName={selectedUserForPin.full_name}
+          open={showPinDialog}
+          onOpenChange={setShowPinDialog}
+          onSuccess={() => fetchUsers()}
+        />
+      )}
     </div>
   );
 }

@@ -17,8 +17,6 @@ public class InterestRateDTO {
     private UUID id;
     private String name;
     private BigDecimal ratePercent;
-    private Integer periodMonths;
-    private String customerType;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

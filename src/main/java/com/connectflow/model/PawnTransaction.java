@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -42,7 +44,13 @@ public class PawnTransaction {
     @Column(name = "customer_nic", nullable = false)
     private String customerNic;
 
-    @Column(name = "customer_address")
+    @Column(name = "id_type")
+    private String idType = "NIC";
+
+    @Column(name = "gender")
+    private String gender;
+
+    @Column(name = "customer_address", nullable = false)
     private String customerAddress;
 
     @Column(name = "customer_phone")
@@ -51,19 +59,7 @@ public class PawnTransaction {
     @Column(name = "customer_type", nullable = false)
     private String customerType = "Regular";
 
-    @Column(name = "item_description", nullable = false)
-    private String itemDescription;
-
-    @Column(name = "item_weight_grams", nullable = false, precision = 10, scale = 2)
-    private BigDecimal itemWeightGrams;
-
-    @Column(name = "item_karat", nullable = false)
-    private Integer itemKarat = 24;
-
-    @Column(name = "appraised_value", nullable = false, precision = 12, scale = 2)
-    private BigDecimal appraisedValue;
-
-    @Column(name = "loan_amount", nullable = false, precision = 12, scale = 2)
+    @Column(name = "loan_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal loanAmount;
 
     @Column(name = "interest_rate_id", columnDefinition = "uuid")
@@ -87,9 +83,10 @@ public class PawnTransaction {
     @Column(columnDefinition = "TEXT")
     private String remarks;
 
-    // Image URLs stored as JSON array or comma-separated
-    @Column(name = "image_urls", columnDefinition = "TEXT")
-    private String imageUrls;
+    // Multiple items relationship (stores all item details)
+    @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<PawnTransactionItem> items = new ArrayList<>();
 
     @Column(name = "created_by", nullable = false, columnDefinition = "uuid")
     private UUID createdBy;

@@ -44,14 +44,6 @@ public class InterestRateService {
         return interestRateRepository.findById(id).map(this::convertToDTO);
     }
 
-    /**
-     * Get rates by customer type
-     */
-    public List<InterestRateDTO> getRatesByCustomerType(String customerType) {
-        return interestRateRepository.findByCustomerType(customerType).stream()
-            .map(this::convertToDTO)
-            .collect(Collectors.toList());
-    }
 
     /**
      * Create a new interest rate
@@ -60,8 +52,6 @@ public class InterestRateService {
         InterestRate rate = InterestRate.builder()
             .name(dto.getName())
             .ratePercent(dto.getRatePercent())
-            .periodMonths(dto.getPeriodMonths())
-            .customerType(dto.getCustomerType())
             .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
             .build();
 
@@ -78,8 +68,6 @@ public class InterestRateService {
 
         rate.setName(dto.getName());
         rate.setRatePercent(dto.getRatePercent());
-        rate.setPeriodMonths(dto.getPeriodMonths());
-        rate.setCustomerType(dto.getCustomerType());
         if (dto.getIsActive() != null) {
             rate.setIsActive(dto.getIsActive());
         }
@@ -114,8 +102,6 @@ public class InterestRateService {
             .id(rate.getId())
             .name(rate.getName())
             .ratePercent(rate.getRatePercent())
-            .periodMonths(rate.getPeriodMonths())
-            .customerType(rate.getCustomerType())
             .isActive(rate.getIsActive())
             .createdAt(rate.getCreatedAt())
             .updatedAt(rate.getUpdatedAt())

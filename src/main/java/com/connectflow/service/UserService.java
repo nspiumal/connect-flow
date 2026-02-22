@@ -130,7 +130,7 @@ public class UserService {
             .fullName(request.getFullName().trim())
             .email(request.getEmail().trim().toLowerCase())
             .phone(request.getPhone())
-            .password(request.getPassword())
+            .password(request.getPassword().trim())
             .build();
 
         User savedUser = userRepository.save(user);
@@ -163,6 +163,53 @@ public class UserService {
     }
 
     /**
+     * Set PIN for a user (typically for branch managers)
+     */
+    public UserDTO setPin(UUID userId, String pin) {
+        if (pin == null || pin.trim().isEmpty()) {
+            throw new IllegalArgumentException("PIN cannot be empty");
+        }
+        if (!pin.matches("^\\d{4,6}$")) {
+            throw new IllegalArgumentException("PIN must be 4-6 digits");
+        }
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        user.setPin(pin.trim());
+        User updated = userRepository.save(user);
+        return convertToDTO(updated);
+    }
+
+    /**
+     * Verify PIN for a user
+     */
+    public boolean verifyPin(UUID userId, String pin) {
+        if (pin == null || pin.trim().isEmpty()) {
+            throw new IllegalArgumentException("PIN cannot be empty");
+        }
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        if (user.getPin() == null || user.getPin().trim().isEmpty()) {
+            throw new RuntimeException("User does not have a PIN set");
+        }
+
+        return pin.trim().equals(user.getPin());
+    }
+
+    /**
+     * Check if user has a PIN set
+     */
+    public boolean hasPinSet(UUID userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        return user.getPin() != null && !user.getPin().trim().isEmpty();
+    }
+
+    /**
      * Convert User entity to UserDTO
      */
     private UserDTO convertToDTO(User user) {
@@ -178,7 +225,7 @@ public class UserService {
             if (userRole.get().getBranchId() != null) {
                 branchId = userRole.get().getBranchId();
                 branch = branchRepository.findById(branchId)
-                    .map(b -> b.getName())
+                    .map(com.connectflow.model.Branch::getName)
                     .orElse(null);
             }
         }

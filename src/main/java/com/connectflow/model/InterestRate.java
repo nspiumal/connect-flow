@@ -27,11 +27,6 @@ public class InterestRate {
     @Column(name = "rate_percent", nullable = false, precision = 5, scale = 2)
     private BigDecimal ratePercent;
 
-    @Column(name = "period_months", nullable = false)
-    private Integer periodMonths;
-
-    @Column(name = "customer_type", nullable = false)
-    private String customerType;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;

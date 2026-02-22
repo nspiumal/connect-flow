@@ -50,13 +50,6 @@ public class InterestRateController {
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/customer-type/{type}")
-    @Operation(summary = "Get interest rates by customer type")
-    public ResponseEntity<List<InterestRateDTO>> getRatesByCustomerType(@PathVariable String type) {
-        log.info("GET /interest-rates/customer-type/{} - Fetching rates", type);
-        List<InterestRateDTO> rates = interestRateService.getRatesByCustomerType(type);
-        return ResponseEntity.ok(rates);
-    }
 
     @PostMapping
     @Operation(summary = "Create a new interest rate")

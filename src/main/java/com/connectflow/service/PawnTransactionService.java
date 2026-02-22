@@ -2,18 +2,23 @@ package com.connectflow.service;
 
 import com.connectflow.dto.BlacklistDTO;
 import com.connectflow.dto.CreatePawnTransactionRequest;
+import com.connectflow.dto.ItemDetailDTO;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.PawnTransactionDTO;
+import com.connectflow.model.Branch;
 import com.connectflow.model.Customer;
+import com.connectflow.model.InterestRate;
 import com.connectflow.model.PawnTransaction;
+import com.connectflow.model.PawnTransactionItem;
+import com.connectflow.model.PawnTransactionItemImage;
+import com.connectflow.model.User;
 import com.connectflow.repository.BranchRepository;
 import com.connectflow.repository.CustomerRepository;
 import com.connectflow.repository.InterestRateRepository;
+import com.connectflow.repository.PawnTransactionItemImageRepository;
+import com.connectflow.repository.PawnTransactionItemRepository;
 import com.connectflow.repository.PawnTransactionRepository;
 import com.connectflow.repository.UserRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -23,11 +28,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -42,8 +45,8 @@ public class PawnTransactionService {
     private final CustomerRepository customerRepository;
     private final InterestRateRepository interestRateRepository;
     private final BlacklistService blacklistService;
-    private final ObjectMapper objectMapper;
-    private final AtomicInteger pawnIdCounter = new AtomicInteger(1);
+    private final PawnTransactionItemRepository itemRepository;
+    private final PawnTransactionItemImageRepository itemImageRepository;
 
     /**
      * Get all transactions
@@ -196,8 +199,11 @@ public class PawnTransactionService {
         if (request.getCustomerNic() == null || request.getCustomerNic().trim().isEmpty()) {
             throw new IllegalArgumentException("Customer NIC is required");
         }
-        if (request.getItemDescription() == null || request.getItemDescription().trim().isEmpty()) {
-            throw new IllegalArgumentException("Item description is required");
+        if (request.getCustomerAddress() == null || request.getCustomerAddress().trim().isEmpty()) {
+            throw new IllegalArgumentException("Customer address is required");
+        }
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new IllegalArgumentException("At least one item is required");
         }
 
         // ✅ CHECK BLACKLIST BY NIC
@@ -262,44 +268,87 @@ public class PawnTransactionService {
             log.warn("No interest rate percent available, using default: {}", interestRatePercent);
         }
 
-        // Convert image URLs list to JSON string
-        String imageUrlsJson = null;
-        if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
-            try {
-                imageUrlsJson = objectMapper.writeValueAsString(request.getImageUrls());
-            } catch (JsonProcessingException e) {
-                log.error("Failed to serialize image URLs", e);
-            }
+        // Calculate total loan amount from all items
+        java.math.BigDecimal totalLoanAmount = request.getItems().stream()
+            .map(ItemDetailDTO::getAppraisedValue)
+            .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        if (request.getLoanAmount() != null) {
+            totalLoanAmount = request.getLoanAmount();
         }
+
+        log.info("Calculated total loan amount: {}", totalLoanAmount);
 
         PawnTransaction transaction = PawnTransaction.builder()
                 .pawnId(pawnId)
                 .branchId(branchId)
-                .customerId(customer.getId()) // Link to customer
-                .customer(customer) // Set customer reference
+                .customerId(customer.getId())
+                .customer(customer)
                 .customerName(request.getCustomerName().trim())
                 .customerNic(request.getCustomerNic().trim())
+                .idType(request.getIdType() != null ? request.getIdType() : "NIC")
+                .gender(request.getGender())
                 .customerAddress(request.getCustomerAddress())
                 .customerPhone(request.getCustomerPhone())
                 .customerType(request.getCustomerType() != null ? request.getCustomerType() : "Regular")
-                .itemDescription(request.getItemDescription().trim())
-                .itemWeightGrams(request.getItemWeightGrams())
-                .itemKarat(request.getItemKarat() != null ? request.getItemKarat() : 24)
-                .appraisedValue(request.getAppraisedValue())
-                .loanAmount(request.getLoanAmount())
+                .loanAmount(totalLoanAmount)
                 .interestRateId(request.getInterestRateId())
-                .interestRatePercent(interestRatePercent) // Use resolved rate percent
+                .interestRatePercent(interestRatePercent)
                 .periodMonths(request.getPeriodMonths() != null ? request.getPeriodMonths() : 6)
                 .pawnDate(pawnDate)
                 .maturityDate(maturityDate)
                 .status("Active")
                 .remarks(request.getRemarks())
-                .imageUrls(imageUrlsJson)
                 .createdBy(createdBy)
                 .build();
 
         PawnTransaction saved = pawnTransactionRepository.save(transaction);
+
+        // Save items if provided
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            log.info("Saving {} items for transaction {}", request.getItems().size(), saved.getId());
+            saveTransactionItems(saved.getId(), request.getItems());
+        }
+
         return convertToDTO(saved);
+    }
+
+    /**
+     * Save transaction items and their images
+     */
+    private void saveTransactionItems(UUID transactionId, List<ItemDetailDTO> itemsDTO) {
+        for (int i = 0; i < itemsDTO.size(); i++) {
+            ItemDetailDTO itemDTO = itemsDTO.get(i);
+
+            // Create item
+            PawnTransactionItem item = PawnTransactionItem.builder()
+                    .transactionId(transactionId)
+                    .description(itemDTO.getDescription())
+                    .content(itemDTO.getContent())
+                    .condition(itemDTO.getCondition() != null ? itemDTO.getCondition() : "Good")
+                    .weightGrams(itemDTO.getWeightGrams())
+                    .karat(itemDTO.getKarat() != null ? itemDTO.getKarat() : 24)
+                    .appraisedValue(itemDTO.getAppraisedValue())
+                    .itemOrder(i)
+                    .build();
+
+            PawnTransactionItem savedItem = itemRepository.save(item);
+            log.info("Saved item {} with ID: {}", i + 1, savedItem.getId());
+
+            // Save images for this item
+            if (itemDTO.getImages() != null && !itemDTO.getImages().isEmpty()) {
+                for (int j = 0; j < itemDTO.getImages().size(); j++) {
+                    PawnTransactionItemImage image = PawnTransactionItemImage.builder()
+                            .itemId(savedItem.getId())
+                            .transactionId(transactionId)
+                            .imageUrl(itemDTO.getImages().get(j))
+                            .imageOrder(j)
+                            .build();
+                    itemImageRepository.save(image);
+                }
+                log.info("Saved {} images for item {}", itemDTO.getImages().size(), savedItem.getId());
+            }
+        }
     }
 
     /**
@@ -402,6 +451,7 @@ public class PawnTransactionService {
         return convertToDTO(updated);
     }
 
+
     /**
      * Generate unique pawn ID
      */
@@ -432,32 +482,48 @@ public class PawnTransactionService {
      * Convert entity to DTO
      */
     private PawnTransactionDTO convertToDTO(PawnTransaction transaction) {
-        // Parse image URLs from JSON
-        List<String> imageUrls = new ArrayList<>();
-        if (transaction.getImageUrls() != null && !transaction.getImageUrls().isEmpty()) {
-            try {
-                imageUrls = objectMapper.readValue(transaction.getImageUrls(), new TypeReference<List<String>>() {});
-            } catch (JsonProcessingException e) {
-                log.error("Failed to parse image URLs", e);
-            }
-        }
 
         // Get branch name
         String branchName = branchRepository.findById(transaction.getBranchId())
-                .map(b -> b.getName())
+                .map(Branch::getName)
                 .orElse(null);
 
         // Get creator name
         String createdByName = userRepository.findById(transaction.getCreatedBy())
-                .map(u -> u.getFullName())
+                .map(User::getFullName)
                 .orElse(null);
 
         // Get interest rate name
         String interestRateName = null;
         if (transaction.getInterestRateId() != null) {
             interestRateName = interestRateRepository.findById(transaction.getInterestRateId())
-                    .map(r -> r.getName())
+                    .map(InterestRate::getName)
                     .orElse(null);
+        }
+
+        // Convert items to ItemDetailDTOs
+        List<ItemDetailDTO> itemDetails = new java.util.ArrayList<>();
+        if (transaction.getItems() != null) {
+            for (PawnTransactionItem item : transaction.getItems()) {
+                ItemDetailDTO itemDTO = ItemDetailDTO.builder()
+                        .description(item.getDescription())
+                        .content(item.getContent())
+                        .condition(item.getCondition())
+                        .weightGrams(item.getWeightGrams())
+                        .karat(item.getKarat())
+                        .appraisedValue(item.getAppraisedValue())
+                        .build();
+
+                // Get images for this item
+                if (item.getImages() != null) {
+                    List<String> imageUrls = item.getImages().stream()
+                            .map(PawnTransactionItemImage::getImageUrl)
+                            .toList();
+                    itemDTO.setImages(imageUrls);
+                }
+
+                itemDetails.add(itemDTO);
+            }
         }
 
         return PawnTransactionDTO.builder()
@@ -467,13 +533,11 @@ public class PawnTransactionService {
                 .branchName(branchName)
                 .customerName(transaction.getCustomerName())
                 .customerNic(transaction.getCustomerNic())
+                .idType(transaction.getIdType())
+                .gender(transaction.getGender())
                 .customerAddress(transaction.getCustomerAddress())
                 .customerPhone(transaction.getCustomerPhone())
                 .customerType(transaction.getCustomerType())
-                .itemDescription(transaction.getItemDescription())
-                .itemWeightGrams(transaction.getItemWeightGrams())
-                .itemKarat(transaction.getItemKarat())
-                .appraisedValue(transaction.getAppraisedValue())
                 .loanAmount(transaction.getLoanAmount())
                 .interestRateId(transaction.getInterestRateId())
                 .interestRateName(interestRateName)
@@ -483,7 +547,7 @@ public class PawnTransactionService {
                 .maturityDate(transaction.getMaturityDate())
                 .status(transaction.getStatus())
                 .remarks(transaction.getRemarks())
-                .imageUrls(imageUrls)
+                .itemDetails(itemDetails)
                 .createdBy(transaction.getCreatedBy())
                 .createdByName(createdByName)
                 .createdAt(transaction.getCreatedAt())
