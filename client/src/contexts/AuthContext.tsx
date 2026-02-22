@@ -25,20 +25,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo users credentials
-const DEMO_USERS: Record<string, { password: string; fullName: string; role: AppRole }> = {
-  "superadmin@connectflow.com": { password: "SuperAdmin@123", fullName: "Super Administrator", role: "SUPERADMIN" },
-  "admin@connectflow.com": { password: "Admin@123", fullName: "System Administrator", role: "ADMIN" },
-  "manager@connectflow.com": { password: "Manager@123", fullName: "Branch Manager", role: "MANAGER" },
-  "staff@connectflow.com": { password: "Staff@123", fullName: "Staff Member", role: "STAFF" },
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is logged in (stored in localStorage)
@@ -61,21 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const demoUser = DEMO_USERS[email.toLowerCase()];
-      if (!demoUser || demoUser.password !== password) {
-        throw new Error("Invalid email or password");
-      }
-
+      // Call backend authentication API
       const response = await apiClient.auth.login(email, password);
       const userData = response.user;
       const token = response.token;
 
       const userToStore: UserProfile = {
         id: userData.id || email,
-        fullName: userData.fullName || demoUser.fullName,
+        fullName: userData.fullName,
         email: userData.email || email,
         phone: userData.phone,
-        role: userData.role || demoUser.role,
+        role: userData.role,
         branchId: userData.branchId,
         branch: userData.branch,
       };

@@ -5,6 +5,8 @@ import com.connectflow.model.Branch;
 import com.connectflow.model.Customer;
 import com.connectflow.model.InterestRate;
 import com.connectflow.model.PawnTransaction;
+import com.connectflow.model.PawnTransactionItem;
+import com.connectflow.model.PawnTransactionItemImage;
 import com.connectflow.model.User;
 import com.connectflow.model.UserRole;
 import com.connectflow.repository.BlacklistRepository;
@@ -12,9 +14,10 @@ import com.connectflow.repository.BranchRepository;
 import com.connectflow.repository.CustomerRepository;
 import com.connectflow.repository.InterestRateRepository;
 import com.connectflow.repository.PawnTransactionRepository;
+import com.connectflow.repository.PawnTransactionItemRepository;
+import com.connectflow.repository.PawnTransactionItemImageRepository;
 import com.connectflow.repository.UserRepository;
 import com.connectflow.repository.UserRoleRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -22,7 +25,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -37,7 +40,8 @@ public class DataInitializer implements CommandLineRunner {
     private final CustomerRepository customerRepository;
     private final BlacklistRepository blacklistRepository;
     private final PawnTransactionRepository pawnTransactionRepository;
-    private final ObjectMapper objectMapper;
+    private final PawnTransactionItemRepository pawnTransactionItemRepository;
+    private final PawnTransactionItemImageRepository pawnTransactionItemImageRepository;
 
     @Override
     public void run(String... args) {
@@ -89,66 +93,20 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Creating sample interest rates...");
 
             interestRateRepository.save(InterestRate.builder()
-                .name("Standard 3-Month")
-                .ratePercent(new BigDecimal("6.50"))
-                .periodMonths(3)
-                .customerType("Regular")
-                .isActive(true)
-                .build());
-
-            interestRateRepository.save(InterestRate.builder()
-                .name("Standard 6-Month")
+                .name("Standard Rate")
                 .ratePercent(new BigDecimal("8.50"))
-                .periodMonths(6)
-                .customerType("Regular")
                 .isActive(true)
                 .build());
 
             interestRateRepository.save(InterestRate.builder()
-                .name("Standard 12-Month")
-                .ratePercent(new BigDecimal("10.00"))
-                .periodMonths(12)
-                .customerType("Regular")
-                .isActive(true)
-                .build());
-
-            interestRateRepository.save(InterestRate.builder()
-                .name("VIP 6-Month")
+                .name("Premium Rate")
                 .ratePercent(new BigDecimal("7.00"))
-                .periodMonths(6)
-                .customerType("VIP")
                 .isActive(true)
                 .build());
 
             interestRateRepository.save(InterestRate.builder()
-                .name("VIP 12-Month")
-                .ratePercent(new BigDecimal("8.50"))
-                .periodMonths(12)
-                .customerType("VIP")
-                .isActive(true)
-                .build());
-
-            interestRateRepository.save(InterestRate.builder()
-                .name("Loyal Customer 6-Month")
-                .ratePercent(new BigDecimal("7.50"))
-                .periodMonths(6)
-                .customerType("Loyal")
-                .isActive(true)
-                .build());
-
-            interestRateRepository.save(InterestRate.builder()
-                .name("Loyal Customer 12-Month")
-                .ratePercent(new BigDecimal("9.00"))
-                .periodMonths(12)
-                .customerType("Loyal")
-                .isActive(true)
-                .build());
-
-            interestRateRepository.save(InterestRate.builder()
-                .name("Special Rate 24-Month")
-                .ratePercent(new BigDecimal("11.00"))
-                .periodMonths(24)
-                .customerType("Regular")
+                .name("High Value Rate")
+                .ratePercent(new BigDecimal("6.50"))
                 .isActive(true)
                 .build());
 
@@ -350,47 +308,13 @@ public class DataInitializer implements CommandLineRunner {
 
             log.info("Created {} customers", 5);
 
-            // Get interest rates
-            InterestRate rate6Month = interestRateRepository.findAll().stream()
-                .filter(r -> r.getPeriodMonths() == 6 && "Regular".equals(r.getCustomerType()))
-                .findFirst()
-                .orElse(null);
-
-            InterestRate rate12Month = interestRateRepository.findAll().stream()
-                .filter(r -> r.getPeriodMonths() == 12 && "Regular".equals(r.getCustomerType()))
-                .findFirst()
-                .orElse(null);
-
-            // Sample image URLs (use actual uploaded images)
-            String imageUrls1 = null;
-            String imageUrls2 = null;
-            String imageUrls3 = null;
-            String imageUrls4 = null;
-            String imageUrls5 = null;
-            try {
-                imageUrls1 = objectMapper.writeValueAsString(Arrays.asList(
-                    "/uploads/pawn-transactions/PW0001_ring_01.jpg",
-                    "/uploads/pawn-transactions/PW0001_ring_02.jpg"
-                ));
-                imageUrls2 = objectMapper.writeValueAsString(Arrays.asList(
-                    "/uploads/pawn-transactions/PW0002_necklace_01.jpg"
-                ));
-                imageUrls3 = objectMapper.writeValueAsString(Arrays.asList(
-                    "/uploads/pawn-transactions/PW0003_bracelet_01.jpg",
-                    "/uploads/pawn-transactions/PW0003_bracelet_02.jpg"
-                ));
-                imageUrls4 = objectMapper.writeValueAsString(Arrays.asList(
-                    "/uploads/pawn-transactions/PW0004_earrings_01.jpg"
-                ));
-                imageUrls5 = objectMapper.writeValueAsString(Arrays.asList(
-                    "/uploads/pawn-transactions/PW0005_chain_01.jpg"
-                ));
-            } catch (Exception e) {
-                log.warn("Could not create image URLs JSON", e);
-            }
+            // Get interest rates (use the first two for sample transactions)
+            List<InterestRate> allRates = interestRateRepository.findAll();
+            InterestRate rate1 = allRates.isEmpty() ? null : allRates.get(0);
+            InterestRate rate2 = allRates.size() > 1 ? allRates.get(1) : rate1;
 
             // Transaction 1 - Active
-            pawnTransactionRepository.save(PawnTransaction.builder()
+            PawnTransaction txn1 = pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0001")
                 .branchId(mainBranch.getId())
                 .customerId(customer1.getId())
@@ -400,24 +324,45 @@ public class DataInitializer implements CommandLineRunner {
                 .customerAddress("45 Temple Road, Colombo")
                 .customerPhone("+94-77-1234567")
                 .customerType("Regular")
-                .itemDescription("22K Gold Ring with Ruby Stone - 15.5g")
-                .itemWeightGrams(new BigDecimal("15.50"))
-                .itemKarat(22)
-                .appraisedValue(new BigDecimal("125000"))
                 .loanAmount(new BigDecimal("100000"))
-                .interestRateId(rate6Month != null ? rate6Month.getId() : null)
-                .interestRatePercent(rate6Month != null ? rate6Month.getRatePercent() : new BigDecimal("8.50"))
+                .interestRateId(rate1 != null ? rate1.getId() : null)
+                .interestRatePercent(rate1 != null ? rate1.getRatePercent() : new BigDecimal("8.50"))
                 .periodMonths(6)
                 .pawnDate(LocalDate.now().minusDays(10))
                 .maturityDate(LocalDate.now().plusMonths(6).minusDays(10))
                 .status("Active")
                 .remarks("High-quality gold item, excellent condition")
-                .imageUrls(imageUrls1)
                 .createdBy(manager.getId())
                 .build());
 
+            // Add items for Transaction 1
+            PawnTransactionItem txn1Item = pawnTransactionItemRepository.save(PawnTransactionItem.builder()
+                .transactionId(txn1.getId())
+                .description("22K Gold Ring with Ruby Stone")
+                .content("Ring")
+                .condition("Excellent")
+                .weightGrams(new BigDecimal("15.50"))
+                .karat(22)
+                .appraisedValue(new BigDecimal("125000"))
+                .itemOrder(0)
+                .build());
+
+            pawnTransactionItemImageRepository.save(PawnTransactionItemImage.builder()
+                .itemId(txn1Item.getId())
+                .transactionId(txn1.getId())
+                .imageUrl("/uploads/pawn-transactions/PW0001_ring_01.jpg")
+                .imageOrder(0)
+                .build());
+
+            pawnTransactionItemImageRepository.save(PawnTransactionItemImage.builder()
+                .itemId(txn1Item.getId())
+                .transactionId(txn1.getId())
+                .imageUrl("/uploads/pawn-transactions/PW0001_ring_02.jpg")
+                .imageOrder(1)
+                .build());
+
             // Transaction 2 - Active
-            pawnTransactionRepository.save(PawnTransaction.builder()
+            PawnTransaction txn2 = pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0002")
                 .branchId(mainBranch.getId())
                 .customerId(customer3.getId())
@@ -427,24 +372,38 @@ public class DataInitializer implements CommandLineRunner {
                 .customerAddress("12 Lake View, Kandy")
                 .customerPhone("+94-70-9876543")
                 .customerType("VIP")
-                .itemDescription("24K Gold Necklace - 28.3g")
-                .itemWeightGrams(new BigDecimal("28.30"))
-                .itemKarat(24)
-                .appraisedValue(new BigDecimal("280000"))
                 .loanAmount(new BigDecimal("220000"))
-                .interestRateId(rate6Month != null ? rate6Month.getId() : null)
+                .interestRateId(rate1 != null ? rate1.getId() : null)
                 .interestRatePercent(new BigDecimal("7.00"))
                 .periodMonths(6)
                 .pawnDate(LocalDate.now().minusDays(5))
                 .maturityDate(LocalDate.now().plusMonths(6).minusDays(5))
                 .status("Active")
                 .remarks("VIP customer - reduced interest rate")
-                .imageUrls(imageUrls2)
                 .createdBy(staff.getId())
                 .build());
 
-            // Transaction 3 - Active (East Branch)
-            pawnTransactionRepository.save(PawnTransaction.builder()
+            // Add items for Transaction 2
+            PawnTransactionItem txn2Item = pawnTransactionItemRepository.save(PawnTransactionItem.builder()
+                .transactionId(txn2.getId())
+                .description("24K Gold Necklace")
+                .content("Necklace")
+                .condition("Good")
+                .weightGrams(new BigDecimal("28.30"))
+                .karat(24)
+                .appraisedValue(new BigDecimal("280000"))
+                .itemOrder(0)
+                .build());
+
+            pawnTransactionItemImageRepository.save(PawnTransactionItemImage.builder()
+                .itemId(txn2Item.getId())
+                .transactionId(txn2.getId())
+                .imageUrl("/uploads/pawn-transactions/PW0002_necklace_01.jpg")
+                .imageOrder(0)
+                .build());
+
+            // Transaction 3 - Active (East Branch) - Multiple Items
+            PawnTransaction txn3 = pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0003")
                 .branchId(eastBranch.getId())
                 .customerId(customer4.getId())
@@ -454,24 +413,57 @@ public class DataInitializer implements CommandLineRunner {
                 .customerAddress("56 Beach Road, Negombo")
                 .customerPhone("+94-72-5555555")
                 .customerType("Regular")
-                .itemDescription("22K Gold Bracelet Set (2 pieces) - 42.0g")
-                .itemWeightGrams(new BigDecimal("42.00"))
-                .itemKarat(22)
-                .appraisedValue(new BigDecimal("350000"))
                 .loanAmount(new BigDecimal("280000"))
-                .interestRateId(rate12Month != null ? rate12Month.getId() : null)
-                .interestRatePercent(rate12Month != null ? rate12Month.getRatePercent() : new BigDecimal("10.00"))
+                .interestRateId(rate2 != null ? rate2.getId() : null)
+                .interestRatePercent(rate2 != null ? rate2.getRatePercent() : new BigDecimal("10.00"))
                 .periodMonths(12)
                 .pawnDate(LocalDate.now().minusDays(15))
                 .maturityDate(LocalDate.now().plusMonths(12).minusDays(15))
                 .status("Active")
                 .remarks("Customer requested 12-month loan period")
-                .imageUrls(imageUrls3)
                 .createdBy(staff.getId())
                 .build());
 
+            // Add first item for Transaction 3
+            PawnTransactionItem txn3Item1 = pawnTransactionItemRepository.save(PawnTransactionItem.builder()
+                .transactionId(txn3.getId())
+                .description("22K Gold Bracelet")
+                .content("Bracelet")
+                .condition("Fair")
+                .weightGrams(new BigDecimal("21.00"))
+                .karat(22)
+                .appraisedValue(new BigDecimal("165000"))
+                .itemOrder(0)
+                .build());
+
+            pawnTransactionItemImageRepository.save(PawnTransactionItemImage.builder()
+                .itemId(txn3Item1.getId())
+                .transactionId(txn3.getId())
+                .imageUrl("/uploads/pawn-transactions/PW0003_bracelet_01.jpg")
+                .imageOrder(0)
+                .build());
+
+            // Add second item for Transaction 3
+            PawnTransactionItem txn3Item2 = pawnTransactionItemRepository.save(PawnTransactionItem.builder()
+                .transactionId(txn3.getId())
+                .description("18K Gold Pendant")
+                .content("Pendant")
+                .condition("Good")
+                .weightGrams(new BigDecimal("12.50"))
+                .karat(18)
+                .appraisedValue(new BigDecimal("115000"))
+                .itemOrder(1)
+                .build());
+
+            pawnTransactionItemImageRepository.save(PawnTransactionItemImage.builder()
+                .itemId(txn3Item2.getId())
+                .transactionId(txn3.getId())
+                .imageUrl("/uploads/pawn-transactions/PW0003_pendant_01.jpg")
+                .imageOrder(0)
+                .build());
+
             // Transaction 4 - Completed
-            pawnTransactionRepository.save(PawnTransaction.builder()
+            PawnTransaction txn4 = pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0004")
                 .branchId(mainBranch.getId())
                 .customerId(customer2.getId())
@@ -481,24 +473,38 @@ public class DataInitializer implements CommandLineRunner {
                 .customerAddress("89 Hill Street, Galle")
                 .customerPhone("+94-75-3216549")
                 .customerType("Regular")
-                .itemDescription("18K Gold Earrings - 8.5g")
-                .itemWeightGrams(new BigDecimal("8.50"))
-                .itemKarat(18)
-                .appraisedValue(new BigDecimal("60000"))
                 .loanAmount(new BigDecimal("45000"))
-                .interestRateId(rate6Month != null ? rate6Month.getId() : null)
+                .interestRateId(rate1 != null ? rate1.getId() : null)
                 .interestRatePercent(new BigDecimal("8.50"))
                 .periodMonths(6)
                 .pawnDate(LocalDate.now().minusMonths(7))
                 .maturityDate(LocalDate.now().minusMonths(1))
                 .status("Completed")
                 .remarks("Loan repaid in full with interest")
-                .imageUrls(imageUrls4)
                 .createdBy(manager.getId())
                 .build());
 
+            // Add items for Transaction 4
+            PawnTransactionItem txn4Item = pawnTransactionItemRepository.save(PawnTransactionItem.builder()
+                .transactionId(txn4.getId())
+                .description("18K Gold Earrings")
+                .content("Earrings")
+                .condition("Excellent")
+                .weightGrams(new BigDecimal("8.50"))
+                .karat(18)
+                .appraisedValue(new BigDecimal("60000"))
+                .itemOrder(0)
+                .build());
+
+            pawnTransactionItemImageRepository.save(PawnTransactionItemImage.builder()
+                .itemId(txn4Item.getId())
+                .transactionId(txn4.getId())
+                .imageUrl("/uploads/pawn-transactions/PW0004_earrings_01.jpg")
+                .imageOrder(0)
+                .build());
+
             // Transaction 5 - Active
-            pawnTransactionRepository.save(PawnTransaction.builder()
+            PawnTransaction txn5 = pawnTransactionRepository.save(PawnTransaction.builder()
                 .pawnId("PW0005")
                 .branchId(eastBranch.getId())
                 .customerId(customer5.getId())
@@ -508,24 +514,38 @@ public class DataInitializer implements CommandLineRunner {
                 .customerAddress("23 Market Street, Matara")
                 .customerPhone("+94-77-8887777")
                 .customerType("Loyal")
-                .itemDescription("22K Gold Chain - 20.0g")
-                .itemWeightGrams(new BigDecimal("20.00"))
-                .itemKarat(22)
-                .appraisedValue(new BigDecimal("165000"))
                 .loanAmount(new BigDecimal("130000"))
-                .interestRateId(rate6Month != null ? rate6Month.getId() : null)
+                .interestRateId(rate1 != null ? rate1.getId() : null)
                 .interestRatePercent(new BigDecimal("7.50"))
                 .periodMonths(6)
                 .pawnDate(LocalDate.now().minusDays(2))
                 .maturityDate(LocalDate.now().plusMonths(6).minusDays(2))
                 .status("Active")
                 .remarks("Loyal customer - preferential rate applied")
-                .imageUrls(imageUrls5)
                 .createdBy(staff.getId())
                 .build());
 
+            // Add items for Transaction 5
+            PawnTransactionItem txn5Item = pawnTransactionItemRepository.save(PawnTransactionItem.builder()
+                .transactionId(txn5.getId())
+                .description("22K Gold Chain")
+                .content("Chain")
+                .condition("Good")
+                .weightGrams(new BigDecimal("20.00"))
+                .karat(22)
+                .appraisedValue(new BigDecimal("165000"))
+                .itemOrder(0)
+                .build());
+
+            pawnTransactionItemImageRepository.save(PawnTransactionItemImage.builder()
+                .itemId(txn5Item.getId())
+                .transactionId(txn5.getId())
+                .imageUrl("/uploads/pawn-transactions/PW0005_chain_01.jpg")
+                .imageOrder(0)
+                .build());
+
             long finalTransactionCount = pawnTransactionRepository.count();
-            log.info("Created {} pawn transactions", finalTransactionCount);
+            log.info("Created {} pawn transactions with items and images", finalTransactionCount);
         } else {
             log.info("Pawn transactions already exist, skipping creation");
         }

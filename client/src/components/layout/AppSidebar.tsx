@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Building2, Users, FileText, Search, ShieldAlert,
-  Percent, BarChart3, ClipboardList, LogOut, ChevronLeft,
+  Percent, BarChart3, ClipboardList, LogOut, ChevronLeft, FilePlus,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,7 +34,8 @@ const navItems: NavItem[] = [
   { title: "Branches", url: "/branches", icon: Building2, roles: ["SUPERADMIN", "ADMIN"] },
   { title: "Branch Requests", url: "/branch-requests", icon: ClipboardList, roles: ["SUPERADMIN", "ADMIN"] },
   { title: "Users", url: "/users", icon: Users, roles: ["SUPERADMIN", "ADMIN", "MANAGER"] },
-  { title: "Pawn Transactions", url: "/transactions", icon: FileText, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
+  { title: "Pawn Transaction Creation", url: "/transactions/create", icon: FilePlus, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
+  { title: "Pawn Transaction History", url: "/transactions", icon: FileText, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
   { title: "Customer Search", url: "/customers", icon: Search, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
   { title: "Blacklist", url: "/blacklist", icon: ShieldAlert, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
   { title: "Interest Rates", url: "/interest-rates", icon: Percent, roles: ["SUPERADMIN", "ADMIN"] },
@@ -86,7 +87,7 @@ export function AppSidebar() {
             key={item.url}
             to={item.url}
             className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors font-medium"
-            activeClassName="bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
+            activeClassName="text-sidebar-foreground/80"
           >
             <item.icon className="h-4 w-4 shrink-0" />
             {!collapsed && <span>{item.title}</span>}

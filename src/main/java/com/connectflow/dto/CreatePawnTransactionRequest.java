@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,13 +17,11 @@ import java.util.UUID;
 public class CreatePawnTransactionRequest {
     private String customerName;
     private String customerNic;
+    private String idType;
+    private String gender;
     private String customerAddress;
     private String customerPhone;
     private String customerType;
-    private String itemDescription;
-    private BigDecimal itemWeightGrams;
-    private Integer itemKarat;
-    private BigDecimal appraisedValue;
     private BigDecimal loanAmount;
     private UUID interestRateId;
     private BigDecimal interestRatePercent;
@@ -30,6 +29,10 @@ public class CreatePawnTransactionRequest {
     private LocalDate pawnDate;
     private LocalDate maturityDate;
     private String remarks;
-    private List<String> imageUrls; // Base64 or file URLs
+
+    @Builder.Default
+    private List<ItemDetailDTO> items = new ArrayList<>(); // Multiple items with their details and images
 }
+
+
 
