@@ -5,13 +5,24 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
-const authFetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
   const headers = new Headers(init.headers || {});
   const token = localStorage.getItem("token");
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  return fetch(input, { ...init, headers });
+
+  const response = await fetch(input, { ...init, headers });
+
+  // Handle 401 Unauthorized - redirect to login
+  if (response.status === 401) {
+    console.error("401 Unauthorized - redirecting to login");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
+  }
+
+  return response;
 };
 
 export const apiClient = {
@@ -89,6 +100,29 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to create user');
       return response.json();
     },
+    setPin: async (userId: string, pin: string) => {
+      const response = await authFetch(`${API_BASE_URL}/users/${userId}/pin`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      if (!response.ok) throw new Error('Failed to set PIN');
+      return response.json();
+    },
+    verifyPin: async (userId: string, pin: string) => {
+      const response = await authFetch(`${API_BASE_URL}/users/${userId}/verify-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      if (!response.ok) throw new Error('Failed to verify PIN');
+      return response.json();
+    },
+    hasPinSet: async (userId: string) => {
+      const response = await authFetch(`${API_BASE_URL}/users/${userId}/has-pin`);
+      if (!response.ok) throw new Error('Failed to check PIN');
+      return response.json();
+    },
   },
 
   /**
@@ -158,11 +192,6 @@ export const apiClient = {
     getById: async (id: string) => {
       const response = await authFetch(`${API_BASE_URL}/interest-rates/${id}`);
       if (!response.ok) throw new Error('Failed to fetch interest rate');
-      return response.json();
-    },
-    getByCustomerType: async (type: string) => {
-      const response = await authFetch(`${API_BASE_URL}/interest-rates/customer-type/${type}`);
-      if (!response.ok) throw new Error('Failed to fetch interest rates by customer type');
       return response.json();
     },
     create: async (data: any) => {
@@ -361,6 +390,15 @@ export const apiClient = {
         headers,
         body: formData,
       });
+
+      if (response.status === 401) {
+        console.error("401 Unauthorized - redirecting to login");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        throw new Error('Unauthorized');
+      }
+
       if (!response.ok) throw new Error('Failed to upload image');
       return response.json();
     },
@@ -383,6 +421,15 @@ export const apiClient = {
         headers,
         body: formData,
       });
+
+      if (response.status === 401) {
+        console.error("401 Unauthorized - redirecting to login");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        throw new Error('Unauthorized');
+      }
+
       if (!response.ok) throw new Error('Failed to upload images');
       return response.json();
     },
