@@ -12,23 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Search, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
-  const [editStatus, setEditStatus] = useState("");
-  const [editRemarks, setEditRemarks] = useState("");
-  const [editBlockReason, setEditBlockReason] = useState("");
-  const [editPoliceReportNumber, setEditPoliceReportNumber] = useState("");
-  const [editPoliceReportDate, setEditPoliceReportDate] = useState("");
-  const [editIdType, setEditIdType] = useState("NIC");
-  const [editGender, setEditGender] = useState("");
-  const [editItemContent, setEditItemContent] = useState("");
-  const [editItemCondition, setEditItemCondition] = useState("Good");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rates, setRates] = useState<any[]>([]);
@@ -67,7 +56,6 @@ export default function Transactions() {
   const [uploadedImages, setUploadedImages] = useState<any[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
-  const [imageBlobUrls, setImageBlobUrls] = useState<{[key: string]: string}>({});
 
   const fetchTransactions = async () => {
     try {
@@ -207,79 +195,6 @@ export default function Transactions() {
     }
   };
 
-  const openEditDialog = (transaction: any) => {
-    setSelectedTransaction(transaction);
-    setEditStatus(transaction.status);
-    setEditRemarks(transaction.remarks || "");
-    setEditBlockReason(transaction.blockReason || transaction.block_reason || "");
-    setEditIdType(transaction.idType || transaction.id_type || "NIC");
-    setEditGender(transaction.gender || "");
-    setEditItemContent(transaction.itemContent || transaction.item_content || "");
-    setEditItemCondition(transaction.itemCondition || transaction.item_condition || "Good");
-    setShowEditDialog(true);
-  };
-
-  const handleUpdateTransaction = async () => {
-    if (!selectedTransaction) return;
-
-    // Validate block reason if status is Blocked
-    if (editStatus === "Blocked" && !editBlockReason.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide a block reason when setting status to Blocked",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Update status if changed
-      if (editStatus !== selectedTransaction.status) {
-        await apiClient.pawnTransactions.updateStatus(selectedTransaction.id, editStatus);
-      }
-
-      // Update remarks if changed
-      if (editRemarks !== (selectedTransaction.remarks || "")) {
-        await apiClient.pawnTransactions.updateRemarks(selectedTransaction.id, editRemarks);
-      }
-
-      // Update block reason if status is Blocked
-      if (editStatus === "Blocked" && editBlockReason !== (selectedTransaction.blockReason || selectedTransaction.block_reason || "")) {
-        // Call API to update block reason with police report details
-        await apiClient.pawnTransactions.updateBlockReason(selectedTransaction.id, {
-          blockReason: editBlockReason,
-          policeReportNumber: editPoliceReportNumber || null,
-          policeReportDate: editPoliceReportDate || null,
-        });
-      }
-
-      toast({
-        title: "Success",
-        description: "Transaction updated successfully",
-      });
-
-      setShowEditDialog(false);
-      setSelectedTransaction(null);
-      setEditStatus("");
-      setEditRemarks("");
-      setEditBlockReason("");
-      setEditPoliceReportNumber("");
-      setEditPoliceReportDate("");
-      fetchTransactions(); // Refresh the list
-    } catch (error: any) {
-      console.error("Failed to update transaction:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update transaction",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -312,61 +227,6 @@ export default function Transactions() {
       });
     } finally {
       setUploadingImages(false);
-    }
-  };
-
-  // Function to load image with Bearer token
-  const loadImageWithAuth = async (imageUrl: string, transactionId: string, imageIndex: number) => {
-    try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
-      const token = localStorage.getItem("token");
-
-      let fullImageUrl = imageUrl;
-      if (!imageUrl.startsWith("http") && !imageUrl.startsWith("data:")) {
-        if (imageUrl.includes("pawn-transactions")) {
-          const filename = imageUrl.split("pawn-transactions/")[1];
-          fullImageUrl = `${apiBaseUrl}/images/pawn-transactions/${filename}`;
-        } else {
-          fullImageUrl = `${apiBaseUrl}${imageUrl}`;
-        }
-      }
-
-      // Fetch image with Bearer token
-      const response = await fetch(fullImageUrl, {
-        method: 'GET',
-        headers: token ? {
-          'Authorization': `Bearer ${token}`
-        } : {}
-      });
-
-      if (response.status === 401) {
-        console.error("401 Unauthorized - redirecting to login");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-        return null;
-      }
-
-      if (!response.ok) {
-        console.error(`Failed to load image: ${fullImageUrl} (Status: ${response.status})`);
-        return null;
-      }
-
-      // Convert response to blob URL
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-
-      // Cache the blob URL
-      const cacheKey = `${transactionId}-${imageIndex}`;
-      setImageBlobUrls(prev => ({
-        ...prev,
-        [cacheKey]: blobUrl
-      }));
-
-      return blobUrl;
-    } catch (error) {
-      console.error(`Error loading image: ${imageUrl}`, error);
-      return null;
     }
   };
 
@@ -446,15 +306,26 @@ export default function Transactions() {
                     <TableCell><Badge variant={statusBadge(t.status) as any}>{t.status}</Badge></TableCell>
                     {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN" || role === "STAFF") && (
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/transactions/edit/${t.id}`)}
-                          disabled={loading}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/transactions/info/${t.id}`)}
+                            disabled={loading}
+                          >
+                            <Info className="h-4 w-4 mr-1" />
+                            Info
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/transactions/edit/${t.id}`)}
+                            disabled={loading}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -612,278 +483,6 @@ export default function Transactions() {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Edit Transaction Dialog - Combined Status & Remarks */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Edit Transaction {selectedTransaction?.pawnId || selectedTransaction?.pawn_id}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {/* Transaction Info */}
-            <div className="bg-muted p-3 rounded-lg">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Customer:</span>
-                  <p className="font-medium">{selectedTransaction?.customerName || selectedTransaction?.customer_name}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Gender:</span>
-                  <p className="font-medium">{selectedTransaction?.gender || "Not specified"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{selectedTransaction?.idType || selectedTransaction?.id_type || "NIC"}:</span>
-                  <p className="font-medium">{selectedTransaction?.customerNic || selectedTransaction?.customer_nic}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Phone:</span>
-                  <p className="font-medium">{selectedTransaction?.customerPhone || selectedTransaction?.customer_phone || "N/A"}</p>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">Item Description:</span>
-                  <p className="font-medium">{selectedTransaction?.itemDescription || selectedTransaction?.item_description}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Item Type:</span>
-                  <p className="font-medium">{selectedTransaction?.itemContent || selectedTransaction?.item_content || "Not specified"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Condition:</span>
-                  <p className="font-medium">{selectedTransaction?.itemCondition || selectedTransaction?.item_condition || "Good"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Loan Amount:</span>
-                  <p className="font-medium">Rs. {Number(selectedTransaction?.loanAmount || selectedTransaction?.loan_amount || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Maturity Date:</span>
-                  <p className="font-medium">{selectedTransaction?.maturityDate || selectedTransaction?.maturity_date}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Images Gallery */}
-            {selectedTransaction?.imageUrls && selectedTransaction.imageUrls.length > 0 && (
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4" />
-                  Item Images ({selectedTransaction.imageUrls.length})
-                </Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {selectedTransaction.imageUrls.map((imageUrl: string, index: number) => (
-                    <ImageWithAuth
-                      key={index}
-                      imageUrl={imageUrl}
-                      transactionId={selectedTransaction.id}
-                      imageIndex={index}
-                      loadImageWithAuth={loadImageWithAuth}
-                      imageBlobUrls={imageBlobUrls}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* No Images Message */}
-            {(!selectedTransaction?.imageUrls || selectedTransaction.imageUrls.length === 0) && (
-              <div className="p-3 bg-muted rounded-lg text-center text-sm text-muted-foreground">
-                <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                No images available for this transaction
-              </div>
-            )}
-
-            {/* Status Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="status">Transaction Status</Label>
-              <Select value={editStatus} onValueChange={setEditStatus}>
-                <SelectTrigger id="status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">
-                    <div className="flex items-center">
-                      <Badge variant="default" className="mr-2">Active</Badge>
-                      <span className="text-sm text-muted-foreground">- Loan is active</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="Completed">
-                    <div className="flex items-center">
-                      <Badge variant="secondary" className="mr-2">Completed</Badge>
-                      <span className="text-sm text-muted-foreground">- Loan repaid</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="Defaulted">
-                    <div className="flex items-center">
-                      <Badge variant="destructive" className="mr-2">Defaulted</Badge>
-                      <span className="text-sm text-muted-foreground">- Payment overdue</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="Blocked">
-                    <div className="flex items-center">
-                      <Badge variant="destructive" className="mr-2">Blocked</Badge>
-                      <span className="text-sm text-muted-foreground">- Transaction blocked</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Block Reason - Only show when Blocked status is selected */}
-            {editStatus === "Blocked" && (
-              <div className="space-y-2 border-l-4 border-destructive bg-destructive/5 p-3 rounded-sm">
-                <Label htmlFor="blockReason">Block Reason</Label>
-                <Textarea
-                  id="blockReason"
-                  value={editBlockReason}
-                  onChange={(e) => setEditBlockReason(e.target.value)}
-                  placeholder="Enter the reason for blocking this transaction..."
-                  rows={4}
-                  className="resize-none"
-                  required
-                />
-                <p className="text-xs text-destructive font-medium">
-                  * Reason is required when blocking a transaction
-                </p>
-
-                {/* Police Report Number */}
-                <div className="space-y-2 pt-3 border-t border-destructive/20">
-                  <Label htmlFor="policeReportNumber">Police Report Number (Optional)</Label>
-                  <Input
-                    id="policeReportNumber"
-                    value={editPoliceReportNumber}
-                    onChange={(e) => setEditPoliceReportNumber(e.target.value)}
-                    placeholder="e.g., PR-2026-12345"
-                  />
-                </div>
-
-                {/* Police Report Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="policeReportDate">Police Report Date (Optional)</Label>
-                  <Input
-                    id="policeReportDate"
-                    type="date"
-                    value={editPoliceReportDate}
-                    onChange={(e) => setEditPoliceReportDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Remarks */}
-            <div className="space-y-2">
-              <Label htmlFor="remarks">Remarks / Notes</Label>
-              <Textarea
-                id="remarks"
-                value={editRemarks}
-                onChange={(e) => setEditRemarks(e.target.value)}
-                placeholder="Add notes, payment details, or any other information..."
-                rows={6}
-                className="resize-none"
-              />
-              <p className="text-xs text-muted-foreground">
-                Add notes about payments, customer communication, or transaction details
-              </p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 justify-end pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowEditDialog(false);
-                  setSelectedTransaction(null);
-                  setEditStatus("");
-                  setEditRemarks("");
-                  setEditBlockReason("");
-                  setEditPoliceReportNumber("");
-                  setEditPoliceReportDate("");
-                }}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleUpdateTransaction}
-                disabled={loading}
-              >
-                {loading ? "Updating..." : "Update Transaction"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
-
-// Component to load and display image with Bearer token authentication
-function ImageWithAuth({
-  imageUrl,
-  transactionId,
-  imageIndex,
-  loadImageWithAuth,
-  imageBlobUrls,
-}: {
-  imageUrl: string;
-  transactionId: string;
-  imageIndex: number;
-  loadImageWithAuth: (imageUrl: string, transactionId: string, imageIndex: number) => Promise<string | null>;
-  imageBlobUrls: {[key: string]: string};
-}) {
-  const [displayUrl, setDisplayUrl] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-
-  const cacheKey = `${transactionId}-${imageIndex}`;
-
-  useEffect(() => {
-    // Check if already cached
-    if (imageBlobUrls[cacheKey]) {
-      setDisplayUrl(imageBlobUrls[cacheKey]);
-      setLoading(false);
-      return;
-    }
-
-    // Load image with Bearer token
-    const loadImage = async () => {
-      const blobUrl = await loadImageWithAuth(imageUrl, transactionId, imageIndex);
-      if (blobUrl) {
-        setDisplayUrl(blobUrl);
-      }
-      setLoading(false);
-    };
-
-    loadImage();
-  }, [cacheKey, imageBlobUrls, imageUrl, transactionId, imageIndex, loadImageWithAuth]);
-
-  if (loading) {
-    return (
-      <div className="w-full h-24 object-cover rounded border bg-muted flex items-center justify-center">
-        <span className="text-xs text-muted-foreground">Loading...</span>
-      </div>
-    );
-  }
-
-  if (!displayUrl) {
-    return (
-      <div className="w-full h-24 object-cover rounded border bg-muted flex items-center justify-center">
-        <span className="text-xs text-muted-foreground">Failed to load</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative group">
-      <img
-        src={displayUrl}
-        alt={`Item ${imageIndex + 1}`}
-        className="w-full h-24 object-cover rounded border hover:border-blue-500 cursor-pointer transition-all"
-      />
-      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded transition-all flex items-center justify-center">
-        <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-xs">#{imageIndex + 1}</span>
-      </div>
-    </div>
-  );
-}
-

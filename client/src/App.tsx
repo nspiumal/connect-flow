@@ -12,7 +12,8 @@ import BranchRequests from "./pages/BranchRequests";
 import UsersPage from "./pages/Users";
 import Transactions from "./pages/Transactions";
 import CreatePawning from "./pages/CreatePawning";
-import EditPawning from "./pages/EditPawning";
+import TransactionEdit from "./pages/TransactionEdit";
+import TransactionInfo from "./pages/TransactionInfo";
 import Customers from "./pages/Customers";
 import Blacklist from "./pages/Blacklist";
 import InterestRates from "./pages/InterestRates";
@@ -39,7 +40,8 @@ const App = () => (
               <Route path="/users" element={<UsersPage />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/transactions/create" element={<CreatePawning />} />
-              <Route path="/transactions/edit/:id" element={<EditPawning />} />
+              <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
+              <Route path="/transactions/info/:id" element={<TransactionInfo />} />
               <Route path="/customers" element={<Customers />} />
               <Route path="/blacklist" element={<Blacklist />} />
               <Route path="/interest-rates" element={<InterestRates />} />

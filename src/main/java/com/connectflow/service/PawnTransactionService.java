@@ -5,12 +5,14 @@ import com.connectflow.dto.CreatePawnTransactionRequest;
 import com.connectflow.dto.ItemDetailDTO;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.PawnTransactionDTO;
+import com.connectflow.dto.UpdatePawnTransactionDetailsRequest;
 import com.connectflow.model.Branch;
 import com.connectflow.model.Customer;
 import com.connectflow.model.InterestRate;
 import com.connectflow.model.PawnTransaction;
 import com.connectflow.model.PawnTransactionItem;
 import com.connectflow.model.PawnTransactionItemImage;
+import com.connectflow.model.TransactionEditHistory;
 import com.connectflow.model.User;
 import com.connectflow.repository.BranchRepository;
 import com.connectflow.repository.CustomerRepository;
@@ -18,6 +20,7 @@ import com.connectflow.repository.InterestRateRepository;
 import com.connectflow.repository.PawnTransactionItemImageRepository;
 import com.connectflow.repository.PawnTransactionItemRepository;
 import com.connectflow.repository.PawnTransactionRepository;
+import com.connectflow.repository.TransactionEditHistoryRepository;
 import com.connectflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,6 +51,7 @@ public class PawnTransactionService {
     private final BlacklistService blacklistService;
     private final PawnTransactionItemRepository itemRepository;
     private final PawnTransactionItemImageRepository itemImageRepository;
+    private final TransactionEditHistoryRepository editHistoryRepository;
 
     /**
      * Get all transactions
@@ -390,8 +395,13 @@ public class PawnTransactionService {
         PawnTransaction transaction = pawnTransactionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
 
+        String previousStatus = transaction.getStatus();
         transaction.setStatus(status);
         PawnTransaction updated = pawnTransactionRepository.save(transaction);
+
+        // Log edit history
+        logEditHistory(transaction, "STATUS", previousStatus, status, null);
+
         return convertToDTO(updated);
     }
 
@@ -402,8 +412,13 @@ public class PawnTransactionService {
         PawnTransaction transaction = pawnTransactionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
 
+        String previousRemarks = transaction.getRemarks();
         transaction.setRemarks(remarks);
         PawnTransaction updated = pawnTransactionRepository.save(transaction);
+
+        // Log edit history
+        logEditHistory(transaction, "REMARKS", null, null, previousRemarks);
+
         return convertToDTO(updated);
     }
 
@@ -415,9 +430,26 @@ public class PawnTransactionService {
         PawnTransaction transaction = pawnTransactionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
 
+        String previousStatus = transaction.getStatus();
         transaction.setStatus("Blocked");
         PawnTransaction updated = pawnTransactionRepository.save(transaction);
         log.info("Transaction {} blocked with reason: {}", id, blockReason);
+
+        // Log edit history with block details
+        TransactionEditHistory history = TransactionEditHistory.builder()
+                .transactionId(transaction.getId())
+                .pawnId(transaction.getPawnId())
+                .editedBy(userId)
+                .editType("BLOCK")
+                .previousStatus(previousStatus)
+                .newStatus("Blocked")
+                .blockReason(blockReason)
+                .policeReportNumber(policeReportNumber)
+                .policeReportDate(policeReportDate != null && !policeReportDate.trim().isEmpty()
+                    ? java.time.LocalDate.parse(policeReportDate)
+                    : null)
+                .build();
+        editHistoryRepository.save(history);
 
         // Automatically add customer to blacklist with police report details
         try {
@@ -451,6 +483,90 @@ public class PawnTransactionService {
         return convertToDTO(updated);
     }
 
+    /**
+     * Update transaction details
+     * - Editable fields: loanAmount, interestRateId, periodMonths, maturityDate
+     * - Customer address is synced to the customer record
+     */
+    public PawnTransactionDTO updateTransactionDetails(UUID id, UpdatePawnTransactionDetailsRequest request) {
+        PawnTransaction transaction = pawnTransactionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
+
+        // Store previous values for audit
+        String previousAddress = transaction.getCustomerAddress();
+        BigDecimal previousLoanAmount = transaction.getLoanAmount();
+        UUID previousInterestRateId = transaction.getInterestRateId();
+        Integer previousPeriodMonths = transaction.getPeriodMonths();
+        java.time.LocalDate previousMaturityDate = transaction.getMaturityDate();
+
+        if (request.getCustomerAddress() != null) {
+            transaction.setCustomerAddress(request.getCustomerAddress());
+            if (transaction.getCustomerId() != null) {
+                customerRepository.findById(transaction.getCustomerId())
+                        .ifPresent(customer -> {
+                            customer.setAddress(request.getCustomerAddress());
+                            customerRepository.save(customer);
+                        });
+            }
+        }
+
+        if (request.getLoanAmount() != null) {
+            transaction.setLoanAmount(request.getLoanAmount());
+        }
+
+        if (request.getInterestRateId() != null) {
+            InterestRate rate = interestRateRepository.findById(request.getInterestRateId())
+                    .orElseThrow(() -> new RuntimeException("Interest rate not found"));
+            transaction.setInterestRateId(rate.getId());
+            transaction.setInterestRatePercent(rate.getRatePercent());
+        }
+
+        if (request.getPeriodMonths() != null) {
+            transaction.setPeriodMonths(request.getPeriodMonths());
+        }
+
+        if (request.getMaturityDate() != null) {
+            transaction.setMaturityDate(request.getMaturityDate());
+        }
+
+        PawnTransaction updated = pawnTransactionRepository.save(transaction);
+
+        // Log edit history for details
+        TransactionEditHistory history = TransactionEditHistory.builder()
+                .transactionId(transaction.getId())
+                .pawnId(transaction.getPawnId())
+                .editedBy(transaction.getCreatedBy()) // Will be updated by controller if available
+                .editType("DETAILS")
+                .previousAddress(previousAddress)
+                .newAddress(transaction.getCustomerAddress())
+                .previousLoanAmount(previousLoanAmount)
+                .newLoanAmount(transaction.getLoanAmount())
+                .previousInterestRateId(previousInterestRateId)
+                .newInterestRateId(transaction.getInterestRateId())
+                .previousPeriodMonths(previousPeriodMonths)
+                .newPeriodMonths(transaction.getPeriodMonths())
+                .previousMaturityDate(previousMaturityDate)
+                .newMaturityDate(transaction.getMaturityDate())
+                .build();
+        editHistoryRepository.save(history);
+
+        return convertToDTO(updated);
+    }
+
+    private void logEditHistory(PawnTransaction transaction, String editType,
+                                 String previousStatus, String newStatus, String previousRemarks) {
+        TransactionEditHistory history = TransactionEditHistory.builder()
+                .transactionId(transaction.getId())
+                .pawnId(transaction.getPawnId())
+                .editedBy(transaction.getCreatedBy())
+                .editType(editType)
+                .previousStatus(previousStatus)
+                .newStatus(newStatus)
+                .previousRemarks(previousRemarks)
+                .newRemarks(transaction.getRemarks())
+                .build();
+        editHistoryRepository.save(history);
+    }
 
     /**
      * Generate unique pawn ID

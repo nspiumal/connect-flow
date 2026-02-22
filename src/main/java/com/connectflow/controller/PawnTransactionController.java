@@ -3,6 +3,7 @@ package com.connectflow.controller;
 import com.connectflow.dto.CreatePawnTransactionRequest;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.PawnTransactionDTO;
+import com.connectflow.dto.UpdatePawnTransactionDetailsRequest;
 import com.connectflow.dto.UserDTO;
 import com.connectflow.service.PawnTransactionService;
 import com.connectflow.service.UserService;
@@ -242,5 +243,19 @@ public class PawnTransactionController {
             return ResponseEntity.notFound().build();
         }
     }
-}
 
+    @PatchMapping("/{id}/details")
+    @Operation(summary = "Update editable transaction details")
+    public ResponseEntity<PawnTransactionDTO> updateTransactionDetails(
+            @PathVariable UUID id,
+            @RequestBody UpdatePawnTransactionDetailsRequest request) {
+        log.info("PATCH /pawn-transactions/{}/details", id);
+        try {
+            PawnTransactionDTO updated = pawnTransactionService.updateTransactionDetails(id, request);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            log.error("Error updating transaction details: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+}
