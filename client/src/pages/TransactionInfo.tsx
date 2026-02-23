@@ -20,6 +20,31 @@ interface ItemDetail {
   images: string[];
 }
 
+interface TransactionHistory {
+  id: string;
+  editedByName?: string;
+  editedBy?: string;
+  editType?: string;
+  previousStatus?: string;
+  previousAddress?: string;
+  previousLoanAmount?: number;
+  previousInterestRateId?: string;
+  previousPeriodMonths?: number;
+  previousMaturityDate?: string;
+  previousRemarks?: string;
+  newStatus?: string;
+  newAddress?: string;
+  newLoanAmount?: number;
+  newInterestRateId?: string;
+  newPeriodMonths?: number;
+  newMaturityDate?: string;
+  newRemarks?: string;
+  blockReason?: string;
+  policeReportNumber?: string;
+  policeReportDate?: string;
+  createdAt?: string;
+}
+
 export default function TransactionInfo() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -29,10 +54,13 @@ export default function TransactionInfo() {
   const [transaction, setTransaction] = useState<any>(null);
   const [items, setItems] = useState<ItemDetail[]>([]);
   const [imageBlobUrls, setImageBlobUrls] = useState<{[key: string]: string}>({});
+  const [history, setHistory] = useState<TransactionHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchTransaction(id);
+      fetchHistory(id);
     }
   }, [id]);
 
@@ -89,6 +117,19 @@ export default function TransactionInfo() {
       navigate("/transactions");
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const fetchHistory = async (transactionId: string) => {
+    try {
+      setHistoryLoading(true);
+      const response = await apiClient.pawnTransactions.getHistory(transactionId, 10);
+      setHistory(Array.isArray(response) ? response : []);
+    } catch (error) {
+      console.error("Failed to fetch history:", error);
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -152,6 +193,22 @@ export default function TransactionInfo() {
     if (s === "Active") return "default";
     if (s === "Completed") return "secondary";
     return "destructive";
+  };
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString();
+  };
+
+  const renderChange = (label: string, previousValue?: string | number, newValue?: string | number) => {
+    if (previousValue == null && newValue == null) return null;
+    return (
+      <div className="text-sm text-gray-700">
+        <span className="font-medium">{label}:</span> {previousValue ?? "-"} → {newValue ?? "-"}
+      </div>
+    );
   };
 
   if (loadingData) {
@@ -366,6 +423,58 @@ export default function TransactionInfo() {
               </>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Edit History (Last 10)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {historyLoading ? (
+            <p className="text-sm text-gray-500">Loading history...</p>
+          ) : history.length > 0 ? (
+            <div className="space-y-4">
+              {history.map((entry) => (
+                <div key={entry.id} className="p-4 border rounded-lg bg-gray-50 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{entry.editType || "EDIT"}</Badge>
+                    <span className="text-sm text-gray-700">
+                      {entry.editedByName || entry.editedBy || "Unknown user"}
+                    </span>
+                    <span className="text-xs text-gray-500">{formatDateTime(entry.createdAt)}</span>
+                  </div>
+
+                  {renderChange("Status", entry.previousStatus, entry.newStatus)}
+                  {renderChange("Address", entry.previousAddress, entry.newAddress)}
+                  {renderChange("Loan Amount", entry.previousLoanAmount, entry.newLoanAmount)}
+                  {renderChange("Interest Rate ID", entry.previousInterestRateId, entry.newInterestRateId)}
+                  {renderChange("Period (Months)", entry.previousPeriodMonths, entry.newPeriodMonths)}
+                  {renderChange("Maturity Date", entry.previousMaturityDate, entry.newMaturityDate)}
+                  {renderChange("Remarks", entry.previousRemarks, entry.newRemarks)}
+
+                  {entry.blockReason && (
+                    <div className="text-sm text-gray-700">
+                      <span className="font-medium">Block Reason:</span> {entry.blockReason}
+                    </div>
+                  )}
+                  {entry.policeReportNumber && (
+                    <div className="text-sm text-gray-700">
+                      <span className="font-medium">Police Report Number:</span> {entry.policeReportNumber}
+                    </div>
+                  )}
+                  {entry.policeReportDate && (
+                    <div className="text-sm text-gray-700">
+                      <span className="font-medium">Police Report Date:</span> {entry.policeReportDate}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No edit history found.</p>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -17,5 +17,6 @@ public interface TransactionEditHistoryRepository extends JpaRepository<Transact
     Page<TransactionEditHistory> findByTransactionIdOrderByCreatedAtDesc(UUID transactionId, Pageable pageable);
 
     List<TransactionEditHistory> findByEditedByOrderByCreatedAtDesc(UUID editedBy);
-}
 
+    java.util.Optional<TransactionEditHistory> findTopByTransactionIdOrderByCreatedAtDesc(UUID transactionId);
+}

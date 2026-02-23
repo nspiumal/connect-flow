@@ -3,6 +3,7 @@ package com.connectflow.controller;
 import com.connectflow.dto.CreatePawnTransactionRequest;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.PawnTransactionDTO;
+import com.connectflow.dto.TransactionEditHistoryDTO;
 import com.connectflow.dto.UpdatePawnTransactionDetailsRequest;
 import com.connectflow.dto.UserDTO;
 import com.connectflow.service.PawnTransactionService;
@@ -170,8 +171,23 @@ public class PawnTransactionController {
             return ResponseEntity.badRequest().build();
         }
 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            log.error("No authentication found");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = authentication.getPrincipal().toString();
+        Optional<UserDTO> currentUser = userService.getUserByEmail(email);
+        if (currentUser.isEmpty()) {
+            log.error("User not found for email: {}", email);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         try {
-            PawnTransactionDTO updated = pawnTransactionService.updateTransactionStatus(id, status);
+            UserDTO user = currentUser.get();
+            PawnTransactionDTO updated = pawnTransactionService.updateTransactionStatus(
+                    id, status, user.getId(), user.getFullName());
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             log.error("Error updating transaction status: {}", e.getMessage());
@@ -187,8 +203,23 @@ public class PawnTransactionController {
         log.info("PATCH /pawn-transactions/{}/remarks", id);
         String remarks = body.get("remarks");
 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            log.error("No authentication found");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = authentication.getPrincipal().toString();
+        Optional<UserDTO> currentUser = userService.getUserByEmail(email);
+        if (currentUser.isEmpty()) {
+            log.error("User not found for email: {}", email);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         try {
-            PawnTransactionDTO updated = pawnTransactionService.updateTransactionRemarks(id, remarks);
+            UserDTO user = currentUser.get();
+            PawnTransactionDTO updated = pawnTransactionService.updateTransactionRemarks(
+                    id, remarks, user.getId(), user.getFullName());
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             log.error("Error updating transaction remarks: {}", e.getMessage());
@@ -236,7 +267,7 @@ public class PawnTransactionController {
 
         try {
             PawnTransactionDTO updated = pawnTransactionService.updateBlockReason(
-                    id, blockReason, policeReportNumber, policeReportDate, user.getBranchId(), user.getId());
+                    id, blockReason, policeReportNumber, policeReportDate, user.getBranchId(), user.getId(), user.getFullName());
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             log.error("Error updating transaction block reason: {}", e.getMessage());
@@ -250,12 +281,37 @@ public class PawnTransactionController {
             @PathVariable UUID id,
             @RequestBody UpdatePawnTransactionDetailsRequest request) {
         log.info("PATCH /pawn-transactions/{}/details", id);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            log.error("No authentication found");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = authentication.getPrincipal().toString();
+        Optional<UserDTO> currentUser = userService.getUserByEmail(email);
+        if (currentUser.isEmpty()) {
+            log.error("User not found for email: {}", email);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         try {
-            PawnTransactionDTO updated = pawnTransactionService.updateTransactionDetails(id, request);
+            UserDTO user = currentUser.get();
+            PawnTransactionDTO updated = pawnTransactionService.updateTransactionDetails(
+                    id, request, user.getId(), user.getFullName());
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             log.error("Error updating transaction details: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/{id}/history")
+    @Operation(summary = "Get transaction edit history")
+    public ResponseEntity<List<TransactionEditHistoryDTO>> getTransactionHistory(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "10") int limit) {
+        log.info("GET /pawn-transactions/{}/history", id);
+        return ResponseEntity.ok(pawnTransactionService.getTransactionHistory(id, limit));
     }
 }

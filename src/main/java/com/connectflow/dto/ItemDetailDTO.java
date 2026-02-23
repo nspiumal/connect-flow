@@ -23,4 +23,3 @@ public class ItemDetailDTO {
     @Builder.Default
     private List<String> images = new ArrayList<>(); // Image URLs/base64 strings
 }
-

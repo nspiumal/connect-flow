@@ -377,6 +377,11 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to update transaction details');
       return response.json();
     },
+    getHistory: async (id: string, limit: number = 10) => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/history?limit=${limit}`);
+      if (!response.ok) throw new Error('Failed to fetch transaction history');
+      return response.json();
+    },
   },
 
   /**

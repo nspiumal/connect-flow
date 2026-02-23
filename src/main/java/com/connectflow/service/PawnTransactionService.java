@@ -5,6 +5,7 @@ import com.connectflow.dto.CreatePawnTransactionRequest;
 import com.connectflow.dto.ItemDetailDTO;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.PawnTransactionDTO;
+import com.connectflow.dto.TransactionEditHistoryDTO;
 import com.connectflow.dto.UpdatePawnTransactionDetailsRequest;
 import com.connectflow.model.Branch;
 import com.connectflow.model.Customer;
@@ -391,7 +392,7 @@ public class PawnTransactionService {
     /**
      * Update transaction status
      */
-    public PawnTransactionDTO updateTransactionStatus(UUID id, String status) {
+    public PawnTransactionDTO updateTransactionStatus(UUID id, String status, UUID editedBy, String editedByName) {
         PawnTransaction transaction = pawnTransactionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
 
@@ -400,7 +401,7 @@ public class PawnTransactionService {
         PawnTransaction updated = pawnTransactionRepository.save(transaction);
 
         // Log edit history
-        logEditHistory(transaction, "STATUS", previousStatus, status, null);
+        logEditHistory(transaction, "STATUS", previousStatus, status, null, editedBy, editedByName);
 
         return convertToDTO(updated);
     }
@@ -408,7 +409,7 @@ public class PawnTransactionService {
     /**
      * Update transaction remarks
      */
-    public PawnTransactionDTO updateTransactionRemarks(UUID id, String remarks) {
+    public PawnTransactionDTO updateTransactionRemarks(UUID id, String remarks, UUID editedBy, String editedByName) {
         PawnTransaction transaction = pawnTransactionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
 
@@ -416,17 +417,47 @@ public class PawnTransactionService {
         transaction.setRemarks(remarks);
         PawnTransaction updated = pawnTransactionRepository.save(transaction);
 
-        // Log edit history
-        logEditHistory(transaction, "REMARKS", null, null, previousRemarks);
+        // Merge remarks into the latest DETAILS history record if possible
+        mergeRemarksIntoLatestDetailsHistory(transaction, previousRemarks, editedBy, editedByName);
 
         return convertToDTO(updated);
+    }
+
+    private void mergeRemarksIntoLatestDetailsHistory(PawnTransaction transaction, String previousRemarks,
+                                                     UUID editedBy, String editedByName) {
+        editHistoryRepository.findTopByTransactionIdOrderByCreatedAtDesc(transaction.getId())
+                .filter(history -> "DETAILS".equalsIgnoreCase(history.getEditType()))
+                .ifPresentOrElse(history -> {
+                    if (history.getPreviousRemarks() == null) {
+                        history.setPreviousRemarks(previousRemarks);
+                    }
+                    history.setNewRemarks(transaction.getRemarks());
+                    if (editedBy != null && history.getEditedBy() == null) {
+                        history.setEditedBy(editedBy);
+                    }
+                    if (editedByName != null && (history.getEditedByName() == null || history.getEditedByName().isEmpty())) {
+                        history.setEditedByName(editedByName);
+                    }
+                    editHistoryRepository.save(history);
+                }, () -> {
+                    TransactionEditHistory history = TransactionEditHistory.builder()
+                            .transactionId(transaction.getId())
+                            .pawnId(transaction.getPawnId())
+                            .editedBy(editedBy != null ? editedBy : transaction.getCreatedBy())
+                            .editedByName(editedByName)
+                            .editType("DETAILS")
+                            .previousRemarks(previousRemarks)
+                            .newRemarks(transaction.getRemarks())
+                            .build();
+                    editHistoryRepository.save(history);
+                });
     }
 
     /**
      * Update transaction block reason and automatically add customer to blacklist with optional police report
      */
     public PawnTransactionDTO updateBlockReason(UUID id, String blockReason, String policeReportNumber,
-                                                 String policeReportDate, UUID branchId, UUID userId) {
+                                                 String policeReportDate, UUID branchId, UUID userId, String editedByName) {
         PawnTransaction transaction = pawnTransactionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
 
@@ -440,6 +471,7 @@ public class PawnTransactionService {
                 .transactionId(transaction.getId())
                 .pawnId(transaction.getPawnId())
                 .editedBy(userId)
+                .editedByName(editedByName)
                 .editType("BLOCK")
                 .previousStatus(previousStatus)
                 .newStatus("Blocked")
@@ -488,7 +520,8 @@ public class PawnTransactionService {
      * - Editable fields: loanAmount, interestRateId, periodMonths, maturityDate
      * - Customer address is synced to the customer record
      */
-    public PawnTransactionDTO updateTransactionDetails(UUID id, UpdatePawnTransactionDetailsRequest request) {
+    public PawnTransactionDTO updateTransactionDetails(UUID id, UpdatePawnTransactionDetailsRequest request,
+                                                      UUID editedBy, String editedByName) {
         PawnTransaction transaction = pawnTransactionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
 
@@ -535,7 +568,8 @@ public class PawnTransactionService {
         TransactionEditHistory history = TransactionEditHistory.builder()
                 .transactionId(transaction.getId())
                 .pawnId(transaction.getPawnId())
-                .editedBy(transaction.getCreatedBy()) // Will be updated by controller if available
+                .editedBy(editedBy != null ? editedBy : transaction.getCreatedBy())
+                .editedByName(editedByName)
                 .editType("DETAILS")
                 .previousAddress(previousAddress)
                 .newAddress(transaction.getCustomerAddress())
@@ -554,11 +588,13 @@ public class PawnTransactionService {
     }
 
     private void logEditHistory(PawnTransaction transaction, String editType,
-                                 String previousStatus, String newStatus, String previousRemarks) {
+                                 String previousStatus, String newStatus, String previousRemarks,
+                                 UUID editedBy, String editedByName) {
         TransactionEditHistory history = TransactionEditHistory.builder()
                 .transactionId(transaction.getId())
                 .pawnId(transaction.getPawnId())
-                .editedBy(transaction.getCreatedBy())
+                .editedBy(editedBy != null ? editedBy : transaction.getCreatedBy())
+                .editedByName(editedByName)
                 .editType(editType)
                 .previousStatus(previousStatus)
                 .newStatus(newStatus)
@@ -566,6 +602,43 @@ public class PawnTransactionService {
                 .newRemarks(transaction.getRemarks())
                 .build();
         editHistoryRepository.save(history);
+    }
+
+    public List<TransactionEditHistoryDTO> getTransactionHistory(UUID transactionId, int limit) {
+        return editHistoryRepository.findByTransactionIdOrderByCreatedAtDesc(
+                        transactionId, PageRequest.of(0, limit))
+                .stream()
+                .map(this::toHistoryDTO)
+                .toList();
+    }
+
+    private TransactionEditHistoryDTO toHistoryDTO(TransactionEditHistory history) {
+        return TransactionEditHistoryDTO.builder()
+                .id(history.getId())
+                .transactionId(history.getTransactionId())
+                .pawnId(history.getPawnId())
+                .editedBy(history.getEditedBy())
+                .editedByName(history.getEditedByName())
+                .editType(history.getEditType())
+                .previousStatus(history.getPreviousStatus())
+                .previousAddress(history.getPreviousAddress())
+                .previousLoanAmount(history.getPreviousLoanAmount())
+                .previousInterestRateId(history.getPreviousInterestRateId())
+                .previousPeriodMonths(history.getPreviousPeriodMonths())
+                .previousMaturityDate(history.getPreviousMaturityDate())
+                .previousRemarks(history.getPreviousRemarks())
+                .newStatus(history.getNewStatus())
+                .newAddress(history.getNewAddress())
+                .newLoanAmount(history.getNewLoanAmount())
+                .newInterestRateId(history.getNewInterestRateId())
+                .newPeriodMonths(history.getNewPeriodMonths())
+                .newMaturityDate(history.getNewMaturityDate())
+                .newRemarks(history.getNewRemarks())
+                .blockReason(history.getBlockReason())
+                .policeReportNumber(history.getPoliceReportNumber())
+                .policeReportDate(history.getPoliceReportDate())
+                .createdAt(history.getCreatedAt())
+                .build();
     }
 
     /**
