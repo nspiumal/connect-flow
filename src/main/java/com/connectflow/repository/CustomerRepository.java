@@ -19,5 +19,10 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     Page<Customer> findByCustomerType(String customerType, Pageable pageable);
     List<Customer> findByFullNameContainingIgnoreCase(String name);
     Page<Customer> findByFullNameContainingIgnoreCase(String name, Pageable pageable);
+
+    // Advanced search methodsf
+    Page<Customer> findByNicContainingIgnoreCase(String nic, Pageable pageable);
+    Page<Customer> findByPhoneContainingIgnoreCase(String phone, Pageable pageable);
+    Page<Customer> findByNicContainingIgnoreCaseAndPhoneContainingIgnoreCase(String nic, String phone, Pageable pageable);
 }
 

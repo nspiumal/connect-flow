@@ -122,6 +122,44 @@ public class PawnTransactionController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/search/advanced")
+    @Operation(summary = "Advanced search transactions with multiple filters")
+    public ResponseEntity<PageResponse<PawnTransactionDTO>> searchTransactionsAdvanced(
+            @RequestParam(required = false) String pawnId,
+            @RequestParam(required = false) String customerNic,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Double minAmount,
+            @RequestParam(required = false) Double maxAmount,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "pawnDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("GET /pawn-transactions/search/advanced - pawnId: {}, customerNic: {}, status: {}, minAmount: {}, maxAmount: {}",
+                 pawnId, customerNic, status, minAmount, maxAmount);
+
+        // Get authenticated user's branch if needed
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UUID branchId = null;
+        if (authentication != null && authentication.getPrincipal() != null) {
+            String email = authentication.getPrincipal().toString();
+            Optional<UserDTO> currentUser = userService.getUserByEmail(email);
+            if (currentUser.isPresent()) {
+                UserDTO user = currentUser.get();
+                // Only apply branch filter for non-admin/super-admin users
+                if (!"ADMIN".equals(user.getRole()) && !"SUPERADMIN".equals(user.getRole())) {
+                    branchId = user.getBranchId();
+                }
+            }
+        }
+
+        java.math.BigDecimal minAmountBD = minAmount != null ? java.math.BigDecimal.valueOf(minAmount) : null;
+        java.math.BigDecimal maxAmountBD = maxAmount != null ? java.math.BigDecimal.valueOf(maxAmount) : null;
+
+        PageResponse<PawnTransactionDTO> response = pawnTransactionService.searchTransactionsAdvanced(
+                pawnId, customerNic, status, minAmountBD, maxAmountBD, branchId, page, size, sortBy, sortDir);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping
     @Operation(summary = "Create new pawn transaction")
     public ResponseEntity<PawnTransactionDTO> createTransaction(@RequestBody CreatePawnTransactionRequest request) {

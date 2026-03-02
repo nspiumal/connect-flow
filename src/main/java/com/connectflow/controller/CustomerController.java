@@ -66,6 +66,34 @@ public class CustomerController {
     }
 
     /**
+     * Advanced search customers by NIC and/or phone with pagination
+     */
+    @GetMapping("/search/advanced")
+    @Operation(summary = "Advanced search customers by NIC and/or phone with pagination")
+    public ResponseEntity<PageResponse<CustomerDTO>> searchAdvanced(
+            @RequestParam(required = false) String nic,
+            @RequestParam(required = false) String phone,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "fullName") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        log.info("GET /customers/search/advanced - nic: {}, phone: {}, page: {}, size: {}", nic, phone, page, size);
+
+        if ((nic == null || nic.trim().isEmpty()) && (phone == null || phone.trim().isEmpty())) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        PageResponse<Customer> response = customerService.searchAdvanced(
+                nic != null ? nic.trim() : null,
+                phone != null ? phone.trim() : null,
+                page, size, sortBy, sortDir);
+        PageResponse<CustomerDTO> dtoResponse = convertPageToDTO(response);
+
+        log.info("Found {} customers matching criteria", response.getTotalElements());
+        return ResponseEntity.ok(dtoResponse);
+    }
+
+    /**
      * Get customer by NIC
      */
     @GetMapping("/nic/{nic}")

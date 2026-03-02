@@ -30,10 +30,10 @@ public class PawnRedemptionController {
     private final PawnRedemptionService redemptionService;
     private final UserService userService;
 
-    @GetMapping("/outstanding/{transactionId}")
+    @GetMapping("/outstanding-balance/{transactionId}")
     @Operation(summary = "Get outstanding balance for a transaction")
     public ResponseEntity<OutstandingBalanceDTO> getOutstandingBalance(@PathVariable UUID transactionId) {
-        log.info("GET /pawn-redemptions/outstanding/{}", transactionId);
+        log.info("GET /pawn-redemptions/outstanding-balance/{}", transactionId);
         return ResponseEntity.ok(redemptionService.getOutstandingBalance(transactionId));
     }
 

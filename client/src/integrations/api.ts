@@ -8,21 +8,35 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
   const headers = new Headers(init.headers || {});
   const token = localStorage.getItem("token");
+
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
+    console.log("Adding auth token to request");
+  } else if (!token) {
+    console.log("No token found in localStorage");
   }
 
-  const response = await fetch(input, { ...init, headers });
+  try {
+    const response = await fetch(input, { ...init, headers });
 
-  // Handle 401 Unauthorized - redirect to login
-  if (response.status === 401) {
-    console.error("401 Unauthorized - redirecting to login");
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
+    // Handle 401 Unauthorized - redirect to login only if not already on login page
+    if (response.status === 401) {
+      console.error("401 Unauthorized - Token may be invalid or expired");
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes("/login")) {
+        console.log("Redirecting to login page");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+      }
+      throw new Error("Unauthorized");
+    }
+
+    return response;
+  } catch (error) {
+    console.error("Fetch error:", error);
+    throw error;
   }
-
-  return response;
 };
 
 export const apiClient = {
@@ -332,6 +346,32 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to search transactions');
       return response.json();
     },
+    searchAdvanced: async (params: {
+      pawnId?: string;
+      customerNic?: string;
+      status?: string;
+      minAmount?: number;
+      maxAmount?: number;
+      page?: number;
+      size?: number;
+      sortBy?: string;
+      sortDir?: string;
+    }) => {
+      const queryParams = new URLSearchParams();
+      if (params.pawnId) queryParams.append('pawnId', params.pawnId);
+      if (params.customerNic) queryParams.append('customerNic', params.customerNic);
+      if (params.status) queryParams.append('status', params.status);
+      if (params.minAmount !== undefined) queryParams.append('minAmount', params.minAmount.toString());
+      if (params.maxAmount !== undefined) queryParams.append('maxAmount', params.maxAmount.toString());
+      queryParams.append('page', (params.page || 0).toString());
+      queryParams.append('size', (params.size || 10).toString());
+      queryParams.append('sortBy', params.sortBy || 'pawnDate');
+      queryParams.append('sortDir', params.sortDir || 'desc');
+
+      const response = await authFetch(`${API_BASE_URL}/pawn-transactions/search/advanced?${queryParams.toString()}`);
+      if (!response.ok) throw new Error('Failed to search transactions');
+      return response.json();
+    },
     create: async (data: any) => {
       const response = await authFetch(`${API_BASE_URL}/pawn-transactions`, {
         method: 'POST',
@@ -380,6 +420,31 @@ export const apiClient = {
     getHistory: async (id: string, limit: number = 10) => {
       const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/history?limit=${limit}`);
       if (!response.ok) throw new Error('Failed to fetch transaction history');
+      return response.json();
+    },
+  },
+
+  /**
+   * Pawn Redemptions API
+   */
+  pawnRedemptions: {
+    getByTransaction: async (transactionId: string) => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-redemptions/transaction/${transactionId}`);
+      if (!response.ok) throw new Error('Failed to fetch redemptions');
+      return response.json();
+    },
+    getOutstandingBalance: async (transactionId: string) => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-redemptions/outstanding-balance/${transactionId}`);
+      if (!response.ok) throw new Error('Failed to fetch outstanding balance');
+      return response.json();
+    },
+    create: async (data: any) => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-redemptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to create redemption');
       return response.json();
     },
   },

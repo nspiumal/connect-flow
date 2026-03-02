@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "blacklist")
@@ -18,7 +20,9 @@ import java.util.UUID;
 public class Blacklist {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(columnDefinition = "CHAR(36)")
     private UUID id;
 
     @Column(name = "customer_name", nullable = false)
@@ -36,10 +40,12 @@ public class Blacklist {
     @Column(name = "police_report_date")
     private LocalDate policeReportDate;
 
-    @Column(name = "branch_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "branch_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID branchId;
 
-    @Column(name = "added_by", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "added_by", nullable = false, columnDefinition = "CHAR(36)")
     private UUID addedBy;
 
     @Column(name = "is_active", nullable = false)
@@ -56,4 +62,3 @@ public class Blacklist {
         }
     }
 }
-

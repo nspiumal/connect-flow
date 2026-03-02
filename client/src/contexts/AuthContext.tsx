@@ -34,29 +34,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check if user is logged in (stored in localStorage)
-    try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        setRole(userData.role || null);
-        setBranchId(userData.branch || null);
-        setProfile({ full_name: userData.fullName, email: userData.email });
+    const initAuth = async () => {
+      try {
+        const storedUser = localStorage.getItem("user");
+        const storedToken = localStorage.getItem("token");
+
+        console.log("Auth initialization - User found:", !!storedUser, "Token found:", !!storedToken);
+
+        if (storedUser && storedToken) {
+          const userData = JSON.parse(storedUser);
+          console.log("Loaded user from storage:", userData.email, "Role:", userData.role);
+          setUser(userData);
+          setRole(userData.role || null);
+          setBranchId(userData.branchId || null);
+          setProfile({ full_name: userData.fullName, email: userData.email });
+        } else {
+          console.log("No stored user or token found");
+        }
+      } catch (err) {
+        console.error("Error loading stored user:", err);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Error loading stored user:", err);
-      localStorage.removeItem("user");
-    }
-    setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
+      console.log("Attempting login for:", email);
       // Call backend authentication API
       const response = await apiClient.auth.login(email, password);
+      console.log("Login response received:", response);
+
       const userData = response.user;
       const token = response.token;
+
+      if (!token) {
+        throw new Error("No token received from server");
+      }
 
       const userToStore: UserProfile = {
         id: userData.id || email,
@@ -68,16 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         branch: userData.branch,
       };
 
+      console.log("Storing user data:", userToStore);
       localStorage.setItem("user", JSON.stringify(userToStore));
-      if (token) {
-        localStorage.setItem("token", token);
-      }
+      localStorage.setItem("token", token);
 
       setUser(userToStore);
       setRole(userToStore.role || null);
-      setBranchId(userToStore.branch || null);
+      setBranchId(userToStore.branchId || null);
       setProfile({ full_name: userToStore.fullName, email: userToStore.email });
+
+      console.log("Login successful, user state updated");
     } catch (error) {
+      console.error("Login failed:", error);
       localStorage.removeItem("user");
       localStorage.removeItem("token");
       setUser(null);

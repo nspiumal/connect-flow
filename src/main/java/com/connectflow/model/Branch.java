@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -18,7 +21,8 @@ public class Branch {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(columnDefinition = "CHAR(36)")
     private UUID id;
 
     @Column(nullable = false)
@@ -30,7 +34,8 @@ public class Branch {
     @Column
     private String phone;
 
-    @Column(name = "manager_id", columnDefinition = "uuid")
+    @Column(name = "manager_id", columnDefinition = "CHAR(36)")
+    @JdbcTypeCode(SqlTypes.CHAR)
     private UUID managerId;
 
     @Column(name = "is_active", nullable = false)
@@ -53,4 +58,3 @@ public class Branch {
         updatedAt = LocalDateTime.now();
     }
 }
-

@@ -91,6 +91,50 @@ public class CustomerService {
     }
 
     /**
+     * Advanced search customers by NIC and/or phone with pagination
+     */
+    public PageResponse<Customer> searchAdvanced(String nic, String phone, int page, int size, String sortBy, String sortDir) {
+        log.info("Advanced search customers - nic: {}, phone: {}, page: {}, size: {}", nic, phone, page, size);
+
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Customer> customerPage;
+
+        if (nic != null && !nic.isEmpty() && phone != null && !phone.isEmpty()) {
+            // Search by both NIC and phone (AND condition)
+            log.info("Searching by both NIC and phone");
+            customerPage = customerRepository.findByNicContainingIgnoreCaseAndPhoneContainingIgnoreCase(nic, phone, pageable);
+        } else if (nic != null && !nic.isEmpty()) {
+            // Search by NIC only
+            log.info("Searching by NIC");
+            customerPage = customerRepository.findByNicContainingIgnoreCase(nic, pageable);
+        } else if (phone != null && !phone.isEmpty()) {
+            // Search by phone only
+            log.info("Searching by phone");
+            customerPage = customerRepository.findByPhoneContainingIgnoreCase(phone, pageable);
+        } else {
+            // Get all if both are empty (fallback)
+            log.info("No filters provided, returning all customers");
+            customerPage = customerRepository.findByIsActiveTrue(pageable);
+        }
+
+        List<Customer> content = customerPage.getContent();
+
+        return new PageResponse<>(
+                content,
+                customerPage.getNumber(),
+                customerPage.getSize(),
+                customerPage.getTotalElements(),
+                customerPage.getTotalPages(),
+                customerPage.isLast()
+        );
+    }
+
+    /**
      * Get customers by type with pagination
      */
     public PageResponse<Customer> getByCustomerType(String customerType, int page, int size, String sortBy, String sortDir) {

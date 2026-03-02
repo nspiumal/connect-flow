@@ -83,6 +83,31 @@ public class BlacklistService {
             .collect(Collectors.toList());
     }
 
+    /**
+     * Search blacklisted customers by NIC with pagination
+     */
+    public PageResponse<BlacklistDTO> searchByNic(String nic, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+            ? Sort.by(sortBy).descending()
+            : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Blacklist> blacklistPage = blacklistRepository.findByCustomerNicContainingIgnoreCase(nic, pageable);
+
+        List<BlacklistDTO> content = blacklistPage.getContent().stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+
+        return new PageResponse<>(
+            content,
+            blacklistPage.getNumber(),
+            blacklistPage.getSize(),
+            blacklistPage.getTotalElements(),
+            blacklistPage.getTotalPages(),
+            blacklistPage.isLast()
+        );
+    }
+
     public BlacklistDTO addToBlacklist(BlacklistDTO dto) {
         Blacklist blacklist = Blacklist.builder()
             .customerName(dto.getCustomerName())

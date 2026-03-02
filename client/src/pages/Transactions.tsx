@@ -145,8 +145,21 @@ export default function Transactions() {
   };
 
   useEffect(() => {
-    fetchTransactions();
-    fetchRates();
+    const loadData = async () => {
+      try {
+        await fetchTransactions();
+      } catch (error) {
+        console.error("Error loading transactions:", error);
+      }
+
+      try {
+        await fetchRates();
+      } catch (error) {
+        console.error("Error loading rates:", error);
+      }
+    };
+
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize, appliedFilters]);
 

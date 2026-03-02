@@ -32,7 +32,10 @@ public class SecurityConfig {
                     "/api/h2-console/**",
                     "/auth/**",
                     "/api/auth/**",
-                    "/api/health/**"
+                    "/api/health/**",
+                    "/api/interest-rates/active",
+                    "/api/branches/active",
+                    "/api/branches"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

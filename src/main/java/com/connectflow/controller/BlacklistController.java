@@ -85,6 +85,25 @@ public class BlacklistController {
         return ResponseEntity.ok(blacklist);
     }
 
+    @GetMapping("/search")
+    @Operation(summary = "Search blacklisted customers by NIC with pagination")
+    public ResponseEntity<PageResponse<BlacklistDTO>> searchByNic(
+            @RequestParam String nic,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("GET /blacklist/search - nic: {}, page: {}, size: {}, sortBy: {}, sortDir: {}", nic, page, size, sortBy, sortDir);
+
+        if (nic == null || nic.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        PageResponse<BlacklistDTO> response = blacklistService.searchByNic(nic.trim(), page, size, sortBy, sortDir);
+        log.info("Found {} blacklist entries matching NIC: {}", response.getTotalElements(), nic);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping
     @Operation(summary = "Add customer to blacklist")
     public ResponseEntity<BlacklistDTO> addToBlacklist(@RequestBody BlacklistDTO dto) {
