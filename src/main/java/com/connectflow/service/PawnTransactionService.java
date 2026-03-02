@@ -193,6 +193,54 @@ public class PawnTransactionService {
     }
 
     /**
+     * Advanced search for transactions with optional filters
+     */
+    public PageResponse<PawnTransactionDTO> searchTransactionsAdvanced(String pawnId,
+                                                                       String customerNic,
+                                                                       String status,
+                                                                       BigDecimal minAmount,
+                                                                       BigDecimal maxAmount,
+                                                                       UUID branchId,
+                                                                       int page,
+                                                                       int size,
+                                                                       String sortBy,
+                                                                       String sortDir) {
+        String normalizedPawnId = pawnId != null && !pawnId.trim().isEmpty() ? pawnId.trim() : null;
+        String normalizedNic = customerNic != null && !customerNic.trim().isEmpty() ? customerNic.trim() : null;
+        String normalizedStatus = status != null && !status.trim().isEmpty() && !"all".equalsIgnoreCase(status)
+                ? status.trim()
+                : null;
+
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<PawnTransaction> transactionPage = pawnTransactionRepository.searchTransactionsAdvanced(
+                branchId,
+                normalizedPawnId,
+                normalizedNic,
+                normalizedStatus,
+                minAmount,
+                maxAmount,
+                pageable
+        );
+
+        List<PawnTransactionDTO> content = transactionPage.getContent().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+
+        return new PageResponse<>(
+                content,
+                transactionPage.getNumber(),
+                transactionPage.getSize(),
+                transactionPage.getTotalElements(),
+                transactionPage.getTotalPages(),
+                transactionPage.isLast()
+        );
+    }
+
+    /**
      * Create new pawn transaction
      * Automatically creates or updates customer record
      * Checks if customer is blacklisted before creation
@@ -298,6 +346,7 @@ public class PawnTransactionService {
                 .customerPhone(request.getCustomerPhone())
                 .customerType(request.getCustomerType() != null ? request.getCustomerType() : "Regular")
                 .loanAmount(totalLoanAmount)
+                .remainingBalance(totalLoanAmount)
                 .interestRateId(request.getInterestRateId())
                 .interestRatePercent(interestRatePercent)
                 .periodMonths(request.getPeriodMonths() != null ? request.getPeriodMonths() : 6)
@@ -715,6 +764,12 @@ public class PawnTransactionService {
             }
         }
 
+        // Calculate remaining balance from database or use loan amount if not set
+        BigDecimal remainingBalance = transaction.getRemainingBalance();
+        if (remainingBalance == null) {
+            remainingBalance = transaction.getLoanAmount();
+        }
+
         return PawnTransactionDTO.builder()
                 .id(transaction.getId())
                 .pawnId(transaction.getPawnId())
@@ -728,6 +783,7 @@ public class PawnTransactionService {
                 .customerPhone(transaction.getCustomerPhone())
                 .customerType(transaction.getCustomerType())
                 .loanAmount(transaction.getLoanAmount())
+                .remainingBalance(remainingBalance)
                 .interestRateId(transaction.getInterestRateId())
                 .interestRateName(interestRateName)
                 .interestRatePercent(transaction.getInterestRatePercent())

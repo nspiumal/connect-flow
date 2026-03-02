@@ -3,6 +3,8 @@ package com.connectflow.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,15 +21,19 @@ public class TransactionEditHistory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(columnDefinition = "CHAR(36)")
     private UUID id;
 
-    @Column(name = "transaction_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "transaction_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID transactionId;
 
     @Column(name = "pawn_id")
     private String pawnId;
 
-    @Column(name = "edited_by", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "edited_by", nullable = false, columnDefinition = "CHAR(36)")
     private UUID editedBy;
 
     @Column(name = "edited_by_name")
@@ -46,7 +52,8 @@ public class TransactionEditHistory {
     @Column(name = "previous_loan_amount", precision = 12, scale = 2)
     private BigDecimal previousLoanAmount;
 
-    @Column(name = "previous_interest_rate_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "previous_interest_rate_id", columnDefinition = "CHAR(36)")
     private UUID previousInterestRateId;
 
     @Column(name = "previous_period_months")
@@ -68,7 +75,8 @@ public class TransactionEditHistory {
     @Column(name = "new_loan_amount", precision = 12, scale = 2)
     private BigDecimal newLoanAmount;
 
-    @Column(name = "new_interest_rate_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "new_interest_rate_id", columnDefinition = "CHAR(36)")
     private UUID newInterestRateId;
 
     @Column(name = "new_period_months")
@@ -93,4 +101,3 @@ public class TransactionEditHistory {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 }
-

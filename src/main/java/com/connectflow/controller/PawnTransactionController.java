@@ -314,4 +314,55 @@ public class PawnTransactionController {
         log.info("GET /pawn-transactions/{}/history", id);
         return ResponseEntity.ok(pawnTransactionService.getTransactionHistory(id, limit));
     }
+
+    @GetMapping("/search-advanced")
+    @Operation(summary = "Search transactions with advanced filters")
+    public ResponseEntity<PageResponse<PawnTransactionDTO>> searchTransactionsAdvanced(
+            @RequestParam(required = false) String pawnId,
+            @RequestParam(required = false) String customerNic,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) java.math.BigDecimal minAmount,
+            @RequestParam(required = false) java.math.BigDecimal maxAmount,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "pawnDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            log.error("No authentication found");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = authentication.getPrincipal().toString();
+        Optional<UserDTO> currentUser = userService.getUserByEmail(email);
+        if (currentUser.isEmpty()) {
+            log.error("User not found for email: {}", email);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        UserDTO user = currentUser.get();
+        UUID branchScope = null;
+        if (user.getRole() != null && user.getRole() != com.connectflow.model.UserRole.Role.ADMIN
+                && user.getRole() != com.connectflow.model.UserRole.Role.SUPERADMIN) {
+            branchScope = user.getBranchId();
+            if (branchScope == null) {
+                log.error("User {} does not have a branch assigned", email);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+        }
+
+        PageResponse<PawnTransactionDTO> response = pawnTransactionService.searchTransactionsAdvanced(
+                pawnId,
+                customerNic,
+                status,
+                minAmount,
+                maxAmount,
+                branchScope,
+                page,
+                size,
+                sortBy,
+                sortDir
+        );
+        return ResponseEntity.ok(response);
+    }
 }

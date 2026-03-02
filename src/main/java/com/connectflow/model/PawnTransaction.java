@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "pawn_transactions")
@@ -22,16 +24,19 @@ public class PawnTransaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(columnDefinition = "CHAR(36)")
     private UUID id;
 
     @Column(name = "pawn_id", nullable = false, unique = true)
     private String pawnId;
 
-    @Column(name = "branch_id", nullable = false, columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "branch_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID branchId;
 
-    @Column(name = "customer_id", nullable = false, columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "customer_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID customerId;
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -62,7 +67,11 @@ public class PawnTransaction {
     @Column(name = "loan_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal loanAmount;
 
-    @Column(name = "interest_rate_id", columnDefinition = "uuid")
+    @Column(name = "remaining_balance", precision = 18, scale = 2)
+    private BigDecimal remainingBalance;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "interest_rate_id", columnDefinition = "CHAR(36)")
     private UUID interestRateId;
 
     @Column(name = "interest_rate_percent", nullable = false, precision = 5, scale = 2)
@@ -77,6 +86,9 @@ public class PawnTransaction {
     @Column(name = "maturity_date", nullable = false)
     private LocalDate maturityDate;
 
+    @Column(name = "last_redemption_date")
+    private LocalDate lastRedemptionDate;
+
     @Column(nullable = false)
     private String status = "Active";
 
@@ -88,7 +100,8 @@ public class PawnTransaction {
     @Builder.Default
     private List<PawnTransactionItem> items = new ArrayList<>();
 
-    @Column(name = "created_by", nullable = false, columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "created_by", nullable = false, columnDefinition = "CHAR(36)")
     private UUID createdBy;
 
     @Column(name = "created_at", nullable = false)
@@ -111,4 +124,3 @@ public class PawnTransaction {
         updatedAt = LocalDateTime.now();
     }
 }
-

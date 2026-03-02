@@ -448,11 +448,34 @@ export default function TransactionInfo() {
 
                   {renderChange("Status", entry.previousStatus, entry.newStatus)}
                   {renderChange("Address", entry.previousAddress, entry.newAddress)}
-                  {renderChange("Loan Amount", entry.previousLoanAmount, entry.newLoanAmount)}
+
+                  {/* Show Remaining Balance for REDEMPTION type */}
+                  {entry.editType === "REDEMPTION" && entry.newLoanAmount && (
+                    <div className="text-sm text-gray-700">
+                      <span className="font-medium">Remaining Balance:</span>{" "}
+                      <span className="text-orange-600 font-semibold">
+                        Rs. {Number(entry.newLoanAmount).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Show Loan Amount change for non-REDEMPTION edits */}
+                  {entry.editType !== "REDEMPTION" && renderChange("Loan Amount", entry.previousLoanAmount, entry.newLoanAmount)}
+
                   {renderChange("Interest Rate ID", entry.previousInterestRateId, entry.newInterestRateId)}
                   {renderChange("Period (Months)", entry.previousPeriodMonths, entry.newPeriodMonths)}
                   {renderChange("Maturity Date", entry.previousMaturityDate, entry.newMaturityDate)}
-                  {renderChange("Remarks", entry.previousRemarks, entry.newRemarks)}
+
+                  {/* Show Redemption Details for REDEMPTION type */}
+                  {entry.editType === "REDEMPTION" && entry.newRemarks && (
+                    <div className="text-sm bg-blue-50 p-3 rounded border border-blue-200">
+                      <span className="font-medium text-blue-900">Payment Details:</span>
+                      <p className="text-blue-800 mt-1">{entry.newRemarks}</p>
+                    </div>
+                  )}
+
+                  {/* Show Remarks for non-REDEMPTION edits */}
+                  {entry.editType !== "REDEMPTION" && renderChange("Remarks", entry.previousRemarks, entry.newRemarks)}
 
                   {entry.blockReason && (
                     <div className="text-sm text-gray-700">

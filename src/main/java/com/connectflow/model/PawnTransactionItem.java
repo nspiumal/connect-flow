@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -21,10 +24,12 @@ public class PawnTransactionItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(columnDefinition = "CHAR(36)")
     private UUID id;
 
-    @Column(name = "transaction_id", nullable = false, columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "transaction_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID transactionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -73,4 +78,3 @@ public class PawnTransactionItem {
         updatedAt = LocalDateTime.now();
     }
 }
-

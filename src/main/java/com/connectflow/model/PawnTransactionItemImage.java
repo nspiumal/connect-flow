@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -18,17 +21,20 @@ public class PawnTransactionItemImage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(columnDefinition = "CHAR(36)")
     private UUID id;
 
-    @Column(name = "item_id", nullable = false, columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "item_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID itemId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_id", insertable = false, updatable = false)
     private PawnTransactionItem item;
 
-    @Column(name = "transaction_id", nullable = false, columnDefinition = "uuid")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "transaction_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID transactionId;
 
     @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
@@ -45,4 +51,3 @@ public class PawnTransactionItemImage {
         createdAt = LocalDateTime.now();
     }
 }
-
