@@ -10,6 +10,7 @@ import com.connectflow.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -67,13 +69,22 @@ public class UserController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new user")
+    @Operation(summary = "Create a new user (will be inserted into PROFILES table)")
     public ResponseEntity<UserDTO> createUser(@RequestBody CreateUserRequest request) {
         try {
+            log.info("Received user creation request - Email: {}, Name: {}, Role: {}",
+                request.getEmail(), request.getFullName(), request.getRole());
+
             UserDTO created = userService.createUser(request);
+
+            log.info("API Response: User created successfully with ID: {}", created.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (IllegalArgumentException e) {
+            log.error("User creation failed - Invalid input: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("User creation failed - Error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

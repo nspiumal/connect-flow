@@ -36,7 +36,7 @@ public class PawnTransactionItem {
     @JoinColumn(name = "transaction_id", insertable = false, updatable = false)
     private PawnTransaction transaction;
 
-    @Column(name = "item_description", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "item_description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "item_content")
@@ -48,11 +48,14 @@ public class PawnTransactionItem {
     @Column(name = "weight_grams", precision = 10, scale = 2)
     private BigDecimal weightGrams;
 
-    @Column(name = "karat")
-    private Integer karat = 24;
+    @Column(name = "karat", length = 10)
+    private String karat = "N/A"; // Changed from Integer to String to support "N/A", "22K", etc.
 
     @Column(name = "appraised_value", precision = 18, scale = 2)
     private BigDecimal appraisedValue;
+
+    @Column(name = "market_value", precision = 18, scale = 2)
+    private BigDecimal marketValue; // New field: market/replacement value
 
     @Column(name = "item_order")
     private Integer itemOrder = 0; // Order of item in the transaction

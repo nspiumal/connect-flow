@@ -382,8 +382,9 @@ public class PawnTransactionService {
                     .content(itemDTO.getContent())
                     .condition(itemDTO.getCondition() != null ? itemDTO.getCondition() : "Good")
                     .weightGrams(itemDTO.getWeightGrams())
-                    .karat(itemDTO.getKarat() != null ? itemDTO.getKarat() : 24)
+                    .karat(itemDTO.getKarat() != null ? itemDTO.getKarat() : "N/A") // String karat with N/A default
                     .appraisedValue(itemDTO.getAppraisedValue())
+                    .marketValue(itemDTO.getMarketValue()) // New market value field
                     .itemOrder(i)
                     .build();
 

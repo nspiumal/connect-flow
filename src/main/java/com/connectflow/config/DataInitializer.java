@@ -125,7 +125,9 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        // Create users
+        log.info("Starting PROFILES table population with test users...");
+
+        // Create users (will be inserted into PROFILES table)
         User superAdmin = userRepository.save(User.builder()
             .id(UUID.randomUUID())
             .fullName("Super Administrator")
@@ -133,6 +135,8 @@ public class DataInitializer implements CommandLineRunner {
             .phone("+1-555-0100")
             .password("SuperAdmin@123")
             .build());
+        log.info("SUPERADMIN user inserted into PROFILES table - ID: {}, Email: {}",
+            superAdmin.getId(), superAdmin.getEmail());
 
         User admin = userRepository.save(User.builder()
             .id(UUID.randomUUID())
@@ -141,6 +145,8 @@ public class DataInitializer implements CommandLineRunner {
             .phone("+1-555-0101")
             .password("Admin@123")
             .build());
+        log.info("ADMIN user inserted into PROFILES table - ID: {}, Email: {}",
+            admin.getId(), admin.getEmail());
 
         User manager = userRepository.save(User.builder()
             .id(UUID.randomUUID())
@@ -149,6 +155,8 @@ public class DataInitializer implements CommandLineRunner {
             .phone("+1-555-0102")
             .password("Manager@123")
             .build());
+        log.info("MANAGER user inserted into PROFILES table - ID: {}, Email: {}",
+            manager.getId(), manager.getEmail());
 
         User staff = userRepository.save(User.builder()
             .id(UUID.randomUUID())
@@ -157,6 +165,10 @@ public class DataInitializer implements CommandLineRunner {
             .phone("+1-555-0103")
             .password("Staff@123")
             .build());
+        log.info("STAFF user inserted into PROFILES table - ID: {}, Email: {}",
+            staff.getId(), staff.getEmail());
+
+        log.info("All test users successfully inserted into PROFILES table");
 
         // Assign roles
         // SUPERADMIN - assign to Main Branch as default for operations
@@ -342,7 +354,7 @@ public class DataInitializer implements CommandLineRunner {
                 .content("Ring")
                 .condition("Excellent")
                 .weightGrams(new BigDecimal("15.50"))
-                .karat(22)
+                .karat("22K")
                 .appraisedValue(new BigDecimal("125000"))
                 .itemOrder(0)
                 .build());
@@ -390,7 +402,7 @@ public class DataInitializer implements CommandLineRunner {
                 .content("Necklace")
                 .condition("Good")
                 .weightGrams(new BigDecimal("28.30"))
-                .karat(24)
+                .karat("24K")
                 .appraisedValue(new BigDecimal("280000"))
                 .itemOrder(0)
                 .build());
@@ -431,7 +443,7 @@ public class DataInitializer implements CommandLineRunner {
                 .content("Bracelet")
                 .condition("Fair")
                 .weightGrams(new BigDecimal("21.00"))
-                .karat(22)
+                .karat("22K")
                 .appraisedValue(new BigDecimal("165000"))
                 .itemOrder(0)
                 .build());
@@ -450,7 +462,7 @@ public class DataInitializer implements CommandLineRunner {
                 .content("Pendant")
                 .condition("Good")
                 .weightGrams(new BigDecimal("12.50"))
-                .karat(18)
+                .karat("18K")
                 .appraisedValue(new BigDecimal("115000"))
                 .itemOrder(1)
                 .build());
@@ -491,7 +503,7 @@ public class DataInitializer implements CommandLineRunner {
                 .content("Earrings")
                 .condition("Excellent")
                 .weightGrams(new BigDecimal("8.50"))
-                .karat(18)
+                .karat("18K")
                 .appraisedValue(new BigDecimal("60000"))
                 .itemOrder(0)
                 .build());
@@ -532,7 +544,7 @@ public class DataInitializer implements CommandLineRunner {
                 .content("Chain")
                 .condition("Good")
                 .weightGrams(new BigDecimal("20.00"))
-                .karat(22)
+                .karat("22K")
                 .appraisedValue(new BigDecimal("165000"))
                 .itemOrder(0)
                 .build());

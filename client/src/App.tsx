@@ -13,6 +13,7 @@ import BranchRequests from "./pages/BranchRequests";
 import UsersPage from "./pages/Users";
 import Transactions from "./pages/Transactions";
 import CreatePawning from "./pages/CreatePawning";
+import CreatePawningSample from "./pages/CreatePawningSample";
 import TransactionEdit from "./pages/TransactionEdit";
 import TransactionInfo from "./pages/TransactionInfo";
 import Customers from "./pages/Customers";
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/users" element={<UsersPage />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/transactions/create" element={<CreatePawning />} />
+              <Route path="/transactions/create-sample" element={<CreatePawningSample />} />
               <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
               <Route path="/transactions/info/:id" element={<TransactionInfo />} />
               <Route path="/customers" element={<Customers />} />

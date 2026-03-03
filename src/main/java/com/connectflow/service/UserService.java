@@ -9,6 +9,7 @@ import com.connectflow.repository.UserRepository;
 import com.connectflow.repository.UserRoleRepository;
 import com.connectflow.repository.BranchRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -103,8 +105,11 @@ public class UserService {
 
     /**
      * Create a new user with role and branch assignment
+     * This method inserts the user into the PROFILES table and creates role assignment
      */
     public UserDTO createUser(CreateUserRequest request) {
+        log.info("Starting user creation process - Email: {}", request.getEmail());
+
         // Validate required fields
         if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
             throw new IllegalArgumentException("Email is required");
@@ -121,10 +126,11 @@ public class UserService {
 
         // Check if email already exists
         if (userRepository.findByEmail(request.getEmail().trim().toLowerCase()).isPresent()) {
+            log.warn("User creation failed - Email already exists: {}", request.getEmail());
             throw new IllegalArgumentException("Email already exists");
         }
 
-        // Create the user
+        // Create the user (will be inserted into PROFILES table)
         User user = User.builder()
             .id(UUID.randomUUID())
             .fullName(request.getFullName().trim())
@@ -134,6 +140,8 @@ public class UserService {
             .build();
 
         User savedUser = userRepository.save(user);
+        log.info("✅ User successfully inserted into PROFILES table - ID: {}, Email: {}, Full Name: {}",
+            savedUser.getId(), savedUser.getEmail(), savedUser.getFullName());
 
         // Create user role assignment
         UserRole userRole = UserRole.builder()
@@ -143,8 +151,12 @@ public class UserService {
             .build();
 
         userRoleRepository.save(userRole);
+        log.info("✅ User role assigned - UserID: {}, Role: {}, BranchID: {}",
+            savedUser.getId(), request.getRole(), request.getBranchId());
 
-        return convertToDTO(savedUser);
+        UserDTO result = convertToDTO(savedUser);
+        log.info("✅ User creation completed successfully - UserID: {}", savedUser.getId());
+        return result;
     }
 
     /**

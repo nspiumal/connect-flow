@@ -274,6 +274,11 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to check NIC');
       return response.json();
     },
+    verifyNic: async (nic: string) => {
+      const response = await authFetch(`${API_BASE_URL}/blacklist/verify/${nic}`);
+      if (!response.ok) throw new Error('Failed to verify NIC');
+      return response.json();
+    },
     create: async (data: any) => {
       const response = await authFetch(`${API_BASE_URL}/blacklist`, {
         method: 'POST',

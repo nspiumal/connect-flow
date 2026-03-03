@@ -1,6 +1,7 @@
 package com.connectflow.controller;
 
 import com.connectflow.dto.BlacklistDTO;
+import com.connectflow.dto.NicVerificationResponseDTO;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.UserDTO;
 import com.connectflow.service.BlacklistService;
@@ -83,6 +84,27 @@ public class BlacklistController {
         log.info("GET /blacklist/check/{} - Checking NIC", nic);
         List<BlacklistDTO> blacklist = blacklistService.checkByNic(nic);
         return ResponseEntity.ok(blacklist);
+    }
+
+    @GetMapping("/verify/{nic}")
+    @Operation(summary = "Verify NIC - Check blocklist and fetch customer data in one call")
+    public ResponseEntity<NicVerificationResponseDTO> verifyNic(@PathVariable String nic) {
+        log.info("GET /blacklist/verify/{} - Verifying NIC and checking blocklist", nic);
+
+        if (nic == null || nic.trim().isEmpty()) {
+            log.warn("Empty NIC provided for verification");
+            return ResponseEntity.badRequest().build();
+        }
+
+        try {
+            NicVerificationResponseDTO response = blacklistService.verifyNic(nic.trim());
+            log.info("NIC verification result - Blocked: {}, Customer exists: {}",
+                response.getIsBlocked(), response.getCustomer() != null);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error verifying NIC: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @GetMapping("/search")

@@ -17,8 +17,9 @@ public class ItemDetailDTO {
     private String content;
     private String condition;
     private BigDecimal weightGrams;
-    private Integer karat;
+    private String karat; // Changed from Integer to String to support "N/A", "22K", etc.
     private BigDecimal appraisedValue;
+    private BigDecimal marketValue; // New field: market/replacement value
 
     @Builder.Default
     private List<String> images = new ArrayList<>(); // Image URLs/base64 strings

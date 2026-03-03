@@ -1,12 +1,14 @@
 package com.connectflow.service;
 
 import com.connectflow.dto.BlacklistDTO;
+import com.connectflow.dto.CustomerDTO;
+import com.connectflow.dto.NicVerificationResponseDTO;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.model.Blacklist;
-import com.connectflow.model.Branch;
-import com.connectflow.model.User;
+import com.connectflow.model.Customer;
 import com.connectflow.repository.BlacklistRepository;
 import com.connectflow.repository.BranchRepository;
+import com.connectflow.repository.CustomerRepository;
 import com.connectflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,7 @@ public class BlacklistService {
     private final BlacklistRepository blacklistRepository;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
 
     public List<BlacklistDTO> getAllBlacklisted() {
         return blacklistRepository.findAll().stream()
@@ -81,6 +84,59 @@ public class BlacklistService {
         return blacklistRepository.findByCustomerNicAndIsActiveTrue(nic).stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
+    }
+
+    /**
+     * Verify NIC - Check blocklist first, then fetch customer data if not blocked
+     * This is a single API call for the transaction creation wizard
+     */
+    public NicVerificationResponseDTO verifyNic(String nic) {
+        // Step 1: Check if NIC is blocked
+        List<Blacklist> blockedEntries = blacklistRepository.findByCustomerNicAndIsActiveTrue(nic);
+
+        if (!blockedEntries.isEmpty()) {
+            // Customer is blocked - return blocked status with reason
+            Blacklist firstBlock = blockedEntries.get(0);
+            return NicVerificationResponseDTO.builder()
+                .isBlocked(true)
+                .blocklistReason(firstBlock.getReason())
+                .customer(null)
+                .message("Customer is blocked: " + firstBlock.getReason())
+                .build();
+        }
+
+        // Step 2: NIC is not blocked - fetch customer data if exists
+        Optional<Customer> customerOpt = customerRepository.findByNic(nic);
+
+        if (customerOpt.isPresent()) {
+            Customer customer = customerOpt.get();
+            CustomerDTO customerDTO = CustomerDTO.builder()
+                .id(customer.getId())
+                .fullName(customer.getFullName())
+                .nic(customer.getNic())
+                .phone(customer.getPhone())
+                .address(customer.getAddress())
+                .customerType(customer.getCustomerType())
+                .isActive(customer.getIsActive())
+                .createdAt(customer.getCreatedAt())
+                .updatedAt(customer.getUpdatedAt())
+                .build();
+
+            return NicVerificationResponseDTO.builder()
+                .isBlocked(false)
+                .blocklistReason(null)
+                .customer(customerDTO)
+                .message("Customer found and not blocked")
+                .build();
+        } else {
+            // Customer doesn't exist yet - return success with null customer
+            return NicVerificationResponseDTO.builder()
+                .isBlocked(false)
+                .blocklistReason(null)
+                .customer(null)
+                .message("NIC verified - no existing customer record")
+                .build();
+        }
     }
 
     /**

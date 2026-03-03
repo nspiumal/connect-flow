@@ -11,7 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Image as ImageIcon, Upload, X, Plus } from "lucide-react";
+import { Image as ImageIcon, Upload, X, Plus, AlertCircle, CheckCircle2, ChevronRight } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function CreatePawning() {
   const { toast } = useToast();
@@ -20,14 +21,16 @@ export default function CreatePawning() {
 
   const [loading, setLoading] = useState(false);
   const [rates, setRates] = useState<any[]>([]);
-  const [showPeriodField, setShowPeriodField] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
 
-  // Hidden feature: T-N-D key sequence for revealing period field
-  const keySequenceRef = useRef<string[]>([]);
-  const keyTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Wizard state
+  const [currentStep, setCurrentStep] = useState(1);
 
-  // Customer Information
+  // Step 1: Customer verification & details
+  const [nicInput, setNicInput] = useState("");
+  const [nicVerified, setNicVerified] = useState(false);
+  const [nicVerifying, setNicVerifying] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blocklistReason, setBlocklistReason] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerNic, setCustomerNic] = useState("");
   const [idType, setIdType] = useState("NIC");
@@ -35,40 +38,48 @@ export default function CreatePawning() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
 
-  // Item Information - Single item form state
+  // Field-level validation errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Step 2: Item information
   const [itemDescription, setItemDescription] = useState("");
   const [itemContent, setItemContent] = useState("");
   const [itemCondition, setItemCondition] = useState("Good");
   const [itemWeight, setItemWeight] = useState("");
-  const [itemKarat, setItemKarat] = useState("24");
+  const [itemKarat, setItemKarat] = useState("N/A");
   const [appraisedValue, setAppraisedValue] = useState("");
+  const [marketValue, setMarketValue] = useState("");
+  const [currentItemImages, setCurrentItemImages] = useState<string[]>([]);
 
-  // Multiple items state
   interface ItemDetail {
     description: string;
     content: string;
     condition: string;
     weightGrams: number;
-    karat: number;
+    karat: string;
     appraisedValue: number;
-    images: string[]; // Base64 image strings for this item
+    marketValue: number;
+    images: string[];
   }
   const [items, setItems] = useState<ItemDetail[]>([]);
 
-  // Transaction Information
-    const [loanAmount, setLoanAmount] = useState("");
-    const [selectedRateId, setSelectedRateId] = useState("");
-    const [periodMonths, setPeriodMonths] = useState("12");
-    const [remarks, setRemarks] = useState("");
-    const [manualRateEnabled, setManualRateEnabled] = useState(false);
-    const [manualRatePercent, setManualRatePercent] = useState("");
-    const [showPinDialog, setShowPinDialog] = useState(false);
-    const [pinInput, setPinInput] = useState("");
-    const [pinVerifying, setPinVerifying] = useState(false);
-    const [managerUserId, setManagerUserId] = useState<string | null>(null);
+  // Step 3: Transaction details
+  const [loanAmount, setLoanAmount] = useState("");
+  const [selectedRateId, setSelectedRateId] = useState("");
+  const [periodMonths, setPeriodMonths] = useState("12");
+  const [remarks, setRemarks] = useState("");
+  const [manualRateEnabled, setManualRateEnabled] = useState(false);
+  const [manualRatePercent, setManualRatePercent] = useState("");
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinVerifying, setPinVerifying] = useState(false);
+  const [managerUserId, setManagerUserId] = useState<string | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
 
-  // Image handling for current item being added
-  const [currentItemImages, setCurrentItemImages] = useState<string[]>([]);
+  // Hidden feature: T-N-D key sequence for revealing period field
+  const [showPeriodField, setShowPeriodField] = useState(false);
+  const keySequenceRef = useRef<string[]>([]);
+  const keyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchRates();
@@ -92,32 +103,22 @@ export default function CreatePawning() {
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-
-      // Only track 't', 'n', 'd' keys
       if (['t', 'n', 'd'].includes(key)) {
         keySequenceRef.current.push(key);
+        if (keyTimerRef.current) clearTimeout(keyTimerRef.current);
 
-        // Clear existing timer
-        if (keyTimerRef.current) {
-          clearTimeout(keyTimerRef.current);
-        }
-
-        // Check if sequence is T-N-D
         if (keySequenceRef.current.length >= 3) {
           const lastThree = keySequenceRef.current.slice(-3).join('');
           if (lastThree === 'tnd') {
             setShowPeriodField(!showPeriodField);
             toast({
               title: showPeriodField ? "Period Field Hidden" : "Period Field Revealed",
-              description: showPeriodField
-                ? "Period field is now hidden"
-                : "Type T-N-D again to hide",
+              description: showPeriodField ? "Period field is now hidden" : "Type T-N-D again to hide",
             });
-            keySequenceRef.current = []; // Reset sequence
+            keySequenceRef.current = [];
           }
         }
 
-        // Reset sequence after 3 seconds of inactivity
         keyTimerRef.current = setTimeout(() => {
           keySequenceRef.current = [];
         }, 3000);
@@ -127,11 +128,176 @@ export default function CreatePawning() {
     window.addEventListener('keydown', handleKeyPress);
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
-      if (keyTimerRef.current) {
-        clearTimeout(keyTimerRef.current);
-      }
+      if (keyTimerRef.current) clearTimeout(keyTimerRef.current);
     };
   }, [showPeriodField, toast]);
+
+  // Auto-fill loan amount from total appraised value
+  useEffect(() => {
+    const totalAppraisedValue = items.reduce((sum, item) => sum + item.appraisedValue, 0);
+    if (items.length > 0) {
+      setLoanAmount(totalAppraisedValue.toFixed(2));
+    } else {
+      setLoanAmount("");
+    }
+  }, [items]);
+
+  // Step 1: Verify NIC
+  const handleVerifyNic = async () => {
+    if (!nicInput.trim()) {
+      setErrors({ ...errors, nic: "Please enter NIC number" });
+      return;
+    }
+
+    try {
+      setNicVerifying(true);
+      setErrors({});
+
+      const response = await apiClient.blacklist.verifyNic(nicInput.trim());
+
+      if (response.isBlocked) {
+        setIsBlocked(true);
+        setBlocklistReason(response.blocklistReason);
+        setNicVerified(false);
+        toast({
+          title: "Customer Blocked",
+          description: `This customer is blocked: ${response.blocklistReason}`,
+          variant: "destructive",
+        });
+      } else {
+        setIsBlocked(false);
+        setBlocklistReason("");
+        setNicVerified(true);
+        setCustomerNic(nicInput.trim());
+
+        // Auto-fill if customer exists
+        if (response.customer) {
+          setCustomerName(response.customer.fullName || "");
+          setCustomerPhone(response.customer.phone || "");
+          setCustomerAddress(response.customer.address || "");
+          toast({
+            title: "Customer Found",
+            description: "Customer details have been auto-filled. You can edit them if needed.",
+          });
+        } else {
+          // Clear fields for new customer
+          setCustomerName("");
+          setCustomerPhone("");
+          setCustomerAddress("");
+          toast({
+            title: "NIC Verified",
+            description: "No existing customer record. Please enter customer details.",
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Failed to verify NIC:", error);
+      toast({
+        title: "Verification Failed",
+        description: error.message || "Failed to verify NIC",
+        variant: "destructive",
+      });
+    } finally {
+      setNicVerifying(false);
+    }
+  };
+
+  // Step 1 validation and navigation
+  const handleStep1Next = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!nicVerified) {
+      newErrors.nic = "Please verify NIC first";
+    }
+    if (!customerName.trim()) {
+      newErrors.customerName = "Customer name is required";
+    }
+    if (!gender) {
+      newErrors.gender = "Gender is required";
+    }
+    if (!customerAddress.trim()) {
+      newErrors.customerAddress = "Address is required";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setErrors({});
+    setCurrentStep(2);
+  };
+
+  // Step 2: Add item
+  const handleAddItem = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!itemWeight || parseFloat(itemWeight) <= 0) {
+      newErrors.itemWeight = "Weight is required and must be greater than 0";
+    }
+    if (!appraisedValue || parseFloat(appraisedValue) <= 0) {
+      newErrors.appraisedValue = "Appraised value is required and must be greater than 0";
+    }
+    if (!marketValue || parseFloat(marketValue) <= 0) {
+      newErrors.marketValue = "Market value is required and must be greater than 0";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    const newItem: ItemDetail = {
+      description: itemDescription || "Item",
+      content: itemContent,
+      condition: itemCondition,
+      weightGrams: parseFloat(itemWeight),
+      karat: itemKarat,
+      appraisedValue: parseFloat(appraisedValue),
+      marketValue: parseFloat(marketValue),
+      images: currentItemImages,
+    };
+
+    setItems([...items, newItem]);
+
+    // Reset item form
+    setItemDescription("");
+    setItemContent("");
+    setItemCondition("Good");
+    setItemWeight("");
+    setItemKarat("N/A");
+    setAppraisedValue("");
+    setMarketValue("");
+    setCurrentItemImages([]);
+    setErrors({});
+
+    toast({
+      title: "Item Added",
+      description: "Item added successfully",
+    });
+  };
+
+  // Step 2 validation and navigation
+  const handleStep2Next = () => {
+    if (items.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please add at least one item",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCurrentStep(3);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -150,83 +316,9 @@ export default function CreatePawning() {
     setCurrentItemImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Add item to the items array
-  const handleAddItem = () => {
-    if (!itemDescription.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter item description",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newItem: ItemDetail = {
-      description: itemDescription,
-      content: itemContent,
-      condition: itemCondition,
-      weightGrams: itemWeight ? parseFloat(itemWeight) : 0,
-      karat: parseInt(itemKarat),
-      appraisedValue: appraisedValue ? parseFloat(appraisedValue) : 0,
-      images: currentItemImages, // Include images for this item
-    };
-
-    setItems([...items, newItem]);
-
-    // Reset item form
-    setItemDescription("");
-    setItemContent("");
-    setItemCondition("Good");
-    setItemWeight("");
-    setItemKarat("24");
-    setAppraisedValue("");
-    setCurrentItemImages([]); // Reset images for next item
-
-    toast({
-      title: "Item Added",
-      description: "Item added to the transaction successfully",
-    });
-  };
-
-  // Remove item from the items array
-  const handleRemoveItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-    toast({
-      title: "Item Removed",
-      description: "Item removed from the transaction",
-    });
-  };
-
-  // Calculate total weight and appraised value
-  const calculateTotals = () => {
-    const totalWeight = items.reduce((sum, item) => sum + item.weightGrams, 0);
-    const totalAppraisedValue = items.reduce((sum, item) => sum + item.appraisedValue, 0);
-    return { totalWeight, totalAppraisedValue };
-  };
-
-    const selectedRate = rates.find((r) => r.id === selectedRateId);
-    const effectiveRatePercent = manualRateEnabled
-    ? parseFloat(manualRatePercent || "0")
-    : (selectedRate?.rate_percent || selectedRate?.ratePercent || 0);
-
-  // Auto-fill loan amount with total item value
-  useEffect(() => {
-    const { totalAppraisedValue } = calculateTotals();
-    if (items.length > 0) {
-      setLoanAmount(totalAppraisedValue.toFixed(2));
-    } else {
-      setLoanAmount("");
-    }
-  }, [items]);
-
-  const openSummary = () => {
-    setShowSummary(true);
-  };
-
+  // Manual rate toggle
   const resolveManagerUserId = async () => {
-    if (role === "MANAGER" && user?.id) {
-      return user.id;
-    }
+    if (role === "MANAGER" && user?.id) return user.id;
 
     const staffBranchId = user?.branchId || branchId || null;
     if (!staffBranchId) {
@@ -287,8 +379,7 @@ export default function CreatePawning() {
   };
 
   const handleVerifyPin = async () => {
-    if (!managerUserId) return;
-    if (!pinInput.trim()) {
+    if (!managerUserId || !pinInput.trim()) {
       toast({
         title: "Validation Error",
         description: "Please enter manager PIN",
@@ -302,6 +393,10 @@ export default function CreatePawning() {
       await apiClient.users.verifyPin(managerUserId, pinInput.trim());
       setManualRateEnabled(true);
       setShowPinDialog(false);
+      toast({
+        title: "Success",
+        description: "Manual rate enabled",
+      });
     } catch (error: any) {
       console.error("PIN verification failed:", error);
       toast({
@@ -314,86 +409,54 @@ export default function CreatePawning() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate required fields
-    if (!customerName || !customerNic || !gender || !customerAddress || !loanAmount) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields (Name, Gender, ID Number, Address, Loan Amount)",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Step 3: Create transaction
+  const handleStep3Submit = () => {
+    const newErrors: Record<string, string> = {};
 
     if (!manualRateEnabled && !selectedRateId) {
-      toast({
-        title: "Validation Error",
-        description: "Please select an interest rate",
-        variant: "destructive",
-      });
-      return;
+      newErrors.interestRate = "Please select an interest rate";
     }
-
     if (manualRateEnabled && !manualRatePercent) {
+      newErrors.manualRate = "Please enter the manual interest rate";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       toast({
         title: "Validation Error",
-        description: "Please enter the manual interest rate",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
     }
 
-    // Validate at least one item
-    if (items.length === 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please add at least one item to the transaction",
-        variant: "destructive",
-      });
-      return;
-    }
+    setErrors({});
+    setShowSummary(true);
+  };
 
-    openSummary();
-    };
+  const selectedRate = rates.find((r) => r.id === selectedRateId);
+  const effectiveRatePercent = manualRateEnabled
+    ? parseFloat(manualRatePercent || "0")
+    : (selectedRate?.rate_percent || selectedRate?.ratePercent || 0);
 
   const handleConfirmSubmit = async () => {
     try {
       setLoading(true);
 
-      if (!manualRateEnabled && !selectedRate) {
-        toast({
-          title: "Error",
-          description: "Please select a valid interest rate",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Calculate dates
       const today = new Date();
       const pawnDate = today.toISOString().split('T')[0];
-
-      // Calculate maturity date
       const maturityDate = new Date(today);
       maturityDate.setMonth(maturityDate.getMonth() + parseInt(periodMonths));
       const maturityDateStr = maturityDate.toISOString().split('T')[0];
 
-      // Calculate totals from items
-      const { totalWeight, totalAppraisedValue } = calculateTotals();
-
-      // Collect all images from all items
+      const totalWeight = items.reduce((sum, item) => sum + item.weightGrams, 0);
+      const totalAppraisedValue = items.reduce((sum, item) => sum + item.appraisedValue, 0);
       const allImages = items.flatMap(item => item.images);
 
-      // Create a summary description for the transaction (for backward compatibility)
-      // If multiple items, just say "Multiple items", otherwise use first item description
       const itemDescription = items.length > 1
         ? `Multiple items (${items.length} items)`
         : (items[0]?.description || "");
 
-      // Prepare transaction data
       const transactionData = {
         customerName,
         customerNic,
@@ -402,11 +465,11 @@ export default function CreatePawning() {
         customerAddress,
         customerPhone,
         customerType: "Regular",
-        itemDescription: itemDescription,
+        itemDescription,
         itemContent: items[0]?.content || "",
         itemCondition: items[0]?.condition || "Good",
         itemWeightGrams: totalWeight,
-        itemKarat: Math.round(items.reduce((sum, item) => sum + item.karat, 0) / items.length),
+        itemKarat: items[0]?.karat || "N/A",
         appraisedValue: totalAppraisedValue,
         loanAmount: parseFloat(loanAmount),
         interestRateId: manualRateEnabled ? null : selectedRateId,
@@ -414,9 +477,12 @@ export default function CreatePawning() {
         periodMonths: parseInt(periodMonths),
         pawnDate,
         maturityDate: maturityDateStr,
-        remarks: remarks,
+        remarks,
         imageUrls: allImages,
-        items: items,
+        items: items.map(item => ({
+          ...item,
+          karat: item.karat,
+        })),
       };
 
       const response = await apiClient.pawnTransactions.create(transactionData);
@@ -440,164 +506,263 @@ export default function CreatePawning() {
     }
   };
 
-    const handleReset = () => {
+  const handleReset = () => {
+    setCurrentStep(1);
+    setNicInput("");
+    setNicVerified(false);
+    setIsBlocked(false);
     setCustomerName("");
     setCustomerNic("");
-    setIdType("NIC");
     setGender("");
     setCustomerAddress("");
     setCustomerPhone("");
-    setItemDescription("");
-    setItemContent("");
-    setItemCondition("Good");
-    setItemWeight("");
-    setItemKarat("24");
-    setAppraisedValue("");
-    setItems([]); // Clear items array
-    setCurrentItemImages([]); // Clear current item images
+    setItems([]);
+    setCurrentItemImages([]);
     setLoanAmount("");
     setSelectedRateId("");
-    setPeriodMonths("12");
     setRemarks("");
     setManualRateEnabled(false);
     setManualRatePercent("");
-    setShowPinDialog(false);
-    setPinInput("");
-    setManagerUserId(null);
+    setErrors({});
+  };
+
+  // Enter key handlers
+  const handleNicKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (!nicVerified) {
+        handleVerifyNic();
+      }
+    }
+  };
+
+  const handleCustomerFieldKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleStep1Next();
+    }
+  };
+
+  const handleItemFieldKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddItem();
+    }
+  };
+
+  const handleStep3KeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleStep3Submit();
+    }
   };
 
   return (
     <>
       {loading && <LoadingOverlay isLoading={loading} />}
-      <div className="container mx-auto py-6 px-4 max-w-7xl">
+      <div className="container mx-auto py-6 px-4 max-w-5xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Create New Pawning Transaction</h1>
-          <p className="text-gray-500 mt-1">Fill in the details to create a new pawning transaction</p>
+          <p className="text-gray-500 mt-1">Complete the 3-step wizard to create a transaction</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Customer Information */}
+        {/* Progress Indicator */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between max-w-2xl mx-auto">
+            {[1, 2, 3].map((step) => (
+              <div key={step} className="flex items-center flex-1">
+                <div className="flex items-center flex-col">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                    currentStep === step
+                      ? 'bg-primary text-primary-foreground'
+                      : currentStep > step
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {currentStep > step ? <CheckCircle2 className="h-5 w-5" /> : step}
+                  </div>
+                  <span className="text-xs mt-1 font-medium">
+                    {step === 1 ? 'Customer' : step === 2 ? 'Items' : 'Transaction'}
+                  </span>
+                </div>
+                {step < 3 && (
+                  <div className={`flex-1 h-1 mx-2 ${
+                    currentStep > step ? 'bg-green-500' : 'bg-gray-200'
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Step 1: Customer Verification & Details */}
+        {currentStep === 1 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl">Customer Information</CardTitle>
+              <CardTitle>Step 1: Customer Verification & Details</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="customerName" className="text-sm font-medium">
-                    Customer Name <span className="text-red-500">*</span>
-                  </Label>
+            <CardContent className="space-y-6">
+              {/* NIC Verification */}
+              <div className="space-y-4 pb-6 border-b">
+                <Label htmlFor="nicInput" className="text-sm font-medium">
+                  NIC Number <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex gap-2">
                   <Input
-                    id="customerName"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Enter customer name"
-                    required
+                    id="nicInput"
+                    value={nicInput}
+                    onChange={(e) => setNicInput(e.target.value)}
+                    onKeyPress={handleNicKeyPress}
+                    placeholder="Enter NIC number and press Enter or click Verify"
+                    disabled={nicVerified}
+                    className={errors.nic ? 'border-red-500' : ''}
                   />
+                  <Button
+                    onClick={handleVerifyNic}
+                    disabled={nicVerifying || nicVerified}
+                  >
+                    {nicVerifying ? "Verifying..." : nicVerified ? "Verified" : "Verify"}
+                  </Button>
                 </div>
+                {errors.nic && <p className="text-sm text-red-500">{errors.nic}</p>}
 
-                <div className="space-y-2">
-                  <Label htmlFor="gender" className="text-sm font-medium">
-                    Gender <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={gender} onValueChange={setGender}>
-                    <SelectTrigger id="gender">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {isBlocked && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Customer Blocked:</strong> {blocklistReason}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="idType" className="text-sm font-medium">
-                    ID Type <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={idType} onValueChange={setIdType}>
-                    <SelectTrigger id="idType">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NIC">National Identity Card (NIC)</SelectItem>
-                      <SelectItem value="Passport">Passport</SelectItem>
-                      <SelectItem value="DrivingLicense">Driving License</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {nicVerified && !isBlocked && (
+                  <Alert>
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <AlertDescription>
+                      NIC verified successfully. Please fill in or update customer details below.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="customerNic" className="text-sm font-medium">
-                    {idType === "NIC" ? "NIC Number" : idType === "Passport" ? "Passport Number" : "License Number"} <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="customerNic"
-                    value={customerNic}
-                    onChange={(e) => setCustomerNic(e.target.value)}
-                    placeholder={`Enter ${idType === "NIC" ? "NIC" : idType === "Passport" ? "passport" : "license"} number`}
-                    required
-                  />
-                </div>
+              {/* Customer Details - Only shown after NIC verification */}
+              {nicVerified && !isBlocked && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="customerName">
+                      Customer Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="customerName"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      onKeyPress={handleCustomerFieldKeyPress}
+                      placeholder="Enter customer name"
+                      className={errors.customerName ? 'border-red-500' : ''}
+                    />
+                    {errors.customerName && <p className="text-sm text-red-500">{errors.customerName}</p>}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="customerPhone" className="text-sm font-medium">
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="customerPhone"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="Enter phone number"
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">
+                      Gender <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={gender} onValueChange={setGender}>
+                      <SelectTrigger id="gender" className={errors.gender ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors.gender && <p className="text-sm text-red-500">{errors.gender}</p>}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="customerAddress" className="text-sm font-medium">
-                    Address <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="customerAddress"
-                    value={customerAddress}
-                    onChange={(e) => setCustomerAddress(e.target.value)}
-                    placeholder="Enter address"
-                    required
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="customerPhone">Phone Number</Label>
+                    <Input
+                      id="customerPhone"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      onKeyPress={handleCustomerFieldKeyPress}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="idType">ID Type</Label>
+                    <Select value={idType} onValueChange={setIdType}>
+                      <SelectTrigger id="idType">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NIC">National Identity Card (NIC)</SelectItem>
+                        <SelectItem value="Passport">Passport</SelectItem>
+                        <SelectItem value="DrivingLicense">Driving License</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="customerAddress">
+                      Address <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="customerAddress"
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      onKeyPress={handleCustomerFieldKeyPress}
+                      placeholder="Enter address"
+                      className={errors.customerAddress ? 'border-red-500' : ''}
+                    />
+                    {errors.customerAddress && <p className="text-sm text-red-500">{errors.customerAddress}</p>}
+                  </div>
                 </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" onClick={() => navigate("/transactions")}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleStep1Next}
+                  disabled={!nicVerified || isBlocked}
+                >
+                  Next: Add Items <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
+        )}
 
-          {/* Item Information */}
+        {/* Step 2: Item Information */}
+        {currentStep === 2 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl flex items-center justify-between">
-                <span>Item Information</span>
+              <CardTitle className="flex items-center justify-between">
+                <span>Step 2: Item Information</span>
                 <span className="text-sm font-normal text-muted-foreground">
                   {items.length} item(s) added
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="itemDescription" className="text-sm font-medium">
-                    Item Description <span className="text-red-500">*</span>
-                  </Label>
+                  <Label htmlFor="itemDescription">Item Description (Optional)</Label>
                   <Textarea
                     id="itemDescription"
                     value={itemDescription}
                     onChange={(e) => setItemDescription(e.target.value)}
-                    placeholder="Describe the gold item (e.g., Gold ring with stones, Gold chain, etc.)"
-                    rows={3}
+                    placeholder="Describe the gold item (optional)"
+                    rows={2}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="itemContent" className="text-sm font-medium">
-                    Item Content/Type
-                  </Label>
+                  <Label htmlFor="itemContent">Item Type</Label>
                   <Select value={itemContent} onValueChange={setItemContent}>
                     <SelectTrigger id="itemContent">
                       <SelectValue placeholder="Select item type" />
@@ -618,25 +783,23 @@ export default function CreatePawning() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="itemCondition" className="text-sm font-medium">
-                    Item Condition
-                  </Label>
+                  <Label htmlFor="itemCondition">Condition</Label>
                   <Select value={itemCondition} onValueChange={setItemCondition}>
                     <SelectTrigger id="itemCondition">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Excellent">Excellent (Like New)</SelectItem>
-                      <SelectItem value="Good">Good (Minor Wear)</SelectItem>
-                      <SelectItem value="Fair">Fair (Visible Wear)</SelectItem>
-                      <SelectItem value="Poor">Poor (Significant Damage)</SelectItem>
+                      <SelectItem value="Excellent">Excellent</SelectItem>
+                      <SelectItem value="Good">Good</SelectItem>
+                      <SelectItem value="Fair">Fair</SelectItem>
+                      <SelectItem value="Poor">Poor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="itemWeight" className="text-sm font-medium">
-                    Weight (grams)
+                  <Label htmlFor="itemWeight">
+                    Weight (grams) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="itemWeight"
@@ -644,31 +807,33 @@ export default function CreatePawning() {
                     step="0.01"
                     value={itemWeight}
                     onChange={(e) => setItemWeight(e.target.value)}
-                    placeholder="Enter weight in grams"
+                    onKeyPress={handleItemFieldKeyPress}
+                    placeholder="Enter weight"
+                    className={errors.itemWeight ? 'border-red-500' : ''}
                   />
+                  {errors.itemWeight && <p className="text-sm text-red-500">{errors.itemWeight}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="itemKarat" className="text-sm font-medium">
-                    Karat
-                  </Label>
+                  <Label htmlFor="itemKarat">Karat</Label>
                   <Select value={itemKarat} onValueChange={setItemKarat}>
                     <SelectTrigger id="itemKarat">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {[24, 22, 21, 18, 14].map((k) => (
-                        <SelectItem key={k} value={String(k)}>
-                          {k}K Gold
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="N/A">N/A</SelectItem>
+                      <SelectItem value="10K">10K Gold</SelectItem>
+                      <SelectItem value="14K">14K Gold</SelectItem>
+                      <SelectItem value="18K">18K Gold</SelectItem>
+                      <SelectItem value="22K">22K Gold</SelectItem>
+                      <SelectItem value="24K">24K Gold</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="appraisedValue" className="text-sm font-medium">
-                    Appraised Value (LKR)
+                  <Label htmlFor="appraisedValue">
+                    Appraised Value (LKR) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="appraisedValue"
@@ -676,28 +841,41 @@ export default function CreatePawning() {
                     step="0.01"
                     value={appraisedValue}
                     onChange={(e) => setAppraisedValue(e.target.value)}
-                    placeholder="Item Value (LKR)" >
-                  </Input>
+                    onKeyPress={handleItemFieldKeyPress}
+                    placeholder="Loan-eligible value"
+                    className={errors.appraisedValue ? 'border-red-500' : ''}
+                  />
+                  {errors.appraisedValue && <p className="text-sm text-red-500">{errors.appraisedValue}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="marketValue">
+                    Market Value (LKR) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="marketValue"
+                    type="number"
+                    step="0.01"
+                    value={marketValue}
+                    onChange={(e) => setMarketValue(e.target.value)}
+                    onKeyPress={handleItemFieldKeyPress}
+                    placeholder="Market/replacement value"
+                    className={errors.marketValue ? 'border-red-500' : ''}
+                  />
+                  {errors.marketValue && <p className="text-sm text-red-500">{errors.marketValue}</p>}
                 </div>
               </div>
 
-              {/* Image Upload Section - Now for current item */}
-              <div className="mt-6 space-y-4">
-                <div>
-                  <Label className="text-sm font-medium flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4" />
-                    Item Images (Optional)
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Upload images for this specific item
-                  </p>
-                </div>
-
+              {/* Image Upload */}
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Item Images (Optional)
+                </Label>
                 <div className="flex gap-3">
                   <Button
                     type="button"
                     variant="outline"
-                    className="relative"
                     onClick={() => document.getElementById('image-upload')?.click()}
                   >
                     <Upload className="h-4 w-4 mr-2" />
@@ -712,26 +890,25 @@ export default function CreatePawning() {
                     />
                   </Button>
                   <span className="text-sm text-muted-foreground py-2">
-                    {currentItemImages.length} image(s) for this item
+                    {currentItemImages.length} image(s)
                   </span>
                 </div>
 
-                {/* Image Previews for current item */}
                 {currentItemImages.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {currentItemImages.map((preview, index) => (
                       <div key={index} className="relative group">
                         <img
                           src={preview}
                           alt={`Preview ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border"
+                          className="w-full h-24 object-cover rounded border"
                         />
                         <button
                           type="button"
                           onClick={() => removeImage(index)}
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </button>
                       </div>
                     ))}
@@ -739,102 +916,107 @@ export default function CreatePawning() {
                 )}
               </div>
 
-              {/* Add Item Button */}
-              <div className="mt-4 flex justify-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleAddItem}
-                  className="gap-2"
-                >
+              <div className="flex justify-end">
+                <Button onClick={handleAddItem} className="gap-2">
                   <Plus className="h-4 w-4" />
-                  Add Item to Transaction
+                  Add Item
                 </Button>
               </div>
 
               {/* Added Items List */}
               {items.length > 0 && (
-                <div className="mt-6 space-y-3">
+                <div className="space-y-3 pt-4 border-t">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Added Items ({items.length})</Label>
+                    <Label>Added Items ({items.length})</Label>
                     <div className="text-xs text-muted-foreground">
-                      Total Weight: {calculateTotals().totalWeight.toFixed(2)}g |
-                      Total Value: LKR {calculateTotals().totalAppraisedValue.toLocaleString()}
+                      Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
                     {items.map((item, index) => (
-                      <div key={index} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border">
+                      <div key={index} className="flex items-start gap-3 p-3 bg-muted/50 rounded border">
                         <div className="flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <p className="font-medium text-sm">Item {index + 1}: {item.description}</p>
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
-                                <span>Type: {item.content || 'N/A'}</span>
-                                <span>Condition: {item.condition}</span>
-                                <span>Weight: {item.weightGrams}g</span>
-                                <span>Karat: {item.karat}K</span>
-                                <span>Value: LKR {item.appraisedValue.toLocaleString()}</span>
-                                <span className="flex items-center gap-1">
-                                  <ImageIcon className="h-3 w-3" />
-                                  {item.images.length} image(s)
-                                </span>
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveItem(index)}
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                          <p className="font-medium text-sm">
+                            Item {index + 1}: {item.description || "Item"}
+                          </p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                            <span>{item.content || 'N/A'}</span>
+                            <span>{item.condition}</span>
+                            <span>{item.weightGrams}g</span>
+                            <span>{item.karat}</span>
+                            <span>LKR {item.appraisedValue.toLocaleString()}</span>
+                            <span className="flex items-center gap-1">
+                              <ImageIcon className="h-3 w-3" />
+                              {item.images.length}
+                            </span>
                           </div>
                         </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveItem(index)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+
+              <div className="flex justify-between pt-4">
+                <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                  Back
+                </Button>
+                <Button onClick={handleStep2Next} disabled={items.length === 0}>
+                  Next: Transaction Details <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
+        )}
 
-          {/* Transaction Details */}
+        {/* Step 3: Transaction Details */}
+        {currentStep === 3 && (
           <Card>
             <CardHeader>
-              <CardTitle
-                className="text-xl"
-                title="Type T-N-D to reveal/hide period field"
-              >
-                Transaction Details
-              </CardTitle>
+              <CardTitle>Step 3: Transaction Confirmation</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="space-y-6">
+              {/* Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded">
+                <div>
+                  <p className="text-xs text-muted-foreground">Customer</p>
+                  <p className="font-medium">{customerName}</p>
+                  <p className="text-sm text-muted-foreground">{customerNic}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Items</p>
+                  <p className="font-medium">{items.length} item(s)</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="loanAmount" className="text-sm font-medium">
-                    Loan Amount (LKR) <span className="text-red-500">*</span>
-                  </Label>
+                  <Label>Loan Amount (LKR)</Label>
                   <Input
-                    id="loanAmount"
                     type="number"
-                    step="0.01"
-                    max="9999999999999999.99"
                     value={loanAmount}
-                    onChange={(e) => setLoanAmount(e.target.value)}
-                    placeholder="Auto-calculated from item values"
-                    required
                     readOnly
+                    className="bg-muted"
                   />
-                  <p className="text-xs text-muted-foreground">Auto-calculated from total item value</p>
-                  <p className="text-xs text-muted-foreground">Maximum: 9,999,999,999,999,999.99</p>
+                  <p className="text-xs text-muted-foreground">Auto-calculated from items</p>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label htmlFor="interestRate" className="text-sm font-medium">
+                  <div className="flex items-center justify-between">
+                    <Label>
                       Interest Rate <span className="text-red-500">*</span>
                     </Label>
                     <Button
@@ -851,38 +1033,37 @@ export default function CreatePawning() {
                     onValueChange={setSelectedRateId}
                     disabled={manualRateEnabled}
                   >
-                    <SelectTrigger id="interestRate">
+                    <SelectTrigger className={errors.interestRate ? 'border-red-500' : ''}>
                       <SelectValue placeholder="Select interest rate" />
                     </SelectTrigger>
                     <SelectContent>
                       {rates.map((r) => (
                         <SelectItem key={r.id} value={r.id}>
-                          {r.name} - {r.rate_percent}%
+                          {r.name} - {r.rate_percent || r.ratePercent}% per Month
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {manualRateEnabled && (
                     <Input
-                      id="manualInterestRate"
                       type="number"
                       step="0.01"
-                      min="0"
                       value={manualRatePercent}
                       onChange={(e) => setManualRatePercent(e.target.value)}
+                      onKeyPress={handleStep3KeyPress}
                       placeholder="Enter interest rate (%)"
+                      className={errors.manualRate ? 'border-red-500' : ''}
                     />
                   )}
+                  {errors.interestRate && <p className="text-sm text-red-500">{errors.interestRate}</p>}
+                  {errors.manualRate && <p className="text-sm text-red-500">{errors.manualRate}</p>}
                 </div>
 
-                {/* Hidden Period Field - Type T-N-D to reveal */}
                 {showPeriodField && (
                   <div className="space-y-2">
-                    <Label htmlFor="periodMonths" className="text-sm font-medium">
-                      Period (months)
-                    </Label>
+                    <Label>Period (months)</Label>
                     <Select value={periodMonths} onValueChange={setPeriodMonths}>
-                      <SelectTrigger id="periodMonths">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -897,55 +1078,43 @@ export default function CreatePawning() {
                 )}
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="remarks" className="text-sm font-medium">
-                    Remarks
-                  </Label>
+                  <Label>Remarks</Label>
                   <Textarea
-                    id="remarks"
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Add any additional notes or remarks"
+                    onKeyPress={handleStep3KeyPress}
+                    placeholder="Add any additional notes"
                     rows={3}
                   />
                 </div>
               </div>
+
+              <div className="flex justify-between pt-4">
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setCurrentStep(2)}>
+                    Back
+                  </Button>
+                  <Button variant="outline" onClick={handleReset}>
+                    Reset All
+                  </Button>
+                </div>
+                <Button onClick={handleStep3Submit}>
+                  Create Transaction
+                </Button>
+              </div>
             </CardContent>
           </Card>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleReset}
-              disabled={loading}
-            >
-              Reset Form
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/transactions")}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Pawning Transaction"}
-            </Button>
-          </div>
-        </form>
+        )}
       </div>
 
+      {/* PIN Dialog */}
       <Dialog open={showPinDialog} onOpenChange={setShowPinDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Manager PIN Required</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Label htmlFor="managerPin" className="text-sm font-medium">
-              Branch Manager PIN
-            </Label>
+            <Label htmlFor="managerPin">Branch Manager PIN</Label>
             <Input
               id="managerPin"
               type="password"
@@ -956,24 +1125,20 @@ export default function CreatePawning() {
           </div>
           <DialogFooter>
             <Button
-              type="button"
               variant="outline"
               onClick={() => setShowPinDialog(false)}
               disabled={pinVerifying}
             >
               Cancel
             </Button>
-            <Button
-              type="button"
-              onClick={handleVerifyPin}
-              disabled={pinVerifying}
-            >
+            <Button onClick={handleVerifyPin} disabled={pinVerifying}>
               {pinVerifying ? "Verifying..." : "Verify PIN"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Summary Dialog */}
       <Dialog open={showSummary} onOpenChange={setShowSummary}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -993,39 +1158,38 @@ export default function CreatePawning() {
                 <p className="font-medium">LKR {Number(loanAmount || 0).toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Interest Rate</p>
                 <p className="text-sm">
-                  {manualRateEnabled ? "Manual" : (selectedRate?.name || "-")} ({effectiveRatePercent || 0}%)
+                  {manualRateEnabled ? "Manual" : (selectedRate?.name || "-")} - {effectiveRatePercent}% per annum
                 </p>
                 <p className="text-xs text-muted-foreground">Period</p>
                 <p className="text-sm">{periodMonths} months</p>
               </div>
             </div>
 
-            <div className="rounded-lg border p-3">
+            <div className="rounded border p-3">
               <div className="flex items-center justify-between mb-2">
                 <p className="font-medium">Items ({items.length})</p>
                 <p className="text-xs text-muted-foreground">
-                  Total Weight: {calculateTotals().totalWeight.toFixed(2)}g | Total Value: LKR {calculateTotals().totalAppraisedValue.toLocaleString()}
+                  Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
                 </p>
               </div>
               <div className="space-y-2">
                 {items.map((item, index) => (
-                  <div key={`${item.description}-${index}`} className="rounded-md bg-muted/40 p-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium">Item {index + 1}: {item.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.content || "N/A"} | {item.condition} | {item.weightGrams}g | {item.karat}K | LKR {item.appraisedValue.toLocaleString()}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{item.images.length} image(s)</p>
-                    </div>
+                  <div key={index} className="rounded bg-muted/40 p-2">
+                    <p className="text-sm font-medium">
+                      Item {index + 1}: {item.description || "Item"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.content || "N/A"} | {item.condition} | {item.weightGrams}g | {item.karat} |
+                      Appraised: LKR {item.appraisedValue.toLocaleString()} |
+                      Market: LKR {item.marketValue.toLocaleString()}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
 
             {remarks && (
-              <div className="rounded-lg border p-3">
+              <div className="rounded border p-3">
                 <p className="text-xs text-muted-foreground mb-1">Remarks</p>
                 <p className="text-sm whitespace-pre-wrap">{remarks}</p>
               </div>
@@ -1033,10 +1197,10 @@ export default function CreatePawning() {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowSummary(false)} disabled={loading}>
+            <Button variant="outline" onClick={() => setShowSummary(false)} disabled={loading}>
               Edit
             </Button>
-            <Button type="button" onClick={handleConfirmSubmit} disabled={loading}>
+            <Button onClick={handleConfirmSubmit} disabled={loading}>
               {loading ? "Creating..." : "Confirm & Create"}
             </Button>
           </DialogFooter>
