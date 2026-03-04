@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Image as ImageIcon, Upload, X, Plus } from "lucide-react";
+import { Image as ImageIcon, Upload, X } from "lucide-react";
 
 type IdType = "NIC" | "Passport" | "DrivingLicense";
 
@@ -72,13 +72,10 @@ export default function CreatePawningSample() {
   // Transaction fields
   const [loanAmount, setLoanAmount] = useState("");
   const [selectedRateId, setSelectedRateId] = useState("");
-  const [periodMonths, setPeriodMonths] = useState("12");
   const [remarks, setRemarks] = useState("");
 
-  // Hidden feature: T-N-D sequence toggles period field
-  const [showPeriodField, setShowPeriodField] = useState(false);
-  const keySequenceRef = useRef<string[]>([]);
-  const keyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Period is always 12 months (no user control)
+  const periodMonths = "12";
 
   useEffect(() => {
     fetchRates();
@@ -91,33 +88,6 @@ export default function CreatePawningSample() {
     setBlockedReason(null);
   }, [idType, identityNumber]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      if (!["t", "n", "d"].includes(key)) return;
-
-      keySequenceRef.current.push(key);
-      if (keyTimerRef.current) clearTimeout(keyTimerRef.current);
-
-      if (keySequenceRef.current.length >= 3) {
-        const lastThree = keySequenceRef.current.slice(-3).join("");
-        if (lastThree === "tnd") {
-          setShowPeriodField((prev) => !prev);
-          keySequenceRef.current = [];
-        }
-      }
-
-      keyTimerRef.current = setTimeout(() => {
-        keySequenceRef.current = [];
-      }, 3000);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      if (keyTimerRef.current) clearTimeout(keyTimerRef.current);
-    };
-  }, []);
 
   const fetchRates = async () => {
     try {
@@ -302,6 +272,13 @@ export default function CreatePawningSample() {
     });
   };
 
+  const handleItemKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddItem();
+    }
+  };
+
   const handleRemoveItem = (index: number) => {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
@@ -403,7 +380,24 @@ export default function CreatePawningSample() {
         description: `Pawning transaction created successfully! Pawn ID: ${response.pawnId || response.pawn_id}`,
       });
 
-      navigate("/transactions");
+      // Reset all form fields for fresh page
+      setCustomerName("");
+      setIdentityNumber("");
+      setCustomerPhone("");
+      setCustomerAddress("");
+      setGender("");
+      setIdType("NIC");
+      setIdentityVerified(false);
+      setCustomerFound(false);
+      setBlockedReason(null);
+      setItemDraft(emptyItemDraft);
+      setItems([]);
+      setLoanAmount("");
+      setSelectedRateId("");
+      setRemarks("");
+
+      // Navigate to same page (fresh create pawn)
+      navigate("/transactions/create-sample");
     } catch (error: any) {
       console.error("Failed to create transaction:", error);
       toast({
@@ -421,20 +415,18 @@ export default function CreatePawningSample() {
   return (
     <>
       {loading && <LoadingOverlay isLoading={loading} />}
-      <div className="h-[calc(100vh-4rem)] overflow-hidden p-4">
-        <Card className="h-full flex flex-col">
-          <CardHeader className="flex-shrink-0 pb-2">
-            <CardTitle className="text-xl">Create Pawning Transaction (Single Page)</CardTitle>
-            <p className="text-xs text-muted-foreground">Identity-first verification, multi-item support, pattern unlock for period</p>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-hidden">
-            <div className="grid grid-cols-12 gap-3 h-full">
-              {/* Left: Customer + Current Item Editor */}
-              <div className="col-span-7 space-y-3">
+      <div className="h-[calc(100vh-4rem)] overflow-hidden p-4 space-y-3">
+        <h1 className="text-2xl font-bold">Create Pawning Transaction</h1>
+        <Card className="h-[calc(100%-3rem)] flex flex-col">
+          <CardContent className="flex-1 overflow-hidden pt-4">
+            <div className="grid grid-cols-12 gap-4 h-full">
+              {/* Left: Customer + Current Item Editor (Scrollable) */}
+              <div className="col-span-7 flex flex-col overflow-hidden pr-2">
+                <div className="flex-1 overflow-y-auto space-y-4">
                 <div className="space-y-2">
                   <h3 className="font-semibold text-sm border-b pb-1">Customer Information</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1 pl-2" style={{ paddingLeft: '4px' }}>
                       <Label htmlFor="idType" className="text-xs">Identity Type <span className="text-red-500">*</span></Label>
                       <Select value={idType} onValueChange={(v: IdType) => setIdType(v)}>
                         <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
@@ -445,7 +437,7 @@ export default function CreatePawningSample() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 pr-4">
                       <Label htmlFor="identityNumber" className="text-xs">{identityLabel} Number <span className="text-red-500">*</span></Label>
                       <div className="flex gap-1">
                         <Input
@@ -479,11 +471,11 @@ export default function CreatePawningSample() {
                       {blockedReason && <p className="text-[11px] text-red-600">{blockedReason}</p>}
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1 pl-2">
                       <Label htmlFor="customerName" className="text-xs">Name <span className="text-red-500">*</span></Label>
                       <Input id="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-8 text-sm" />
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 pr-2">
                       <Label htmlFor="gender" className="text-xs">Gender <span className="text-red-500">*</span></Label>
                       <Select value={gender} onValueChange={setGender}>
                         <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
@@ -494,29 +486,20 @@ export default function CreatePawningSample() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 pl-2">
                       <Label htmlFor="customerPhone" className="text-xs">Phone</Label>
                       <Input id="customerPhone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="h-8 text-sm" />
                     </div>
-                    <div className="space-y-1 col-span-2">
+                    <div className="space-y-1 col-span-2 pl-2 pr-2">
                       <Label htmlFor="customerAddress" className="text-xs">Address <span className="text-red-500">*</span></Label>
                       <Input id="customerAddress" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} className="h-8 text-sm" />
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-sm border-b pb-1">Item Editor (Add Multiple Items)</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1 col-span-2">
-                      <Label className="text-xs">Description</Label>
-                      <Textarea
-                        value={itemDraft.description}
-                        onChange={(e) => updateDraft({ description: e.target.value })}
-                        rows={1}
-                        className="text-sm resize-none min-h-0 h-8 py-1"
-                      />
-                    </div>
+                <div className="space-y-2 pl-2 pr-2">
+                  <h3 className="font-semibold text-sm border-b pb-1">Item Editor (Press Enter to Add)</h3>
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Type</Label>
                       <Select value={itemDraft.content} onValueChange={(v) => updateDraft({ content: v })}>
@@ -545,7 +528,7 @@ export default function CreatePawningSample() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Weight (g) *</Label>
-                      <Input type="number" step="0.01" value={itemDraft.weight} onChange={(e) => updateDraft({ weight: e.target.value })} className="h-8 text-sm" />
+                      <Input type="number" step="0.01" value={itemDraft.weight} onChange={(e) => updateDraft({ weight: e.target.value })} onKeyDown={handleItemKeyDown} className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Karat</Label>
@@ -563,12 +546,23 @@ export default function CreatePawningSample() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Appraised (LKR) *</Label>
-                      <Input type="number" step="0.01" value={itemDraft.appraisedValue} onChange={(e) => updateDraft({ appraisedValue: e.target.value })} className="h-8 text-sm" />
+                      <Input type="number" step="0.01" value={itemDraft.appraisedValue} onChange={(e) => updateDraft({ appraisedValue: e.target.value })} onKeyDown={handleItemKeyDown} className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Market (LKR) *</Label>
-                      <Input type="number" step="0.01" value={itemDraft.marketValue} onChange={(e) => updateDraft({ marketValue: e.target.value })} className="h-8 text-sm" />
+                      <Input type="number" step="0.01" value={itemDraft.marketValue} onChange={(e) => updateDraft({ marketValue: e.target.value })} onKeyDown={handleItemKeyDown} className="h-8 text-sm" />
                     </div>
+                  </div>
+
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">Description</Label>
+                    <Textarea
+                        value={itemDraft.description}
+                        onChange={(e) => updateDraft({ description: e.target.value })}
+                        onKeyDown={handleItemKeyDown}
+                        rows={1}
+                        className="text-sm resize-none min-h-0 h-8 py-1"
+                    />
                   </div>
 
                   <div className="space-y-1">
@@ -585,9 +579,6 @@ export default function CreatePawningSample() {
                         <input id="image-upload-sample" type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
                       </Button>
                       <span className="text-xs text-muted-foreground">{itemDraft.images.length} image(s)</span>
-                      <Button type="button" size="sm" className="h-7 text-xs ml-auto" onClick={handleAddItem}>
-                        <Plus className="h-3 w-3 mr-1" />Add Item
-                      </Button>
                     </div>
                     {itemDraft.images.length > 0 && (
                       <div className="grid grid-cols-6 gap-1">
@@ -607,77 +598,86 @@ export default function CreatePawningSample() {
                     )}
                   </div>
                 </div>
+                </div>
               </div>
 
-              {/* Right: Added Items + Transaction Details */}
-              <div className="col-span-5 space-y-3">
+              {/* Right: Added Items + Transaction Details (Flex layout with scrollable middle) */}
+              <div className="col-span-5 flex flex-col overflow-hidden pl-2">
+                {/* Scrollable middle section: Added Items + Transaction Details */}
+                <div className="flex-1 overflow-y-auto space-y-4">
                 <div className="space-y-2">
                   <h3 className="font-semibold text-sm border-b pb-1">Added Items ({items.length})</h3>
-                  <div className="space-y-1">
-                    {items.slice(0, 4).map((item, index) => (
-                      <div key={`${item.description}-${index}`} className="text-xs border rounded p-1 flex items-center justify-between gap-2">
-                        <span className="truncate">{index + 1}. {item.description} ({item.weightGrams}g)</span>
-                        <Button type="button" variant="ghost" size="sm" className="h-5 px-1" onClick={() => handleRemoveItem(index)}>
-                          <X className="h-3 w-3" />
-                        </Button>
+                  <div className="border rounded-lg p-3 bg-white min-h-32 max-h-48 overflow-y-auto">
+                    {items.length > 0 ? (
+                      <div className="space-y-2">
+                        {items.map((item, index) => (
+                          <div key={`${item.description}-${index}`} className="flex items-start justify-between gap-2 p-2 bg-gray-50 rounded border border-gray-200 hover:bg-gray-100 transition">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-900">Item {index + 1}</p>
+                              <p className="text-xs text-gray-600 truncate">{item.description}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                Weight: <span className="font-medium">{item.weightGrams}g</span> |
+                                Karat: <span className="font-medium">{item.karat}</span> |
+                                Appraised: <span className="font-medium">LKR {item.appraisedValue.toLocaleString()}</span>
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 flex-shrink-0 hover:bg-red-100"
+                              onClick={() => handleRemoveItem(index)}
+                              title="Remove item"
+                            >
+                              <X className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                    {items.length > 4 && <p className="text-[11px] text-muted-foreground">+{items.length - 4} more item(s)</p>}
+                    ) : (
+                      <div className="flex items-center justify-center h-32 text-center">
+                        <p className="text-sm text-gray-400">No items added yet</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 pl-2 pr-2">
                   <h3 className="font-semibold text-sm border-b pb-1">Transaction Details</h3>
-                  <div className="space-y-1">
-                    <Label htmlFor="loanAmount" className="text-xs">Loan Amount (LKR)</Label>
-                    <Input id="loanAmount" type="number" value={loanAmount} onChange={(e) => setLoanAmount(e.target.value)} className="h-8 text-sm" />
-                    <p className="text-[11px] text-muted-foreground">Auto-filled from total appraised value</p>
-                  </div>
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="loanAmount" className="text-xs">Loan Amount (LKR)</Label>
+                      <Input id="loanAmount" type="number" value={loanAmount} onChange={(e) => setLoanAmount(e.target.value)} className="h-8 text-sm" />
+                      <p className="text-[11px] text-muted-foreground">Auto-filled from total appraised value</p>
+                    </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-xs">Interest Rate <span className="text-red-500">*</span></Label>
-                    <Select value={selectedRateId} onValueChange={setSelectedRateId}>
-                      <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select rate" /></SelectTrigger>
-                      <SelectContent>
-                        {rates.map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            {r.name} - {r.rate_percent || r.ratePercent}% per annum
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Interest Rate <span className="text-red-500">*</span></Label>
+                      <Select value={selectedRateId} onValueChange={setSelectedRateId}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select rate" /></SelectTrigger>
+                        <SelectContent>
+                          {rates.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.name} - {r.rate_percent || r.ratePercent}% per annum
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    {showPeriodField ? (
-                      <div className="space-y-1">
-                        <Label className="text-xs">Period (months)</Label>
-                        <Select value={periodMonths} onValueChange={setPeriodMonths}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {[3, 6, 9, 12, 18, 24].map((m) => (
-                              <SelectItem key={m} value={String(m)}>{m} months</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <Label className="text-xs">Period</Label>
-                        <p className="text-[11px] text-muted-foreground border rounded h-8 px-2 flex items-center">Type T-N-D to unlock period</p>
-                      </div>
-                    )}
                     <div className="space-y-1">
                       <Label className="text-xs">Remarks</Label>
                       <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} className="h-8 text-sm" />
                     </div>
                   </div>
                 </div>
+                </div>
 
+                {/* Fixed bottom: Summary + Buttons (No scrolling) */}
+                <div className="flex-shrink-0 space-y-2 pt-2 border-t">
                 <div className="p-2 bg-muted/50 rounded space-y-1">
                   <p className="text-xs font-semibold">Summary</p>
                   <div className="grid grid-cols-2 gap-x-2 text-xs">
-                    <span className="text-muted-foreground">Identity:</span><span className="font-medium truncate">{idType}: {identityNumber || "-"}</span>
                     <span className="text-muted-foreground">Items:</span><span className="font-medium">{items.length}</span>
                     <span className="text-muted-foreground">Total Weight:</span><span className="font-medium">{totals.weight.toFixed(2)} g</span>
                     <span className="text-muted-foreground">Appraised:</span><span className="font-medium">LKR {totals.appraised.toLocaleString()}</span>
@@ -691,6 +691,7 @@ export default function CreatePawningSample() {
                   <Button onClick={handleSubmit} disabled={loading} className="flex-1 h-8 text-xs">
                     {loading ? "Creating..." : "Create Transaction"}
                   </Button>
+                </div>
                 </div>
               </div>
             </div>
