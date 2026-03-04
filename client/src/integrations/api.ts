@@ -226,9 +226,11 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to update interest rate');
       return response.json();
     },
-    toggleActive: async (id: string) => {
+    toggleActive: async (id: string, replacementDefaultRateId?: string) => {
       const response = await authFetch(`${API_BASE_URL}/interest-rates/${id}/toggle-active`, {
         method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(replacementDefaultRateId ? { replacementDefaultRateId } : {}),
       });
       if (!response.ok) throw new Error('Failed to toggle interest rate status');
     },

@@ -5,11 +5,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import NumberInput from "@/components/ui/number-input";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { Image as ImageIcon, Upload, X } from "lucide-react";
+
 
 type IdType = "NIC" | "Passport" | "DrivingLicense";
 
@@ -77,6 +87,9 @@ export default function CreatePawningSample() {
   // Period is always 12 months (no user control)
   const periodMonths = "12";
 
+  // Confirmation dialog state
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
   useEffect(() => {
     fetchRates();
   }, []);
@@ -93,6 +106,12 @@ export default function CreatePawningSample() {
     try {
       const data = await apiClient.interestRates.getActive();
       setRates(data || []);
+
+      // Auto-select the default rate if available
+      const defaultRate = (data || []).find((r: any) => r.isDefault === true);
+      if (defaultRate && !selectedRateId) {
+        setSelectedRateId(defaultRate.id);
+      }
     } catch (error: any) {
       console.error("Failed to fetch rates:", error);
       toast({
@@ -279,11 +298,11 @@ export default function CreatePawningSample() {
     }
   };
 
-  const handleRemoveItem = (index: number) => {
+    const handleRemoveItem = (index: number) => {
     setItems((prev) => prev.filter((_, i) => i !== index));
-  };
+    };
 
-  const handleSubmit = async () => {
+    const handleCreateTransaction = () => {
     // Customer validation
     if (!customerName.trim() || !customerAddress.trim() || !gender) {
       toast({
@@ -333,8 +352,14 @@ export default function CreatePawningSample() {
       return;
     }
 
+    // All validations passed, show confirmation dialog
+    setShowConfirmDialog(true);
+    };
+
+    const confirmSubmit = async () => {
     try {
       setLoading(true);
+      setShowConfirmDialog(false);
 
       const today = new Date();
       const pawnDate = today.toISOString().split("T")[0];
@@ -408,16 +433,19 @@ export default function CreatePawningSample() {
     } finally {
       setLoading(false);
     }
-  };
+    };
 
-  const identityLabel = idType === "NIC" ? "NIC" : idType === "Passport" ? "Passport" : "Driving License";
+    const selectedRateName = rates.find((r) => r.id === selectedRateId)?.name || "Not selected";
+    const selectedRateValue = rates.find((r) => r.id === selectedRateId)?.rate_percent ||
+                            rates.find((r) => r.id === selectedRateId)?.ratePercent || 0;
+    const identityLabel = idType === "NIC" ? "NIC" : idType === "Passport" ? "Passport" : "Driving License";
 
   return (
     <>
       {loading && <LoadingOverlay isLoading={loading} />}
-      <div className="h-[calc(100vh-4rem)] overflow-hidden p-4 space-y-3">
-        <h1 className="text-2xl font-bold">Create Pawning Transaction</h1>
-        <Card className="h-[calc(100%-3rem)] flex flex-col">
+      <div className="h-[calc(100vh-4rem)] overflow-hidden p-4">
+        <h1 className="text-2xl font-bold mb-2">Create Pawning Transaction</h1>
+        <Card className="h-[calc(100%-2.5rem)] flex flex-col">
           <CardContent className="flex-1 overflow-hidden pt-4">
             <div className="grid grid-cols-12 gap-4 h-full">
               {/* Left: Customer + Current Item Editor (Scrollable) */}
@@ -488,9 +516,14 @@ export default function CreatePawningSample() {
                     </div>
                     <div className="space-y-1 pl-2">
                       <Label htmlFor="customerPhone" className="text-xs">Phone</Label>
-                      <Input id="customerPhone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="h-8 text-sm" />
+                      <Input
+                        id="customerPhone"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        className="h-8 text-sm"
+                      />
                     </div>
-                    <div className="space-y-1 col-span-2 pl-2 pr-2">
+                    <div className="space-y-1 pr-2">
                       <Label htmlFor="customerAddress" className="text-xs">Address <span className="text-red-500">*</span></Label>
                       <Input id="customerAddress" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} className="h-8 text-sm" />
                     </div>
@@ -528,7 +561,11 @@ export default function CreatePawningSample() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Weight (g) *</Label>
-                      <Input type="number" step="0.01" value={itemDraft.weight} onChange={(e) => updateDraft({ weight: e.target.value })} onKeyDown={handleItemKeyDown} className="h-8 text-sm" />
+                      <NumberInput
+                        value={itemDraft.weight}
+                        onChange={(value) => updateDraft({ weight: value })}
+                        onKeyDown={handleItemKeyDown}
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Karat</Label>
@@ -546,11 +583,19 @@ export default function CreatePawningSample() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Appraised (LKR) *</Label>
-                      <Input type="number" step="0.01" value={itemDraft.appraisedValue} onChange={(e) => updateDraft({ appraisedValue: e.target.value })} onKeyDown={handleItemKeyDown} className="h-8 text-sm" />
+                      <NumberInput
+                        value={itemDraft.appraisedValue}
+                        onChange={(value) => updateDraft({ appraisedValue: value })}
+                        onKeyDown={handleItemKeyDown}
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Market (LKR) *</Label>
-                      <Input type="number" step="0.01" value={itemDraft.marketValue} onChange={(e) => updateDraft({ marketValue: e.target.value })} onKeyDown={handleItemKeyDown} className="h-8 text-sm" />
+                      <NumberInput
+                        value={itemDraft.marketValue}
+                        onChange={(value) => updateDraft({ marketValue: value })}
+                        onKeyDown={handleItemKeyDown}
+                      />
                     </div>
                   </div>
 
@@ -601,13 +646,12 @@ export default function CreatePawningSample() {
                 </div>
               </div>
 
-              {/* Right: Added Items + Transaction Details (Flex layout with scrollable middle) */}
+              {/* Right: Added Items + Transaction Details */}
               <div className="col-span-5 flex flex-col overflow-hidden pl-2">
-                {/* Scrollable middle section: Added Items + Transaction Details */}
-                <div className="flex-1 overflow-y-auto space-y-4">
+                {/* Added Items Section (No scroll, scroll only for empty state) */}
                 <div className="space-y-2">
                   <h3 className="font-semibold text-sm border-b pb-1">Added Items ({items.length})</h3>
-                  <div className="border rounded-lg p-3 bg-white min-h-32 max-h-48 overflow-y-auto">
+                  <div className="border rounded-lg p-3 bg-white h-40 overflow-y-auto">
                     {items.length > 0 ? (
                       <div className="space-y-2">
                         {items.map((item, index) => (
@@ -635,19 +679,25 @@ export default function CreatePawningSample() {
                         ))}
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center h-32 text-center">
+                      <div className="flex items-center justify-center h-full text-center">
                         <p className="text-sm text-gray-400">No items added yet</p>
                       </div>
                     )}
                   </div>
                 </div>
 
+                {/* Transaction Details Section (No scroll) */}
                 <div className="space-y-2 pl-2 pr-2">
                   <h3 className="font-semibold text-sm border-b pb-1">Transaction Details</h3>
                   <div className="space-y-2">
                     <div className="space-y-1">
                       <Label htmlFor="loanAmount" className="text-xs">Loan Amount (LKR)</Label>
-                      <Input id="loanAmount" type="number" value={loanAmount} onChange={(e) => setLoanAmount(e.target.value)} className="h-8 text-sm" />
+                      <NumberInput
+                        id="loanAmount"
+                        value={loanAmount}
+                        onChange={(value) => setLoanAmount(value)}
+                        disabled={true}
+                      />
                       <p className="text-[11px] text-muted-foreground">Auto-filled from total appraised value</p>
                     </div>
 
@@ -671,33 +721,130 @@ export default function CreatePawningSample() {
                     </div>
                   </div>
                 </div>
-                </div>
 
-                {/* Fixed bottom: Summary + Buttons (No scrolling) */}
-                <div className="flex-shrink-0 space-y-2 pt-2 border-t">
-                <div className="p-2 bg-muted/50 rounded space-y-1">
-                  <p className="text-xs font-semibold">Summary</p>
-                  <div className="grid grid-cols-2 gap-x-2 text-xs">
-                    <span className="text-muted-foreground">Items:</span><span className="font-medium">{items.length}</span>
-                    <span className="text-muted-foreground">Total Weight:</span><span className="font-medium">{totals.weight.toFixed(2)} g</span>
-                    <span className="text-muted-foreground">Appraised:</span><span className="font-medium">LKR {totals.appraised.toLocaleString()}</span>
-                    <span className="text-muted-foreground">Market:</span><span className="font-medium">LKR {totals.market.toLocaleString()}</span>
-                    <span className="text-muted-foreground">Loan:</span><span className="font-medium text-primary">LKR {Number(loanAmount || 0).toLocaleString()}</span>
+                {/* Fixed bottom: Buttons only (No Summary) */}
+                <div className="flex-shrink-0 space-y-2 pt-4 border-t mt-4">
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => navigate("/transactions")} className="flex-1 h-9 text-sm">Cancel</Button>
+                    <Button onClick={handleCreateTransaction} disabled={loading} className="flex-1 h-9 text-sm">
+                      Create Transaction
+                    </Button>
                   </div>
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <Button variant="outline" onClick={() => navigate("/transactions")} className="flex-1 h-8 text-xs">Cancel</Button>
-                  <Button onClick={handleSubmit} disabled={loading} className="flex-1 h-8 text-xs">
-                    {loading ? "Creating..." : "Create Transaction"}
-                  </Button>
-                </div>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Confirm Transaction</DialogTitle>
+            <DialogDescription>
+              Please review the transaction details before submitting
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Customer Details */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm border-b pb-1">Customer Information</h4>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Name:</span>
+                  <span className="ml-2 font-medium">{customerName}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">{identityLabel}:</span>
+                  <span className="ml-2 font-medium">{identityNumber}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Gender:</span>
+                  <span className="ml-2 font-medium">{gender}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Phone:</span>
+                  <span className="ml-2 font-medium">{customerPhone || "N/A"}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Address:</span>
+                  <span className="ml-2 font-medium">{customerAddress}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Items Summary */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm border-b pb-1">Items ({items.length})</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {items.map((item, index) => (
+                  <div key={index} className="p-2 bg-gray-50 rounded border text-sm">
+                    <p className="font-medium">Item {index + 1}: {item.description || "Gold Item"}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Type: {item.content} | Condition: {item.condition} | Weight: {item.weightGrams}g | Karat: {item.karat}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Appraised: LKR {item.appraisedValue.toLocaleString()} | Market: LKR {item.marketValue.toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Transaction Summary */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm border-b pb-1">Transaction Summary</h4>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-muted/50 p-3 rounded">
+                <div>
+                  <span className="text-muted-foreground">Total Items:</span>
+                  <span className="ml-2 font-medium">{items.length}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Total Weight:</span>
+                  <span className="ml-2 font-medium">{totals.weight.toFixed(2)} g</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Total Appraised:</span>
+                  <span className="ml-2 font-medium">LKR {totals.appraised.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Total Market:</span>
+                  <span className="ml-2 font-medium">LKR {totals.market.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Loan Amount:</span>
+                  <span className="ml-2 font-semibold text-primary">LKR {Number(loanAmount || 0).toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Period:</span>
+                  <span className="ml-2 font-medium">{periodMonths} months</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Interest Rate:</span>
+                  <span className="ml-2 font-medium">{selectedRateName} ({selectedRateValue}% per annum)</span>
+                </div>
+                {remarks && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Remarks:</span>
+                    <span className="ml-2 font-medium">{remarks}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmSubmit} disabled={loading}>
+              {loading ? "Submitting..." : "Confirm & Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

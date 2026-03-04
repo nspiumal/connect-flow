@@ -9,5 +9,10 @@ import java.util.UUID;
 @Repository
 public interface InterestRateRepository extends JpaRepository<InterestRate, UUID> {
     List<InterestRate> findByIsActiveTrue();
-}
 
+    java.util.Optional<InterestRate> findByIsActiveTrueAndIsDefaultTrue();
+
+    List<InterestRate> findByIsActiveTrueOrderByCreatedAtAsc();
+
+    List<InterestRate> findByIsActiveTrueAndIdNotOrderByCreatedAtAsc(UUID id);
+}

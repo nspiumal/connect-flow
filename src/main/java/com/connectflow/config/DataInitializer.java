@@ -96,18 +96,21 @@ public class DataInitializer implements CommandLineRunner {
                 .name("Standard Rate")
                 .ratePercent(new BigDecimal("8.50"))
                 .isActive(true)
+                .isDefault(true)
                 .build());
 
             interestRateRepository.save(InterestRate.builder()
                 .name("Premium Rate")
                 .ratePercent(new BigDecimal("7.00"))
                 .isActive(true)
+                .isDefault(false)
                 .build());
 
             interestRateRepository.save(InterestRate.builder()
                 .name("High Value Rate")
                 .ratePercent(new BigDecimal("6.50"))
                 .isActive(true)
+                .isDefault(false)
                 .build());
 
             long finalRateCount = interestRateRepository.count();
@@ -563,4 +566,3 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 }
-

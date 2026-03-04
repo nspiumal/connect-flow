@@ -76,14 +76,17 @@ public class InterestRateController {
 
     @PatchMapping("/{id}/toggle-active")
     @Operation(summary = "Toggle active status of an interest rate")
-    public ResponseEntity<Void> toggleActive(@PathVariable UUID id) {
+    public ResponseEntity<Void> toggleActive(
+            @PathVariable UUID id,
+            @RequestBody(required = false) InterestRateDTO dto) {
         log.info("PATCH /interest-rates/{}/toggle-active - Toggling status", id);
         try {
-            interestRateService.toggleActive(id);
+            UUID replacementId = dto != null ? dto.getReplacementDefaultRateId() : null;
+            interestRateService.toggleActive(id, replacementId);
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             log.error("Error toggling interest rate status: {}", e.getMessage());
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 

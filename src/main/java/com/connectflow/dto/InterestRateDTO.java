@@ -18,7 +18,8 @@ public class InterestRateDTO {
     private String name;
     private BigDecimal ratePercent;
     private Boolean isActive;
+    private Boolean isDefault;
+    private UUID replacementDefaultRateId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-
