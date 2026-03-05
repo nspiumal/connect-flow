@@ -41,6 +41,13 @@ public class PawnTransactionController {
         return ResponseEntity.ok(transactions);
     }
 
+    @GetMapping("/pattern-config")
+    @Operation(summary = "Get special pattern configuration")
+    public ResponseEntity<Map<String, String>> getPatternConfig() {
+        log.info("GET /pawn-transactions/pattern-config");
+        return ResponseEntity.ok(Map.of("pattern", "TND"));
+    }
+
     @GetMapping("/paginated")
     @Operation(summary = "Get pawn transactions with pagination")
     public ResponseEntity<PageResponse<PawnTransactionDTO>> getTransactionsPaginated(
@@ -52,6 +59,13 @@ public class PawnTransactionController {
         PageResponse<PawnTransactionDTO> response = pawnTransactionService.getAllTransactionsPaginated(page, size, sortBy, sortDir);
         return ResponseEntity.ok(response);
     }
+
+//    @GetMapping("/pattern-config")
+//    @Operation(summary = "Get special pattern configuration")
+//    public ResponseEntity<Map<String, String>> getPatternConfig() {
+//        log.info("GET /pawn-transactions/pattern-config");
+//        return ResponseEntity.ok(Map.of("pattern", "TND"));
+//    }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get transaction by ID")

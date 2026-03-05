@@ -89,6 +89,17 @@ export default function CreatePawning() {
     try {
       const data = await apiClient.interestRates.getActive();
       setRates(data || []);
+
+      // Auto-select default rate if available
+      if (data && data.length > 0) {
+        const defaultRate = data.find((rate: any) => rate.isDefault);
+        if (defaultRate) {
+          setSelectedRateId(defaultRate.id);
+        } else {
+          // Fall back to first rate if no default is marked
+          setSelectedRateId(data[0].id);
+        }
+      }
     } catch (error: any) {
       console.error("Failed to fetch rates:", error);
       toast({
