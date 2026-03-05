@@ -137,6 +137,18 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to check PIN');
       return response.json();
     },
+    verifyManagerPin: async (email: string, pin: string, action: string) => {
+      const response = await authFetch(`${API_BASE_URL}/users/verify-manager-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, pin, action }),
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to verify manager PIN');
+      }
+      return response.json();
+    },
   },
 
   /**
@@ -427,6 +439,11 @@ export const apiClient = {
     getHistory: async (id: string, limit: number = 10) => {
       const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/history?limit=${limit}`);
       if (!response.ok) throw new Error('Failed to fetch transaction history');
+      return response.json();
+    },
+    getPatternConfig: async () => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-transactions/pattern-config`);
+      if (!response.ok) throw new Error('Failed to fetch pattern config');
       return response.json();
     },
   },
