@@ -22,6 +22,7 @@ public class CreatePawnTransactionRequest {
     private String customerAddress;
     private String customerPhone;
     private String customerType;
+    private String patternMode;
     private BigDecimal loanAmount;
     private UUID interestRateId;
     private BigDecimal interestRatePercent;
@@ -33,6 +34,3 @@ public class CreatePawnTransactionRequest {
     @Builder.Default
     private List<ItemDetailDTO> items = new ArrayList<>(); // Multiple items with their details and images
 }
-
-
-

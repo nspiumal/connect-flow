@@ -200,6 +200,7 @@ public class PawnTransactionService {
                                                                        String status,
                                                                        BigDecimal minAmount,
                                                                        BigDecimal maxAmount,
+                                                                       String patternMode,
                                                                        UUID branchId,
                                                                        int page,
                                                                        int size,
@@ -210,6 +211,7 @@ public class PawnTransactionService {
         String normalizedStatus = status != null && !status.trim().isEmpty() && !"all".equalsIgnoreCase(status)
                 ? status.trim()
                 : null;
+        String normalizedPatternMode = patternMode != null && !patternMode.trim().isEmpty() ? patternMode.trim() : null;
 
         Sort sort = sortDir.equalsIgnoreCase("desc")
                 ? Sort.by(sortBy).descending()
@@ -223,6 +225,7 @@ public class PawnTransactionService {
                 normalizedStatus,
                 minAmount,
                 maxAmount,
+                normalizedPatternMode,
                 pageable
         );
 
@@ -345,6 +348,7 @@ public class PawnTransactionService {
                 .customerAddress(request.getCustomerAddress())
                 .customerPhone(request.getCustomerPhone())
                 .customerType(request.getCustomerType() != null ? request.getCustomerType() : "Regular")
+                .patternMode(request.getPatternMode() != null ? request.getPatternMode() : "A")
                 .loanAmount(totalLoanAmount)
                 .remainingBalance(totalLoanAmount)
                 .interestRateId(request.getInterestRateId())
@@ -783,6 +787,7 @@ public class PawnTransactionService {
                 .customerAddress(transaction.getCustomerAddress())
                 .customerPhone(transaction.getCustomerPhone())
                 .customerType(transaction.getCustomerType())
+                .patternMode(transaction.getPatternMode())
                 .loanAmount(transaction.getLoanAmount())
                 .remainingBalance(remainingBalance)
                 .interestRateId(transaction.getInterestRateId())

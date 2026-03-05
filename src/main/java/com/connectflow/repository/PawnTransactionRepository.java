@@ -58,12 +58,14 @@ public interface PawnTransactionRepository extends JpaRepository<PawnTransaction
            "(:customerNic IS NULL OR LOWER(p.customerNic) LIKE LOWER(CONCAT('%', :customerNic, '%'))) AND " +
            "(:status IS NULL OR p.status = :status) AND " +
            "(:minAmount IS NULL OR p.loanAmount >= :minAmount) AND " +
-           "(:maxAmount IS NULL OR p.loanAmount <= :maxAmount)")
+           "(:maxAmount IS NULL OR p.loanAmount <= :maxAmount) AND " +
+           "(:patternMode IS NULL OR p.patternMode = :patternMode)")
     Page<PawnTransaction> searchTransactionsAdvanced(@Param("branchId") UUID branchId,
                                                      @Param("pawnId") String pawnId,
                                                      @Param("customerNic") String customerNic,
                                                      @Param("status") String status,
                                                      @Param("minAmount") java.math.BigDecimal minAmount,
                                                      @Param("maxAmount") java.math.BigDecimal maxAmount,
+                                                     @Param("patternMode") String patternMode,
                                                      Pageable pageable);
 }

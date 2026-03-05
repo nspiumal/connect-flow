@@ -371,6 +371,7 @@ export const apiClient = {
       status?: string;
       minAmount?: number;
       maxAmount?: number;
+      patternMode?: string;
       page?: number;
       size?: number;
       sortBy?: string;
@@ -382,6 +383,7 @@ export const apiClient = {
       if (params.status) queryParams.append('status', params.status);
       if (params.minAmount !== undefined) queryParams.append('minAmount', params.minAmount.toString());
       if (params.maxAmount !== undefined) queryParams.append('maxAmount', params.maxAmount.toString());
+      if (params.patternMode) queryParams.append('patternMode', params.patternMode);
       queryParams.append('page', (params.page || 0).toString());
       queryParams.append('size', (params.size || 10).toString());
       queryParams.append('sortBy', params.sortBy || 'pawnDate');

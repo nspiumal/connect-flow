@@ -64,6 +64,9 @@ public class PawnTransaction {
     @Column(name = "customer_type", nullable = false)
     private String customerType = "Regular";
 
+    @Column(name = "pattern_mode", nullable = false, length = 1)
+    private String patternMode = "A";
+
     @Column(name = "loan_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal loanAmount;
 

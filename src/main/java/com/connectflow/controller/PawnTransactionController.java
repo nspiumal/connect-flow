@@ -144,12 +144,13 @@ public class PawnTransactionController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Double minAmount,
             @RequestParam(required = false) Double maxAmount,
+            @RequestParam(required = false) String patternMode,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "pawnDate") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
-        log.info("GET /pawn-transactions/search/advanced - pawnId: {}, customerNic: {}, status: {}, minAmount: {}, maxAmount: {}",
-                 pawnId, customerNic, status, minAmount, maxAmount);
+        log.info("GET /pawn-transactions/search/advanced - pawnId: {}, customerNic: {}, status: {}, minAmount: {}, maxAmount: {}, patternMode: {}",
+                 pawnId, customerNic, status, minAmount, maxAmount, patternMode);
 
         // Get authenticated user's branch if needed
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -170,7 +171,7 @@ public class PawnTransactionController {
         java.math.BigDecimal maxAmountBD = maxAmount != null ? java.math.BigDecimal.valueOf(maxAmount) : null;
 
         PageResponse<PawnTransactionDTO> response = pawnTransactionService.searchTransactionsAdvanced(
-                pawnId, customerNic, status, minAmountBD, maxAmountBD, branchId, page, size, sortBy, sortDir);
+                pawnId, customerNic, status, minAmountBD, maxAmountBD, patternMode, branchId, page, size, sortBy, sortDir);
         return ResponseEntity.ok(response);
     }
 
@@ -369,12 +370,13 @@ public class PawnTransactionController {
 
     @GetMapping("/search-advanced")
     @Operation(summary = "Search transactions with advanced filters")
-    public ResponseEntity<PageResponse<PawnTransactionDTO>> searchTransactionsAdvanced(
+    public ResponseEntity<PageResponse<PawnTransactionDTO>> searchTransactionsAdvancedAlternate(
             @RequestParam(required = false) String pawnId,
             @RequestParam(required = false) String customerNic,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) java.math.BigDecimal minAmount,
             @RequestParam(required = false) java.math.BigDecimal maxAmount,
+            @RequestParam(required = false) String patternMode,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "pawnDate") String sortBy,
@@ -409,6 +411,7 @@ public class PawnTransactionController {
                 status,
                 minAmount,
                 maxAmount,
+                patternMode,
                 branchScope,
                 page,
                 size,

@@ -34,6 +34,12 @@ export default function Transactions() {
   const [rates, setRates] = useState<any[]>([]);
   const [outstandingBalances, setOutstandingBalances] = useState<{ [key: string]: any }>({});
 
+  // Category filter state (default to "A" only)
+  const [categoryFilter, setCategoryFilter] = useState<"A" | "ALL">("A");
+  const [patternUnlocked, setPatternUnlocked] = useState(false);
+  const [patternBuffer, setPatternBuffer] = useState("");
+  const [lastKeyTime, setLastKeyTime] = useState(0);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -93,6 +99,7 @@ export default function Transactions() {
         status: appliedFilters.status !== "all" ? appliedFilters.status : undefined,
         minAmount: Number.isFinite(minAmount) ? minAmount : undefined,
         maxAmount: Number.isFinite(maxAmount) ? maxAmount : undefined,
+        patternMode: categoryFilter === "A" ? "A" : undefined, // Filter by pattern mode
         page: currentPage,
         size: pageSize,
         sortBy: "pawnDate",
@@ -161,7 +168,49 @@ export default function Transactions() {
 
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, pageSize, appliedFilters]);
+  }, [currentPage, pageSize, appliedFilters, categoryFilter]);
+
+  // TND Pattern detection for unlocking category B
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
+        return;
+      }
+
+      const currentTime = Date.now();
+      const key = e.key.toUpperCase();
+
+      // If more than 2 seconds since last key, reset buffer
+      if (currentTime - lastKeyTime > 2000) {
+        setPatternBuffer(key);
+      } else {
+        setPatternBuffer((prev) => prev + key);
+      }
+      setLastKeyTime(currentTime);
+
+      // Check if buffer matches TND pattern
+      const newBuffer = currentTime - lastKeyTime > 2000 ? key : patternBuffer + key;
+      if (newBuffer.length >= 3) {
+        const lastThree = newBuffer.slice(-3);
+        if (lastThree === "TND" && !patternUnlocked) {
+          setPatternUnlocked(true);
+          setCategoryFilter("ALL");
+          setPatternBuffer("");
+          toast({
+            title: "🔓 All Categories Unlocked",
+            description: "Search will now include both A and B categories",
+          });
+          // Refresh transactions with new filter
+          fetchTransactions();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [lastKeyTime, patternBuffer, patternUnlocked, toast]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +258,7 @@ export default function Transactions() {
         customerAddress,
         customerPhone,
         customerType: "Regular", // Default customer type
+        patternMode: categoryFilter, // Store pattern mode (A or ALL)
         itemDescription,
         itemContent,
         itemCondition,

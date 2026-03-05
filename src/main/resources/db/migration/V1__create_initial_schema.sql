@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS pawn_transactions (
     customer_name VARCHAR(255) NOT NULL,
     customer_nic VARCHAR(50) NOT NULL,
     customer_type VARCHAR(50),
+    pattern_mode VARCHAR(1) NOT NULL DEFAULT 'A',
     item_description TEXT,
     item_content VARCHAR(255),
     item_condition VARCHAR(50),
@@ -114,7 +115,8 @@ CREATE TABLE IF NOT EXISTS pawn_transactions (
     INDEX idx_customer (customer_id),
     INDEX idx_status (status),
     INDEX idx_pawn_date (pawn_date),
-    INDEX idx_maturity_date (maturity_date)
+    INDEX idx_maturity_date (maturity_date),
+    INDEX idx_pattern_mode (pattern_mode)
 );
 
 -- Create pawn_transaction_items table

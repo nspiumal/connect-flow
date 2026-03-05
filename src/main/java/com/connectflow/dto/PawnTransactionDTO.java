@@ -26,6 +26,7 @@ public class PawnTransactionDTO {
     private String customerAddress;
     private String customerPhone;
     private String customerType;
+    private String patternMode;
     private BigDecimal loanAmount;
     private BigDecimal remainingBalance; // Outstanding balance after partial redemptions
     private UUID interestRateId;
@@ -42,4 +43,3 @@ public class PawnTransactionDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-
