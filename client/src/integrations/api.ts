@@ -149,6 +149,22 @@ export const apiClient = {
       }
       return response.json();
     },
+
+    filter: async (name?: string, email?: string, role?: string, branch?: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+      const params = new URLSearchParams();
+      if (name) params.append('name', name);
+      if (email) params.append('email', email);
+      if (role && role !== 'all') params.append('role', role);
+      if (branch) params.append('branch', branch);
+      params.append('page', String(page));
+      params.append('size', String(size));
+      params.append('sortBy', sortBy);
+      params.append('sortDir', sortDir);
+
+      const response = await authFetch(`${API_BASE_URL}/users/filter?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to filter users');
+      return response.json();
+    },
   },
 
   /**
@@ -323,6 +339,21 @@ export const apiClient = {
       });
       if (!response.ok) throw new Error('Failed to delete blacklist entry');
     },
+
+    filter: async (nic?: string, policeReport?: string, status?: string, page: number = 0, size: number = 10, sortBy: string = 'createdAt', sortDir: string = 'desc') => {
+      const params = new URLSearchParams();
+      if (nic) params.append('nic', nic);
+      if (policeReport) params.append('policeReport', policeReport);
+      if (status && status !== 'all') params.append('status', status);
+      params.append('page', String(page));
+      params.append('size', String(size));
+      params.append('sortBy', sortBy);
+      params.append('sortDir', sortDir);
+
+      const response = await authFetch(`${API_BASE_URL}/blacklist/filter?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to filter blacklist');
+      return response.json();
+    },
   },
 
   /**
@@ -464,6 +495,15 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to fetch outstanding balance');
       return response.json();
     },
+    processRedemption: async (transactionId: string, data: any) => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-redemptions/${transactionId}/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to process redemption');
+      return response.json();
+    },
     create: async (data: any) => {
       const response = await authFetch(`${API_BASE_URL}/pawn-redemptions`, {
         method: 'POST',
@@ -585,6 +625,38 @@ export const apiClient = {
     checkNicExists: async (nic: string) => {
       const response = await authFetch(`${API_BASE_URL}/customers/check-nic/${nic}`);
       if (!response.ok) throw new Error('Failed to check NIC');
+      return response.json();
+    },
+
+    filter: async (nic?: string, phone?: string, status?: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+      const params = new URLSearchParams();
+      if (nic) params.append('nic', nic);
+      if (phone) params.append('phone', phone);
+      if (status && status !== 'all') params.append('status', status);
+      params.append('page', String(page));
+      params.append('size', String(size));
+      params.append('sortBy', sortBy);
+      params.append('sortDir', sortDir);
+
+      const response = await authFetch(`${API_BASE_URL}/customers/filter?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to filter customers');
+      return response.json();
+    },
+
+    searchAdvanced: async (nic?: string, phone?: string, name?: string, customerType?: string, status?: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+      const params = new URLSearchParams();
+      if (nic) params.append('nic', nic);
+      if (phone) params.append('phone', phone);
+      if (name) params.append('name', name);
+      if (customerType) params.append('customerType', customerType);
+      if (status && status !== 'all') params.append('status', status);
+      params.append('page', String(page));
+      params.append('size', String(size));
+      params.append('sortBy', sortBy);
+      params.append('sortDir', sortDir);
+
+      const response = await authFetch(`${API_BASE_URL}/customers/search/advanced?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to perform advanced search');
       return response.json();
     },
   },

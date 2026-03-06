@@ -41,8 +41,8 @@ const App = () => (
               <Route path="/branch-requests" element={<BranchRequests />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/transactions" element={<Transactions />} />
-              <Route path="/transactions/create" element={<CreatePawning />} />
-              <Route path="/transactions/create-sample" element={<CreatePawningSample />} />
+              <Route path="/transactions/create-new" element={<CreatePawning />} />
+              <Route path="/transactions/create" element={<CreatePawningSample />} />
               <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
               <Route path="/transactions/info/:id" element={<TransactionInfo />} />
               <Route path="/customers" element={<Customers />} />

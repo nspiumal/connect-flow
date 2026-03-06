@@ -66,30 +66,56 @@ public class CustomerController {
     }
 
     /**
-     * Advanced search customers by NIC and/or phone with pagination
+     * Advanced search customers with optional filters
+     * Supports filtering by: NIC, phone, name, customerType, and status
+     * Follows the same pattern as PawnTransaction advanced search
      */
     @GetMapping("/search/advanced")
-    @Operation(summary = "Advanced search customers by NIC and/or phone with pagination")
+    @Operation(summary = "Advanced search customers with optional filters (NIC, phone, name, type, status)")
     public ResponseEntity<PageResponse<CustomerDTO>> searchAdvanced(
             @RequestParam(required = false) String nic,
             @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String customerType,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "fullName") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
-        log.info("GET /customers/search/advanced - nic: {}, phone: {}, page: {}, size: {}", nic, phone, page, size);
+        log.info("GET /customers/search/advanced - nic: {}, phone: {}, name: {}, type: {}, status: {}, page: {}, size: {}",
+                nic, phone, name, customerType, status, page, size);
 
-        if ((nic == null || nic.trim().isEmpty()) && (phone == null || phone.trim().isEmpty())) {
-            return ResponseEntity.badRequest().build();
-        }
+        PageResponse<Customer> response = customerService.searchCustomersAdvanced(
+                nic, phone, name, customerType, status, page, size, sortBy, sortDir);
+        PageResponse<CustomerDTO> dtoResponse = convertPageToDTO(response);
 
-        PageResponse<Customer> response = customerService.searchAdvanced(
+        log.info("Advanced search completed - found {} customers", response.getTotalElements());
+        return ResponseEntity.ok(dtoResponse);
+    }
+
+    /**
+     * Filter customers by NIC, phone, and/or status with pagination
+     */
+    @GetMapping("/filter")
+    @Operation(summary = "Filter customers by NIC, phone, and/or status with pagination")
+    public ResponseEntity<PageResponse<CustomerDTO>> filterCustomers(
+            @RequestParam(required = false) String nic,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "fullName") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        log.info("GET /customers/filter - nic: {}, phone: {}, status: {}, page: {}, size: {}", nic, phone, status, page, size);
+
+        PageResponse<Customer> response = customerService.filterCustomers(
                 nic != null ? nic.trim() : null,
                 phone != null ? phone.trim() : null,
+                status,
                 page, size, sortBy, sortDir);
         PageResponse<CustomerDTO> dtoResponse = convertPageToDTO(response);
 
-        log.info("Found {} customers matching criteria", response.getTotalElements());
+        log.info("Found {} customers matching filter criteria", response.getTotalElements());
         return ResponseEntity.ok(dtoResponse);
     }
 

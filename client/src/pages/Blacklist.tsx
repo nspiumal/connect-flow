@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, ShieldOff, ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ShieldOff, ShieldCheck, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
+import { CommonSearch, SearchField } from "@/components/CommonSearch";
 
 export default function Blacklist() {
   const [blacklist, setBlacklist] = useState<any[]>([]);
@@ -30,13 +31,26 @@ export default function Blacklist() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
 
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterNic, setFilterNic] = useState("");
+  const [filterPoliceReport, setFilterPoliceReport] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const fetchBlacklist = async () => {
+  const fetchBlacklist = async (nic?: string | null, policeReport?: string | null, status?: string | null) => {
     try {
       setLoading(true);
-      const data = await apiClient.blacklist.getPaginated(currentPage, pageSize, 'createdAt', 'desc');
+
+      // Use filter API if any filters are provided, otherwise use paginated API
+      const hasFilters = nic || policeReport || status;
+
+      const data = hasFilters
+        ? await apiClient.blacklist.filter(nic || undefined, policeReport || undefined, status || undefined, currentPage, pageSize, 'createdAt', 'desc')
+        : await apiClient.blacklist.getPaginated(currentPage, pageSize, 'createdAt', 'desc');
+
       setBlacklist(data.content || []);
       setTotalPages(data.totalPages || 0);
       setTotalElements(data.totalElements || 0);
@@ -56,6 +70,49 @@ export default function Blacklist() {
     fetchBlacklist();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize]);
+
+  const handleSearch = (filters: Record<string, string | null>) => {
+    const { nic, policeReport, status } = filters;
+    setFilterNic(nic || "");
+    setFilterPoliceReport(policeReport || "");
+    setFilterStatus(status || "all");
+    setCurrentPage(0); // Reset to first page when filtering
+    fetchBlacklist(nic, policeReport, status);
+  };
+
+  const handleClearFilters = () => {
+    setFilterNic("");
+    setFilterPoliceReport("");
+    setFilterStatus("all");
+    setCurrentPage(0);
+    fetchBlacklist();
+  };
+
+  const searchFields: SearchField[] = [
+    {
+      name: "nic",
+      label: "NIC",
+      type: "text",
+      placeholder: "Enter NIC...",
+    },
+    {
+      name: "policeReport",
+      label: "Police Report Number",
+      type: "text",
+      placeholder: "Enter police report number...",
+    },
+    {
+      name: "status",
+      label: "Status",
+      type: "select",
+      options: [
+        { label: "Active", value: "active" },
+        { label: "Removed", value: "inactive" },
+      ],
+    },
+  ];
+
+  const hasActiveFilters = filterNic !== "" || filterPoliceReport !== "" || filterStatus !== "all";
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,14 +176,43 @@ export default function Blacklist() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Blacklist Management</h1>
-        <Button
-          onClick={() => setShowDialog(true)}
-          disabled={loading}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {loading ? "Loading..." : "Add to Blacklist"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            disabled={loading}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Filters
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
+                {[filterNic, filterPoliceReport, filterStatus !== "all" ? filterStatus : ""].filter(Boolean).length}
+              </Badge>
+            )}
+          </Button>
+          <Button
+            onClick={() => setShowDialog(true)}
+            disabled={loading}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {loading ? "Loading..." : "Add to Blacklist"}
+          </Button>
+        </div>
       </div>
+
+      {/* Filter Panel using CommonSearch */}
+      {showFilters && (
+        <CommonSearch
+          fields={searchFields}
+          onSearch={handleSearch}
+          onClear={handleClearFilters}
+          isLoading={loading}
+          title="Blacklist Filters"
+          backgroundColor="bg-gray-100"
+          borderColor="border-gray-300"
+        />
+      )}
+
       <Card>
         <CardContent className="space-y-4 p-0">
           <div className="overflow-x-auto">

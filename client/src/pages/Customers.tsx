@@ -1,18 +1,12 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
 import { apiClient } from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
@@ -28,27 +22,41 @@ interface Customer {
 }
 
 export default function Customers() {
-  const [query, setQuery] = useState("");
+  // Filter state
+  const [filterNic, setFilterNic] = useState("");
+  const [filterPhone, setFilterPhone] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  // UI state
   const [results, setResults] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
+
   const { toast } = useToast();
 
   // Load all customers on mount and when page changes
   useEffect(() => {
-    if (!query.trim()) {
-      fetchAllCustomers();
-    }
+    fetchAllCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize]);
 
   const fetchAllCustomers = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.customers.getAll(currentPage, pageSize, "fullName", "asc");
+      // Use filter API with all filter parameters
+      const response = await apiClient.customers.filter(
+        filterNic || undefined,
+        filterPhone || undefined,
+        filterStatus,
+        currentPage,
+        pageSize,
+        "fullName",
+        "asc"
+      );
       console.log("Customers response:", response);
 
       if (response && response.content) {
@@ -68,119 +76,153 @@ export default function Customers() {
     }
   };
 
-  const handleSearch = async () => {
-    if (!query.trim()) {
-      setCurrentPage(0);
-      fetchAllCustomers();
-      return;
-    }
 
-    try {
-      setLoading(true);
-      const response = await apiClient.customers.search(query.trim(), 0, pageSize, "fullName", "asc");
-      console.log("Search response:", response);
-
-      if (response && response.content) {
-        setResults(response.content);
-        setTotalPages(response.totalPages);
-        setTotalElements(response.totalElements);
-        setCurrentPage(0);
-
-        if (response.content.length === 0) {
-          toast({
-            title: "No Results",
-            description: `No customers found matching "${query}"`,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Search failed:", error);
-      toast({
-        title: "Error",
-        description: "Failed to search customers",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePageSizeChange = (newSize: string) => {
-    setPageSize(Number(newSize));
+  const handleApplyFilters = () => {
     setCurrentPage(0);
+    fetchAllCustomers();
   };
+
+  const handleClearFilters = () => {
+    setFilterNic("");
+    setFilterPhone("");
+    setFilterStatus("all");
+    setCurrentPage(0);
+    setShowFilters(false);
+  };
+
+  const hasActiveFilters = filterNic || filterPhone || filterStatus !== "all";
 
   return (
     <div className="space-y-6">
       <LoadingOverlay isLoading={loading} message="Loading customers..." />
 
-      <h1 className="text-2xl font-bold">Customer Search</h1>
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by NIC or name..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          disabled={loading}
-          className="pl-9"
-        />
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Customer Management</h1>
+        <Button
+          variant="outline"
+          onClick={() => setShowFilters(!showFilters)}
+          className={hasActiveFilters ? "bg-slate-100" : ""}
+        >
+          <Filter className="h-4 w-4 mr-2" />
+          Filters
+        </Button>
       </div>
 
+      {/* Filter Panel */}
+      {showFilters && (
+        <Card className="bg-gray-100 border-2 border-gray-300 rounded-lg shadow-sm">
+          <CardContent className="p-6 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700">Advanced Filters</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-sm font-medium">Filter by NIC</Label>
+                <Input
+                  placeholder="Enter NIC..."
+                  value={filterNic}
+                  onChange={(e) => setFilterNic(e.target.value)}
+                  disabled={loading}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Filter by Phone</Label>
+                <Input
+                  placeholder="Enter phone number..."
+                  value={filterPhone}
+                  onChange={(e) => setFilterPhone(e.target.value)}
+                  disabled={loading}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Filter by Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus} disabled={loading}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={handleClearFilters}
+                disabled={loading || !hasActiveFilters}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear All
+              </Button>
+              <Button onClick={handleApplyFilters} disabled={loading}>
+                <Filter className="h-4 w-4 mr-2" />
+                Apply Filters
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>
-              {query ? `Search Results for "${query}"` : "All Customers"}
-            </CardTitle>
-            <Button
-              onClick={handleSearch}
-              disabled={loading}
-            >
-              {loading ? "Searching..." : "Search"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>NIC</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>Type</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {results.length > 0 ? (
-                results.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.fullName}</TableCell>
-                    <TableCell>{customer.nic}</TableCell>
-                    <TableCell>{customer.phone || "—"}</TableCell>
-                    <TableCell>{customer.address || "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{customer.customerType}</Badge>
+        <CardContent className="space-y-4 p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>NIC</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Customer Type</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {results.length > 0 ? (
+                  results.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">{customer.fullName}</TableCell>
+                      <TableCell>{customer.nic}</TableCell>
+                      <TableCell>{customer.phone || "—"}</TableCell>
+                      <TableCell className="max-w-md truncate">{customer.address || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{customer.customerType}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={customer.isActive ? "default" : "secondary"}>
+                          {customer.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      {loading ? "Loading customers..." : "No customers found"}
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    {loading ? "Loading customers..." : "No customers found"}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between border-t pt-4">
+          <div className="flex items-center justify-between border-t px-6 py-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Label className="text-sm">Rows per page:</Label>
-                <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value));
+                    setCurrentPage(0);
+                  }}
+                  disabled={loading}
+                >
                   <SelectTrigger className="w-20">
                     <SelectValue />
                   </SelectTrigger>

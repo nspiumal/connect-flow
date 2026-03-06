@@ -164,6 +164,58 @@ public class BlacklistService {
         );
     }
 
+    /**
+     * Filter blacklist entries by NIC, police report number, and/or status with pagination
+     * Uses native @Query with optional parameters
+     * Follows the same pattern as CustomerService.filterCustomers()
+     */
+    public PageResponse<BlacklistDTO> filterBlacklist(String nic, String policeReport, String status,
+                                                      int page, int size, String sortBy, String sortDir) {
+        // Normalize inputs
+        String normalizedNic = nic != null && !nic.trim().isEmpty() ? nic.trim() : null;
+        String normalizedPoliceReport = policeReport != null && !policeReport.trim().isEmpty() ? policeReport.trim() : null;
+        String normalizedStatus = status != null && !status.trim().isEmpty() && !"all".equalsIgnoreCase(status)
+                ? status.trim()
+                : null;
+
+        // Convert status to boolean
+        Boolean isActive = null;
+        if (normalizedStatus != null) {
+            if ("active".equalsIgnoreCase(normalizedStatus)) {
+                isActive = true;
+            } else if ("inactive".equalsIgnoreCase(normalizedStatus)) {
+                isActive = false;
+            }
+        }
+
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        // Call repository filter method
+        Page<Blacklist> blacklistPage = blacklistRepository.filterBlacklist(
+                normalizedNic,
+                normalizedPoliceReport,
+                isActive,
+                pageable
+        );
+
+        List<BlacklistDTO> content = blacklistPage.getContent().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+
+        return new PageResponse<>(
+                content,
+                blacklistPage.getNumber(),
+                blacklistPage.getSize(),
+                blacklistPage.getTotalElements(),
+                blacklistPage.getTotalPages(),
+                blacklistPage.isLast()
+        );
+    }
+
     public BlacklistDTO addToBlacklist(BlacklistDTO dto) {
         Blacklist blacklist = Blacklist.builder()
             .customerName(dto.getCustomerName())

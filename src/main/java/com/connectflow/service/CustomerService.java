@@ -90,11 +90,13 @@ public class CustomerService {
         );
     }
 
+
     /**
-     * Advanced search customers by NIC and/or phone with pagination
+     * Filter customers by NIC, phone, and/or status with pagination
+     * Uses native @Query with optional parameters
      */
-    public PageResponse<Customer> searchAdvanced(String nic, String phone, int page, int size, String sortBy, String sortDir) {
-        log.info("Advanced search customers - nic: {}, phone: {}, page: {}, size: {}", nic, phone, page, size);
+    public PageResponse<Customer> filterCustomers(String nic, String phone, String status, int page, int size, String sortBy, String sortDir) {
+        log.info("Filtering customers - nic: {}, phone: {}, status: {}, page: {}, size: {}", nic, phone, status, page, size);
 
         Sort sort = sortDir.equalsIgnoreCase("desc")
                 ? Sort.by(sortBy).descending()
@@ -102,27 +104,88 @@ public class CustomerService {
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Customer> customerPage;
-
-        if (nic != null && !nic.isEmpty() && phone != null && !phone.isEmpty()) {
-            // Search by both NIC and phone (AND condition)
-            log.info("Searching by both NIC and phone");
-            customerPage = customerRepository.findByNicContainingIgnoreCaseAndPhoneContainingIgnoreCase(nic, phone, pageable);
-        } else if (nic != null && !nic.isEmpty()) {
-            // Search by NIC only
-            log.info("Searching by NIC");
-            customerPage = customerRepository.findByNicContainingIgnoreCase(nic, pageable);
-        } else if (phone != null && !phone.isEmpty()) {
-            // Search by phone only
-            log.info("Searching by phone");
-            customerPage = customerRepository.findByPhoneContainingIgnoreCase(phone, pageable);
-        } else {
-            // Get all if both are empty (fallback)
-            log.info("No filters provided, returning all customers");
-            customerPage = customerRepository.findByIsActiveTrue(pageable);
+        // Determine isActive status
+        Boolean isActive = null;
+        if (status != null && !status.isEmpty()) {
+            if ("active".equalsIgnoreCase(status)) {
+                isActive = true;
+            } else if ("inactive".equalsIgnoreCase(status)) {
+                isActive = false;
+            }
         }
 
+        log.info("Executing filter query with parameters - nic: {}, phone: {}, isActive: {}", nic, phone, isActive);
+        Page<Customer> customerPage = customerRepository.filterCustomers(nic, phone, isActive, pageable);
+
         List<Customer> content = customerPage.getContent();
+
+        return new PageResponse<>(
+                content,
+                customerPage.getNumber(),
+                customerPage.getSize(),
+                customerPage.getTotalElements(),
+                customerPage.getTotalPages(),
+                customerPage.isLast()
+        );
+    }
+
+    /**
+     * Advanced search for customers with optional filters
+     * Uses native @Query with optional parameters
+     * Follows the same pattern as PawnTransactionService.searchTransactionsAdvanced()
+     */
+    public PageResponse<Customer> searchCustomersAdvanced(String nic,
+                                                          String phone,
+                                                          String name,
+                                                          String customerType,
+                                                          String status,
+                                                          int page,
+                                                          int size,
+                                                          String sortBy,
+                                                          String sortDir) {
+        // Normalize inputs - trim and convert null/empty to null for cleaner logic
+        String normalizedNic = nic != null && !nic.trim().isEmpty() ? nic.trim() : null;
+        String normalizedPhone = phone != null && !phone.trim().isEmpty() ? phone.trim() : null;
+        String normalizedName = name != null && !name.trim().isEmpty() ? name.trim() : null;
+        String normalizedCustomerType = customerType != null && !customerType.trim().isEmpty() ? customerType.trim() : null;
+        String normalizedStatus = status != null && !status.trim().isEmpty() && !"all".equalsIgnoreCase(status)
+                ? status.trim()
+                : null;
+
+        log.info("Advanced search for customers - nic: {}, phone: {}, name: {}, type: {}, status: {}, page: {}, size: {}",
+                normalizedNic, normalizedPhone, normalizedName, normalizedCustomerType, normalizedStatus, page, size);
+
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        // Convert status to boolean
+        Boolean isActive = null;
+        if (normalizedStatus != null) {
+            if ("active".equalsIgnoreCase(normalizedStatus)) {
+                isActive = true;
+            } else if ("inactive".equalsIgnoreCase(normalizedStatus)) {
+                isActive = false;
+            }
+        }
+
+        log.info("Executing advanced search query - normalized values: nic: {}, phone: {}, name: {}, type: {}, isActive: {}",
+                normalizedNic, normalizedPhone, normalizedName, normalizedCustomerType, isActive);
+
+        Page<Customer> customerPage = customerRepository.searchAdvanced(
+                normalizedNic,
+                normalizedPhone,
+                normalizedName,
+                normalizedCustomerType,
+                isActive,
+                pageable
+        );
+
+        List<Customer> content = customerPage.getContent();
+
+        log.info("Advanced search completed - found {} customers", customerPage.getTotalElements());
 
         return new PageResponse<>(
                 content,

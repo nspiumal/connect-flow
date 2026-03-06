@@ -9,7 +9,8 @@ import apiClient from "@/integrations/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateUserDialog } from "@/components/users/CreateUserDialog";
 import { PinManagementDialog } from "@/components/users/PinManagementDialog";
-import { UserPlus, ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { CommonSearch, SearchField } from "@/components/CommonSearch";
+import { UserPlus, ChevronLeft, ChevronRight, Lock, Filter } from "lucide-react";
 
 interface User {
   id: string;
@@ -37,9 +38,22 @@ export default function UsersPage() {
   const [totalElements, setTotalElements] = useState(0);
   const { role } = useAuth();
 
-  const fetchUsers = async () => {
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterName, setFilterName] = useState("");
+  const [filterEmail, setFilterEmail] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterBranch, setFilterBranch] = useState("");
+
+  const fetchUsers = async (name?: string | null, email?: string | null, roleFilter?: string | null, branch?: string | null) => {
     try {
-      const response = await apiClient.users.getPaginated(currentPage, pageSize, "fullName", "asc");
+      // Use filter API if any filters are provided, otherwise use paginated API
+      const hasFilters = name || email || roleFilter || branch;
+
+      const response = hasFilters
+        ? await apiClient.users.filter(name || undefined, email || undefined, roleFilter || undefined, branch || undefined, currentPage, pageSize, "fullName", "asc")
+        : await apiClient.users.getPaginated(currentPage, pageSize, "fullName", "asc");
+
       const normalized: User[] = response.content.map((u: Record<string, unknown>) => ({
         id: u.id as string,
         full_name: u.fullName as string,
@@ -59,14 +73,95 @@ export default function UsersPage() {
     fetchUsers();
   }, [currentPage, pageSize]);
 
+  const handleSearch = (filters: Record<string, string | null>) => {
+    const { name, email, role: roleFilter, branch } = filters;
+    setFilterName(name || "");
+    setFilterEmail(email || "");
+    setFilterRole(roleFilter || "all");
+    setFilterBranch(branch || "");
+    setCurrentPage(0);
+    fetchUsers(name, email, roleFilter, branch);
+  };
+
+  const handleClearFilters = () => {
+    setFilterName("");
+    setFilterEmail("");
+    setFilterRole("all");
+    setFilterBranch("");
+    setCurrentPage(0);
+    fetchUsers();
+  };
+
+  const searchFields: SearchField[] = [
+    {
+      name: "name",
+      label: "Name",
+      type: "text",
+      placeholder: "Enter name...",
+    },
+    {
+      name: "email",
+      label: "Email",
+      type: "text",
+      placeholder: "Enter email...",
+    },
+    {
+      name: "role",
+      label: "Role",
+      type: "select",
+      options: [
+        { label: "Superadmin", value: "SUPERADMIN" },
+        { label: "Admin", value: "ADMIN" },
+        { label: "Manager", value: "MANAGER" },
+        { label: "Staff", value: "STAFF" },
+      ],
+    },
+    {
+      name: "branch",
+      label: "Branch",
+      type: "text",
+      placeholder: "Enter branch name...",
+    },
+  ];
+
+  const hasActiveFilters = filterName !== "" || filterEmail !== "" || filterRole !== "all" || filterBranch !== "";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">User Management</h1>
-        {(role === "SUPERADMIN" || role === "ADMIN") && (
-          <Button onClick={() => setShowCreate(true)}><UserPlus className="mr-2 h-4 w-4" /> Create User</Button>
-        )}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Filters
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
+                {[filterName, filterEmail, filterRole !== "all" ? filterRole : "", filterBranch].filter(Boolean).length}
+              </Badge>
+            )}
+          </Button>
+          {(role === "SUPERADMIN" || role === "ADMIN") && (
+            <Button onClick={() => setShowCreate(true)}><UserPlus className="mr-2 h-4 w-4" /> Create User</Button>
+          )}
+        </div>
       </div>
+
+      {/* Filter Panel using CommonSearch */}
+      {showFilters && (
+        <CommonSearch
+          fields={searchFields}
+          onSearch={handleSearch}
+          onClear={handleClearFilters}
+          isLoading={false}
+          title="User Filters"
+          backgroundColor="bg-gray-100"
+          borderColor="border-gray-300"
+        />
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>

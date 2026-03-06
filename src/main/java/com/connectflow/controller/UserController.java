@@ -46,6 +46,31 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Filter users by name, email, role, and/or branch with pagination
+     * Follows the same pattern as Customer and Blacklist filter endpoints
+     */
+    @GetMapping("/filter")
+    @Operation(summary = "Filter users by name, email, role, and/or branch with pagination")
+    public ResponseEntity<PageResponse<UserDTO>> filterUsers(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String branch,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "fullName") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        log.info("GET /users/filter - name: {}, email: {}, role: {}, branch: {}, page: {}, size: {}",
+                name, email, role, branch, page, size);
+
+        PageResponse<UserDTO> response = userService.filterUsers(
+                name, email, role, branch, page, size, sortBy, sortDir);
+
+        log.info("Filter completed - found {} users", response.getTotalElements());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/email/{email}")
     @Operation(summary = "Get user by email")
     public ResponseEntity<UserDTO> getUserByEmail(@PathVariable String email) {

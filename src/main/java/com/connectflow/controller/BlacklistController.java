@@ -126,6 +126,30 @@ public class BlacklistController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Filter blacklist entries by NIC, police report number, and/or status with pagination
+     * Follows the same pattern as Customer filter endpoint
+     */
+    @GetMapping("/filter")
+    @Operation(summary = "Filter blacklist entries by NIC, police report, and/or status with pagination")
+    public ResponseEntity<PageResponse<BlacklistDTO>> filterBlacklist(
+            @RequestParam(required = false) String nic,
+            @RequestParam(required = false) String policeReport,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("GET /blacklist/filter - nic: {}, policeReport: {}, status: {}, page: {}, size: {}",
+                nic, policeReport, status, page, size);
+
+        PageResponse<BlacklistDTO> response = blacklistService.filterBlacklist(
+                nic, policeReport, status, page, size, sortBy, sortDir);
+
+        log.info("Filter completed - found {} blacklist entries", response.getTotalElements());
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping
     @Operation(summary = "Add customer to blacklist")
     public ResponseEntity<BlacklistDTO> addToBlacklist(@RequestBody BlacklistDTO dto) {
