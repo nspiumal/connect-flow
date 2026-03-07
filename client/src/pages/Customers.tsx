@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { apiClient } from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
+import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 
 interface Customer {
   id: string;
@@ -76,19 +76,30 @@ export default function Customers() {
     }
   };
 
+  const handleSearch = (filters: Record<string, FilterValue>) => {
+    const nic = typeof filters.nic === 'string' ? filters.nic : undefined;
+    const phone = typeof filters.phone === 'string' ? filters.phone : undefined;
 
-  const handleApplyFilters = () => {
+    // Handle status - can be array or string
+    let status = "all";
+    if (filters.status) {
+      if (Array.isArray(filters.status)) {
+        // If both active and inactive are selected, show all
+        if (filters.status.length === 1) {
+          status = filters.status[0];
+        }
+      } else if (typeof filters.status === 'string') {
+        status = filters.status;
+      }
+    }
+
+    setFilterNic(nic || "");
+    setFilterPhone(phone || "");
+    setFilterStatus(status);
     setCurrentPage(0);
     fetchAllCustomers();
   };
 
-  const handleClearFilters = () => {
-    setFilterNic("");
-    setFilterPhone("");
-    setFilterStatus("all");
-    setCurrentPage(0);
-    setShowFilters(false);
-  };
 
   const hasActiveFilters = filterNic || filterPhone || filterStatus !== "all";
 
@@ -101,70 +112,50 @@ export default function Customers() {
         <Button
           variant="outline"
           onClick={() => setShowFilters(!showFilters)}
-          className={hasActiveFilters ? "bg-slate-100" : ""}
+          disabled={loading}
         >
           <Filter className="h-4 w-4 mr-2" />
           Filters
+          {hasActiveFilters && (
+            <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
+              {[filterNic, filterPhone, filterStatus !== "all" ? filterStatus : ""].filter(Boolean).length}
+            </Badge>
+          )}
         </Button>
       </div>
 
-      {/* Filter Panel */}
+      {/* Filter Panel using AdvancedSearchPanel */}
       {showFilters && (
-        <Card className="bg-gray-100 border-2 border-gray-300 rounded-lg shadow-sm">
-          <CardContent className="p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700">Advanced Filters</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label className="text-sm font-medium">Filter by NIC</Label>
-                <Input
-                  placeholder="Enter NIC..."
-                  value={filterNic}
-                  onChange={(e) => setFilterNic(e.target.value)}
-                  disabled={loading}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Filter by Phone</Label>
-                <Input
-                  placeholder="Enter phone number..."
-                  value={filterPhone}
-                  onChange={(e) => setFilterPhone(e.target.value)}
-                  disabled={loading}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Filter by Status</Label>
-                <Select value={filterStatus} onValueChange={setFilterStatus} disabled={loading}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={handleClearFilters}
-                disabled={loading || !hasActiveFilters}
-              >
-                <X className="h-4 w-4 mr-2" />
-                Clear All
-              </Button>
-              <Button onClick={handleApplyFilters} disabled={loading}>
-                <Filter className="h-4 w-4 mr-2" />
-                Apply Filters
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <AdvancedSearchPanel
+          title="Customer Search"
+          subtitle="Search customers by NIC, phone number, or status"
+          inputFields={[
+            {
+              name: "nic",
+              label: "NIC",
+              placeholder: "Enter NIC number",
+            },
+            {
+              name: "phone",
+              label: "Phone Number",
+              placeholder: "Enter phone number",
+            },
+          ]}
+          checkboxGroups={[
+            {
+              name: "status",
+              label: "Status",
+              options: [
+                { label: "Active", value: "active" },
+                { label: "Inactive", value: "inactive" },
+              ],
+              defaultChecked: true,
+            },
+          ]}
+          onSearch={handleSearch}
+          isLoading={loading}
+          backgroundColor="bg-gray-50"
+        />
       )}
 
       <Card>

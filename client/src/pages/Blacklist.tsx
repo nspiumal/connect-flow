@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Plus, ShieldOff, ShieldCheck, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { CommonSearch, SearchField } from "@/components/CommonSearch";
+import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 
 export default function Blacklist() {
   const [blacklist, setBlacklist] = useState<any[]>([]);
@@ -71,46 +71,29 @@ export default function Blacklist() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize]);
 
-  const handleSearch = (filters: Record<string, string | null>) => {
-    const { nic, policeReport, status } = filters;
+  const handleSearch = (filters: Record<string, FilterValue>) => {
+    const nic = typeof filters.nic === 'string' ? filters.nic : undefined;
+    const policeReport = typeof filters.policeReport === 'string' ? filters.policeReport : undefined;
+
+    // Handle status - can be array or string
+    let status: string | undefined;
+    if (filters.status) {
+      if (Array.isArray(filters.status)) {
+        // If both active and inactive are selected, don't filter by status
+        if (filters.status.length === 1) {
+          status = filters.status[0];
+        }
+      } else if (typeof filters.status === 'string') {
+        status = filters.status;
+      }
+    }
+
     setFilterNic(nic || "");
     setFilterPoliceReport(policeReport || "");
     setFilterStatus(status || "all");
     setCurrentPage(0); // Reset to first page when filtering
     fetchBlacklist(nic, policeReport, status);
   };
-
-  const handleClearFilters = () => {
-    setFilterNic("");
-    setFilterPoliceReport("");
-    setFilterStatus("all");
-    setCurrentPage(0);
-    fetchBlacklist();
-  };
-
-  const searchFields: SearchField[] = [
-    {
-      name: "nic",
-      label: "NIC",
-      type: "text",
-      placeholder: "Enter NIC...",
-    },
-    {
-      name: "policeReport",
-      label: "Police Report Number",
-      type: "text",
-      placeholder: "Enter police report number...",
-    },
-    {
-      name: "status",
-      label: "Status",
-      type: "select",
-      options: [
-        { label: "Active", value: "active" },
-        { label: "Removed", value: "inactive" },
-      ],
-    },
-  ];
 
   const hasActiveFilters = filterNic !== "" || filterPoliceReport !== "" || filterStatus !== "all";
 
@@ -200,16 +183,37 @@ export default function Blacklist() {
         </div>
       </div>
 
-      {/* Filter Panel using CommonSearch */}
+      {/* Filter Panel using AdvancedSearchPanel */}
       {showFilters && (
-        <CommonSearch
-          fields={searchFields}
+        <AdvancedSearchPanel
+          title="Blacklist Search"
+          subtitle="Search blacklisted entries by NIC, police report, or status"
+          inputFields={[
+            {
+              name: "nic",
+              label: "NIC",
+              placeholder: "Enter NIC number",
+            },
+            {
+              name: "policeReport",
+              label: "Police Report",
+              placeholder: "Enter report number",
+            },
+          ]}
+          checkboxGroups={[
+            {
+              name: "status",
+              label: "Status",
+              options: [
+                { label: "Active", value: "active" },
+                { label: "Removed", value: "inactive" },
+              ],
+              defaultChecked: true,
+            },
+          ]}
           onSearch={handleSearch}
-          onClear={handleClearFilters}
           isLoading={loading}
-          title="Blacklist Filters"
-          backgroundColor="bg-gray-100"
-          borderColor="border-gray-300"
+          backgroundColor="bg-gray-50"
         />
       )}
 

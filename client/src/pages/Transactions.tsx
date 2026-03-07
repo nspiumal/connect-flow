@@ -12,8 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Search, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info, DollarSign } from "lucide-react";
+import { Plus, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info, DollarSign, Filter } from "lucide-react";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
+import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 
 export default function Transactions() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +46,7 @@ export default function Transactions() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
 
   const { toast } = useToast();
   const { role } = useAuth();
@@ -439,22 +441,43 @@ export default function Transactions() {
     }
   };
 
-  const statusBadge = (s: string) => {
-    if (s === "Active") return "default";
-    if (s === "Completed") return "secondary";
-    return "destructive";
-  };
+  const handleSearch = (filters: Record<string, FilterValue>) => {
+    const pawnId = typeof filters.pawnId === 'string' ? filters.pawnId : undefined;
+    const customerNic = typeof filters.customerNic === 'string' ? filters.customerNic : undefined;
+    const minAmount = typeof filters.minAmount === 'string' ? filters.minAmount : undefined;
+    const maxAmount = typeof filters.maxAmount === 'string' ? filters.maxAmount : undefined;
 
-  const applySearch = () => {
+    // Handle status - can be array or string
+    let status = "all";
+    if (filters.status) {
+      if (Array.isArray(filters.status)) {
+        // If multiple statuses selected, keep first one or "all"
+        if (filters.status.length === 1) {
+          status = filters.status[0];
+        }
+      } else if (typeof filters.status === 'string') {
+        status = filters.status;
+      }
+    }
+
+    setFilterPawnId(pawnId || "");
+    setFilterNic(customerNic || "");
+    setFilterMinAmount(minAmount || "");
+    setFilterMaxAmount(maxAmount || "");
+    setStatusFilter(status);
+
     setAppliedFilters({
-      pawnId: filterPawnId,
-      customerNic: filterNic,
-      minAmount: filterMinAmount,
-      maxAmount: filterMaxAmount,
-      status: statusFilter,
+      pawnId: pawnId || "",
+      customerNic: customerNic || "",
+      minAmount: minAmount || "",
+      maxAmount: maxAmount || "",
+      status: status,
     });
+
     setCurrentPage(0);
   };
+
+  const hasActiveFilters = filterPawnId || filterNic || filterMinAmount || filterMaxAmount || statusFilter !== "all";
 
   return (
     <div className="space-y-6">
@@ -463,6 +486,19 @@ export default function Transactions() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Pawn Transactions</h1>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            disabled={loading}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
+                {[filterPawnId, filterNic, filterMinAmount, filterMaxAmount, statusFilter !== "all" ? statusFilter : ""].filter(Boolean).length}
+              </Badge>
+            )}
+          </Button>
           {(role !== "STAFF" || role === "STAFF") && branchId && (
             <Button onClick={() => navigate("/transactions/create")} variant="default">
               <Plus className="mr-2 h-4 w-4" /> Create Pawning
@@ -471,58 +507,54 @@ export default function Transactions() {
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Input
-            placeholder="Pawn ID"
-            value={filterPawnId}
-            onChange={(e) => setFilterPawnId(e.target.value)}
-            className="pl-3"
-          />
-        </div>
-        <div className="relative flex-1">
-          <Input
-            placeholder="NIC"
-            value={filterNic}
-            onChange={(e) => setFilterNic(e.target.value)}
-            className="pl-3"
-          />
-        </div>
-        <div className="relative w-36">
-          <Input
-            type="number"
-            min="0"
-            placeholder="Min Amount"
-            value={filterMinAmount}
-            onChange={(e) => setFilterMinAmount(e.target.value)}
-            className="pl-3"
-          />
-        </div>
-        <div className="relative w-36">
-          <Input
-            type="number"
-            min="0"
-            placeholder="Max Amount"
-            value={filterMaxAmount}
-            onChange={(e) => setFilterMaxAmount(e.target.value)}
-            className="pl-3"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Overdue">Overdue</SelectItem>
-            <SelectItem value="Completed">Completed</SelectItem>
-            <SelectItem value="Defaulted">Defaulted</SelectItem>
-            <SelectItem value="Blocked">Blocked</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button onClick={applySearch}>
-          <Search className="mr-2 h-4 w-4" /> Search
-        </Button>
-      </div>
+      {/* Advanced Search Panel */}
+      {showFilters && (
+        <AdvancedSearchPanel
+          title="Transaction Search"
+          subtitle="Search pawn transactions by Pawn ID, NIC, amount, or status"
+          inputFields={[
+            {
+              name: "pawnId",
+              label: "Pawn ID",
+              placeholder: "Enter Pawn ID",
+            },
+            {
+              name: "customerNic",
+              label: "Customer NIC",
+              placeholder: "Enter NIC number",
+            },
+            {
+              name: "minAmount",
+              label: "Min Amount",
+              placeholder: "Min loan amount",
+              type: "number",
+            },
+            {
+              name: "maxAmount",
+              label: "Max Amount",
+              placeholder: "Max loan amount",
+              type: "number",
+            },
+          ]}
+          checkboxGroups={[
+            {
+              name: "status",
+              label: "Status",
+              options: [
+                { label: "Active", value: "Active" },
+                { label: "Overdue", value: "Overdue" },
+                { label: "Completed", value: "Completed" },
+                { label: "Defaulted", value: "Defaulted" },
+                { label: "Blocked", value: "Blocked" },
+              ],
+              defaultChecked: true,
+            },
+          ]}
+          onSearch={handleSearch}
+          isLoading={loading}
+          backgroundColor="bg-gray-50"
+        />
+      )}
 
       <Card>
         <CardContent className="space-y-4 p-0">
