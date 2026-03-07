@@ -53,6 +53,14 @@ interface ItemPayload {
   images: string[];
 }
 
+interface Customer {
+  id: string;
+  fullName: string;
+  nic: string;
+  phone?: string;
+  address?: string;
+}
+
 const emptyItemDraft: ItemDraft = {
   description: "",
   content: "",
@@ -109,6 +117,11 @@ export default function CreatePawningSample() {
   // Confirmation dialog state
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
+  // Customer search dropdown state
+  const [customerSearchResults, setCustomerSearchResults] = useState<Customer[]>([]);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+
   const totals = useMemo(
     () =>
       items.reduce(
@@ -160,6 +173,75 @@ export default function CreatePawningSample() {
     setCustomerFound(false);
     setBlockedReason(null);
   }, [idType, identityNumber]);
+
+  useEffect(() => {
+    // Auto-search for customers when 5+ digits are entered in the NIC field
+    if (idType !== "NIC" || identityNumber.length < 5) {
+      setShowCustomerDropdown(false);
+      setCustomerSearchResults([]);
+      if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+        setSearchDebounceTimer(null);
+      }
+      return;
+    }
+
+    // Clear previous timeout
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+    }
+
+    // Set new debounced search
+    const timer = setTimeout(async () => {
+      try {
+        setIdentityVerifying(true);
+
+        // Check blacklist first
+        const result = await apiClient.blacklist.verifyNic(identityNumber.trim());
+
+        if (result?.isBlocked) {
+          setShowCustomerDropdown(false);
+          setBlockedReason(result.blocklistReason || "Customer is blocked");
+          setIdentityVerifying(false);
+          return;
+        }
+
+        // Search for matching customers
+        const searchResult = await apiClient.customers.search(identityNumber.trim(), 0, 10);
+        const customers = searchResult?.content || [];
+
+        if (customers.length > 0) {
+          setCustomerSearchResults(customers);
+          setShowCustomerDropdown(true);
+        } else {
+          setShowCustomerDropdown(false);
+          setCustomerSearchResults([]);
+        }
+      } catch (error) {
+        console.log('Search error:', error);
+        setCustomerSearchResults([]);
+        setShowCustomerDropdown(false);
+      } finally {
+        setIdentityVerifying(false);
+      }
+    }, 500); // 500ms debounce
+
+    setSearchDebounceTimer(timer);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [identityNumber, idType]);
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setIdentityNumber(customer.nic || "");
+    setCustomerName(customer.fullName || "");
+    setCustomerPhone(customer.phone || "");
+    setCustomerAddress(customer.address || "");
+    setCustomerFound(true);
+    setIdentityVerified(true);
+    setShowCustomerDropdown(false);
+  };
 
   useEffect(() => {
     // Global keydown listener for stealth pattern unlock
@@ -610,7 +692,7 @@ export default function CreatePawningSample() {
 
                       <div className="space-y-1 pr-2">
                         <Label htmlFor="identityNumber" className="text-xs">{identityLabel} Number <span className="text-red-500">*</span></Label>
-                        <div className="flex gap-1">
+                        <div className="space-y-1">
                           <Input
                             id="identityNumber"
                             value={identityNumber}
@@ -624,9 +706,22 @@ export default function CreatePawningSample() {
                             placeholder={`Enter ${identityLabel.toLowerCase()} number`}
                             className="h-8 text-sm"
                           />
-                          <Button type="button" variant="outline" className="h-8 text-xs px-2" onClick={handleVerifyIdentity} disabled={identityVerifying}>
-                            {identityVerifying ? "..." : "Verify"}
-                          </Button>
+                          {showCustomerDropdown && customerSearchResults.length > 0 && (
+                            <div className="border rounded-md bg-white shadow-lg z-50 max-h-40 overflow-y-auto">
+                              {customerSearchResults.map((customer) => (
+                                <button
+                                  key={customer.id}
+                                  type="button"
+                                  onClick={() => handleSelectCustomer(customer)}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 border-b last:border-b-0"
+                                >
+                                  <p className="font-medium text-xs">{customer.fullName}</p>
+                                  <p className="text-xs text-blue-600">NIC: {customer.nic}</p>
+                                  {customer.phone && <p className="text-xs text-gray-600">{customer.phone}</p>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         {identityVerified && !blockedReason && (
                           <p className="text-[11px] text-green-600">
@@ -634,6 +729,7 @@ export default function CreatePawningSample() {
                           </p>
                         )}
                         {blockedReason && <p className="text-[11px] text-red-600">{blockedReason}</p>}
+                        {identityVerifying && <p className="text-[11px] text-blue-600">Searching...</p>}
                       </div>
 
                       <div className="space-y-1 pl-2">
@@ -839,7 +935,6 @@ export default function CreatePawningSample() {
                              }}
                              placeholder="0.1 - 50"
                              className="border-amber-500"
-                             title="Enter a value between 0.1 and 50"
                            />
                            <p className="text-[10px] text-amber-600">⚠️ Manager override (0.1% - 50%)</p>
                          </div>

@@ -51,6 +51,7 @@ public class CustomerService {
 
     /**
      * Search customers by NIC or name with pagination
+     * Uses LIKE search for both NIC and name to support partial matches
      */
     public PageResponse<Customer> searchCustomers(String query, int page, int size, String sortBy, String sortDir) {
         log.info("Searching customers - query: {}, page: {}, size: {}", query, page, size);
@@ -61,22 +62,13 @@ public class CustomerService {
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        // Try NIC first (exact match)
-        Optional<Customer> byNic = customerRepository.findByNic(query);
-        if (byNic.isPresent()) {
-            List<Customer> content = List.of(byNic.get());
-            return new PageResponse<>(
-                    content,
-                    0,
-                    1,
-                    1,
-                    1,
-                    true
-            );
-        }
+        // Search by NIC (partial match using LIKE)
+        Page<Customer> customerPage = customerRepository.findByNicContainingIgnoreCase(query, pageable);
 
-        // Then search by name (partial match)
-        Page<Customer> customerPage = customerRepository.findByFullNameContainingIgnoreCase(query, pageable);
+        // If no results by NIC, try searching by name
+        if (customerPage.isEmpty()) {
+            customerPage = customerRepository.findByFullNameContainingIgnoreCase(query, pageable);
+        }
 
         List<Customer> content = customerPage.getContent();
 

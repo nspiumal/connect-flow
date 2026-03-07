@@ -89,10 +89,19 @@ public class BlacklistService {
     /**
      * Verify NIC - Check blocklist first, then fetch customer data if not blocked
      * This is a single API call for the transaction creation wizard
+     * Now supports partial NIC matching for auto-search (5+ digits)
      */
     public NicVerificationResponseDTO verifyNic(String nic) {
         // Step 1: Check if NIC is blocked
-        List<Blacklist> blockedEntries = blacklistRepository.findByCustomerNicAndIsActiveTrue(nic);
+        // For partial NIC (less than 9 chars), use LIKE search to check if any blocked NICs start with it
+        List<Blacklist> blockedEntries;
+        if (nic.length() < 9) {
+            // Partial NIC - search for blocked NICs that start with this pattern
+            blockedEntries = blacklistRepository.findByCustomerNicStartsWithAndIsActiveTrue(nic);
+        } else {
+            // Full NIC - exact match
+            blockedEntries = blacklistRepository.findByCustomerNicAndIsActiveTrue(nic);
+        }
 
         if (!blockedEntries.isEmpty()) {
             // Customer is blocked - return blocked status with reason
@@ -106,6 +115,18 @@ public class BlacklistService {
         }
 
         // Step 2: NIC is not blocked - fetch customer data if exists
+        // For partial NIC, we don't fetch customer data (let the search endpoint handle that)
+        if (nic.length() < 9) {
+            // Partial NIC - just return not blocked status
+            return NicVerificationResponseDTO.builder()
+                .isBlocked(false)
+                .blocklistReason(null)
+                .customer(null)
+                .message("NIC verified - not blocked (partial search)")
+                .build();
+        }
+
+        // Full NIC - fetch customer data
         Optional<Customer> customerOpt = customerRepository.findByNic(nic);
 
         if (customerOpt.isPresent()) {

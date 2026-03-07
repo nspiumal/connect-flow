@@ -17,6 +17,9 @@ public interface BlacklistRepository extends JpaRepository<Blacklist, UUID> {
     List<Blacklist> findByCustomerNic(String customerNic);
     List<Blacklist> findByCustomerNicAndIsActiveTrue(String customerNic);
 
+    // For partial NIC matching during auto-search
+    List<Blacklist> findByCustomerNicStartsWithAndIsActiveTrue(String nicPrefix);
+
     // Advanced search method
     Page<Blacklist> findByCustomerNicContainingIgnoreCase(String nic, Pageable pageable);
 
