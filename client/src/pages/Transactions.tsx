@@ -87,6 +87,7 @@ export default function Transactions() {
   const [outstandingBalance, setOutstandingBalance] = useState<any>(null);
   const [redemptionAmount, setRedemptionAmount] = useState("");
   const [redemptionNotes, setRedemptionNotes] = useState("");
+  const [documentationAmount, setDocumentationAmount] = useState("0");
   const [redemptionLoading, setRedemptionLoading] = useState(false);
   const [balanceLoading, setBalanceLoading] = useState(false);
 
@@ -410,6 +411,7 @@ export default function Transactions() {
       setOutstandingBalance(balance);
       setRedemptionAmount("");
       setRedemptionNotes("");
+      setDocumentationAmount("0");
     } catch (error: any) {
       console.error("Failed to fetch outstanding balance:", error);
       toast({
@@ -515,6 +517,14 @@ export default function Transactions() {
   };
 
   const hasActiveFilters = filterPawnId || filterNic || filterMinAmount || filterMaxAmount || statusFilter !== "all";
+
+  const fixedCharges = 50;
+  const documentationValue = Number(documentationAmount) || 0;
+  const effectiveCharges = fixedCharges + documentationValue;
+  const computedOutstandingTotal =
+    (Number(outstandingBalance?.principal) || 0) +
+    (Number(outstandingBalance?.accrualInterest) || 0) +
+    effectiveCharges;
 
   return (
     <div className="space-y-6">
@@ -685,7 +695,7 @@ export default function Transactions() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleOpenRedemption(t.id)}
+                              onClick={() => navigate(`/transactions/redeem/${t.id}`)}
                               disabled={loading}
                             >
                               <DollarSign className="h-4 w-4 mr-1" />
@@ -940,12 +950,23 @@ export default function Transactions() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Charges:</span>
-                    <span className="font-medium">Rs. {outstandingBalance.charges?.toLocaleString() || 0}</span>
+                    <span className="font-medium">Rs. {fixedCharges.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Documentation:</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={documentationAmount}
+                      onChange={(e) => setDocumentationAmount(e.target.value)}
+                      placeholder="0"
+                      className="w-28 h-8 text-right"
+                    />
                   </div>
                   <hr className="my-2" />
                   <div className="flex justify-between text-base font-bold text-amber-900">
                     <span>Total Outstanding:</span>
-                    <span>Rs. {outstandingBalance.total?.toLocaleString() || 0}</span>
+                    <span>Rs. {computedOutstandingTotal.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -970,13 +991,13 @@ export default function Transactions() {
                     <p className="text-yellow-700 mt-1 text-xs">Interest is calculated weekly (Mon-Sun). Paying any day counts the full week.</p>
                   </div>
 
-                  {redemptionAmount && outstandingBalance?.total && (
+                  {redemptionAmount && computedOutstandingTotal && (
                     <div className="mt-2 p-2 bg-gray-100 rounded text-sm">
-                      {parseFloat(redemptionAmount) === outstandingBalance.total ? (
+                      {parseFloat(redemptionAmount) === computedOutstandingTotal ? (
                         <p className="text-green-700 font-semibold">✓ Full Redemption (Complete Settlement)</p>
-                      ) : parseFloat(redemptionAmount) < outstandingBalance.total ? (
+                      ) : parseFloat(redemptionAmount) < computedOutstandingTotal ? (
                         <p className="text-blue-700">
-                          Partial Payment - Remaining Principal: Rs. {(Number(outstandingBalance.principal || 0) - (parseFloat(redemptionAmount) - Number(outstandingBalance.accrualInterest || 0) - Number(outstandingBalance.charges || 0))).toLocaleString()}
+                          Partial Payment - Remaining Principal: Rs. {(Number(outstandingBalance.principal || 0) - (parseFloat(redemptionAmount) - Number(outstandingBalance.accrualInterest || 0) - effectiveCharges)).toLocaleString()}
                         </p>
                       ) : (
                         <p className="text-red-700">⚠ Amount exceeds outstanding balance</p>

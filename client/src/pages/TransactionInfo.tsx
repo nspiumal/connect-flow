@@ -59,6 +59,7 @@ export default function TransactionInfo() {
   const [history, setHistory] = useState<TransactionHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+
   useEffect(() => {
     if (id) {
       fetchTransaction(id);
@@ -212,6 +213,7 @@ export default function TransactionInfo() {
       </div>
     );
   };
+
 
   if (loadingData) {
     return <LoadingOverlay isLoading={true} message="Loading transaction details..." />;

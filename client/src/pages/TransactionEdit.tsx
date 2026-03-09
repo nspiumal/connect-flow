@@ -313,7 +313,7 @@ export default function TransactionEdit() {
           customerAddress,
           customerPhone,
           loanAmount: loanAmount ? Number(loanAmount) : null,
-          interestRateId: selectedRateId || null,
+          interestRatePercent: selectedRateId ? Number(selectedRateId) : null,
           periodMonths: periodMonths ? Number(periodMonths) : null,
           maturityDate: maturityDate || null,
         });
@@ -609,20 +609,18 @@ export default function TransactionEdit() {
 
                 <div className="space-y-2">
                   <Label htmlFor="interestRate" className="text-sm font-medium">
-                    Interest Rate <span className="text-red-500">*</span>
+                    Interest Rate (%) <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={selectedRateId} onValueChange={setSelectedRateId} disabled={!pinVerified}>
-                    <SelectTrigger id="interestRate" className={!pinVerified ? "bg-muted" : ""}>
-                      <SelectValue placeholder="Select interest rate" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rates.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name} - {r.rate_percent}%
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="interestRate"
+                    type="number"
+                    step="0.01"
+                    value={selectedRateId}
+                    onChange={(e) => setSelectedRateId(e.target.value)}
+                    placeholder="Enter interest rate percentage"
+                    disabled={!pinVerified}
+                    className={!pinVerified ? "bg-muted" : ""}
+                  />
                 </div>
 
                 <div className="space-y-2">

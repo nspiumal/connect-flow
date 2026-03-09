@@ -611,9 +611,26 @@ public class PawnTransactionService {
             transaction.setLoanAmount(request.getLoanAmount());
         }
 
-        if (request.getInterestRateId() != null) {
-            InterestRate rate = interestRateRepository.findById(request.getInterestRateId())
-                    .orElseThrow(() -> new RuntimeException("Interest rate not found"));
+        if (request.getInterestRatePercent() != null) {
+            // Find or create interest rate for the given percentage
+            Optional<InterestRate> existingRate = interestRateRepository.findAll().stream()
+                    .filter(r -> r.getRatePercent().compareTo(request.getInterestRatePercent()) == 0)
+                    .findFirst();
+
+            InterestRate rate;
+            if (existingRate.isPresent()) {
+                rate = existingRate.get();
+            } else {
+                // Create new rate if it doesn't exist
+                rate = InterestRate.builder()
+                        .name("Custom Rate - " + request.getInterestRatePercent() + "%")
+                        .ratePercent(request.getInterestRatePercent())
+                        .isDefault(false)
+                        .build();
+                rate = interestRateRepository.save(rate);
+                log.info("Created new interest rate with percentage: {}", request.getInterestRatePercent());
+            }
+
             transaction.setInterestRateId(rate.getId());
             transaction.setInterestRatePercent(rate.getRatePercent());
         }

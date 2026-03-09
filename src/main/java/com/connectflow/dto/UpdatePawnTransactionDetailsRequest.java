@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Data
 @NoArgsConstructor
@@ -17,7 +16,7 @@ public class UpdatePawnTransactionDetailsRequest {
     private String customerAddress;
     private String customerPhone;
     private BigDecimal loanAmount;
-    private UUID interestRateId;
+    private BigDecimal interestRatePercent;
     private Integer periodMonths;
     private LocalDate maturityDate;
 }

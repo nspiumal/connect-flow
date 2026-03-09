@@ -17,6 +17,7 @@ import CreatePawning from "./pages/CreatePawning";
 import CreatePawningSample from "./pages/CreatePawningSample";
 import TransactionEdit from "./pages/TransactionEdit";
 import TransactionInfo from "./pages/TransactionInfo";
+import TransactionRedeem from "./pages/TransactionRedeem";
 import Customers from "./pages/Customers";
 import Blacklist from "./pages/Blacklist";
 import InterestRates from "./pages/InterestRates";
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/transactions/create" element={<CreatePawningSample />} />
             <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
             <Route path="/transactions/info/:id" element={<TransactionInfo />} />
+            <Route path="/transactions/redeem/:id" element={<TransactionRedeem />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/blacklist" element={<Blacklist />} />
             <Route path="/interest-rates" element={<InterestRates />} />
