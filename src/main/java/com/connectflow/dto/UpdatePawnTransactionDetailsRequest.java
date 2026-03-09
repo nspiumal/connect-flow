@@ -15,9 +15,9 @@ import java.util.UUID;
 @Builder
 public class UpdatePawnTransactionDetailsRequest {
     private String customerAddress;
+    private String customerPhone;
     private BigDecimal loanAmount;
     private UUID interestRateId;
     private Integer periodMonths;
     private LocalDate maturityDate;
 }
-

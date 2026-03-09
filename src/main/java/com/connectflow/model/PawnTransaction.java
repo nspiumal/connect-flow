@@ -43,26 +43,9 @@ public class PawnTransaction {
     @JoinColumn(name = "customer_id", insertable = false, updatable = false)
     private Customer customer;
 
-    @Column(name = "customer_name", nullable = false)
-    private String customerName;
-
-    @Column(name = "customer_nic", nullable = false)
-    private String customerNic;
-
     @Column(name = "id_type")
     private String idType = "NIC";
 
-    @Column(name = "gender")
-    private String gender;
-
-    @Column(name = "customer_address", nullable = false)
-    private String customerAddress;
-
-    @Column(name = "customer_phone")
-    private String customerPhone;
-
-    @Column(name = "customer_type", nullable = false)
-    private String customerType = "Regular";
 
     @Column(name = "pattern_mode", nullable = false, length = 1)
     private String patternMode = "A";

@@ -4,6 +4,7 @@ import com.connectflow.model.Blacklist;
 import com.connectflow.model.Branch;
 import com.connectflow.model.Customer;
 import com.connectflow.model.InterestRate;
+import com.connectflow.model.ItemType;
 import com.connectflow.model.PawnTransaction;
 import com.connectflow.model.PawnTransactionItem;
 import com.connectflow.model.PawnTransactionItemImage;
@@ -13,6 +14,7 @@ import com.connectflow.repository.BlacklistRepository;
 import com.connectflow.repository.BranchRepository;
 import com.connectflow.repository.CustomerRepository;
 import com.connectflow.repository.InterestRateRepository;
+import com.connectflow.repository.ItemTypeRepository;
 import com.connectflow.repository.PawnTransactionRepository;
 import com.connectflow.repository.PawnTransactionItemRepository;
 import com.connectflow.repository.PawnTransactionItemImageRepository;
@@ -37,6 +39,7 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final InterestRateRepository interestRateRepository;
+    private final ItemTypeRepository itemTypeRepository;
     private final CustomerRepository customerRepository;
     private final BlacklistRepository blacklistRepository;
     private final PawnTransactionRepository pawnTransactionRepository;
@@ -117,6 +120,109 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Created {} interest rates", finalRateCount);
         } else {
             log.info("Interest rates already exist, skipping creation");
+        }
+
+        // Initialize item types if they don't exist
+        long itemTypeCount = itemTypeRepository.count();
+        log.info("Existing item types count: {}", itemTypeCount);
+
+        if (itemTypeCount == 0) {
+            log.info("Creating sample item types...");
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Ring")
+                .description("Various types of gold rings (plain, with stones, wedding bands, etc.)")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Necklace")
+                .description("Gold necklaces and chains of various lengths and designs")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Bracelet")
+                .description("Gold bracelets, bangles, and arm jewelry")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Earrings")
+                .description("All types of gold earrings (studs, hoops, danglers, etc.)")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Chain")
+                .description("Gold chains for neck or body")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Pendant")
+                .description("Gold pendants and lockets")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Bangle")
+                .description("Traditional gold bangles and kadas")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Coin")
+                .description("Gold coins and medallions")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Bar")
+                .description("Gold bars and ingots")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Watch")
+                .description("Watches made of or containing gold")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Anklet")
+                .description("Gold anklets and foot jewelry")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Brooch")
+                .description("Gold brooches and pins")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Nose Ring")
+                .description("Nose rings and studs made of gold")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Gold Ornament Set")
+                .description("Complete jewelry sets (necklace, earrings, etc.)")
+                .isActive(true)
+                .build());
+
+            itemTypeRepository.save(ItemType.builder()
+                .name("Other Gold Item")
+                .description("Other gold items not categorized above")
+                .isActive(true)
+                .build());
+
+            long finalItemTypeCount = itemTypeRepository.count();
+            log.info("Created {} item types", finalItemTypeCount);
+        } else {
+            log.info("Item types already exist, skipping creation");
         }
 
         // Only create users if they don't exist
@@ -281,6 +387,7 @@ public class DataInitializer implements CommandLineRunner {
                 .nic("852369741V")
                 .phone("+94-77-1234567")
                 .address("45 Temple Road, Colombo")
+                .gender("Male")
                 .customerType("Regular")
                 .isActive(true)
                 .build());
@@ -290,6 +397,7 @@ public class DataInitializer implements CommandLineRunner {
                 .nic("654987321V")
                 .phone("+94-75-3216549")
                 .address("89 Hill Street, Galle")
+                .gender("Female")
                 .customerType("Regular")
                 .isActive(true)
                 .build());
@@ -308,6 +416,7 @@ public class DataInitializer implements CommandLineRunner {
                 .nic("741258963V")
                 .phone("+94-72-5555555")
                 .address("56 Beach Road, Negombo")
+                .gender("Male")
                 .customerType("Regular")
                 .isActive(true)
                 .build());
@@ -317,6 +426,7 @@ public class DataInitializer implements CommandLineRunner {
                 .nic("987456123V")
                 .phone("+94-77-8887777")
                 .address("23 Market Street, Matara")
+                .gender("Male")
                 .customerType("Loyal")
                 .isActive(true)
                 .build());
@@ -334,13 +444,10 @@ public class DataInitializer implements CommandLineRunner {
                 .branchId(mainBranch.getId())
                 .customerId(customer1.getId())
                 .customer(customer1)
-                .customerName("Rajesh Kumar")
-                .customerNic("852369741V")
-                .customerAddress("45 Temple Road, Colombo")
-                .customerPhone("+94-77-1234567")
-                .customerType("Regular")
+                .idType("NIC")
                 .patternMode("A")
                 .loanAmount(new BigDecimal("100000"))
+                .remainingBalance(new BigDecimal("100000"))
                 .interestRateId(rate1 != null ? rate1.getId() : null)
                 .interestRatePercent(rate1 != null ? rate1.getRatePercent() : new BigDecimal("8.50"))
                 .periodMonths(6)
@@ -383,13 +490,10 @@ public class DataInitializer implements CommandLineRunner {
                 .branchId(mainBranch.getId())
                 .customerId(customer3.getId())
                 .customer(customer3)
-                .customerName("Anita Silva")
-                .customerNic("369852147V")
-                .customerAddress("12 Lake View, Kandy")
-                .customerPhone("+94-70-9876543")
-                .customerType("VIP")
+                .idType("NIC")
                 .patternMode("A")
                 .loanAmount(new BigDecimal("220000"))
+                .remainingBalance(new BigDecimal("220000"))
                 .interestRateId(rate1 != null ? rate1.getId() : null)
                 .interestRatePercent(new BigDecimal("7.00"))
                 .periodMonths(6)
@@ -425,13 +529,10 @@ public class DataInitializer implements CommandLineRunner {
                 .branchId(eastBranch.getId())
                 .customerId(customer4.getId())
                 .customer(customer4)
-                .customerName("Hemantha Jayaweer")
-                .customerNic("741258963V")
-                .customerAddress("56 Beach Road, Negombo")
-                .customerPhone("+94-72-5555555")
-                .customerType("Regular")
+                .idType("NIC")
                 .patternMode("A")
                 .loanAmount(new BigDecimal("280000"))
+                .remainingBalance(new BigDecimal("280000"))
                 .interestRateId(rate2 != null ? rate2.getId() : null)
                 .interestRatePercent(rate2 != null ? rate2.getRatePercent() : new BigDecimal("10.00"))
                 .periodMonths(12)
@@ -486,13 +587,10 @@ public class DataInitializer implements CommandLineRunner {
                 .branchId(mainBranch.getId())
                 .customerId(customer2.getId())
                 .customer(customer2)
-                .customerName("Sita Perera")
-                .customerNic("654987321V")
-                .customerAddress("89 Hill Street, Galle")
-                .customerPhone("+94-75-3216549")
-                .customerType("Regular")
+                .idType("NIC")
                 .patternMode("A")
                 .loanAmount(new BigDecimal("45000"))
+                .remainingBalance(new BigDecimal("0"))
                 .interestRateId(rate1 != null ? rate1.getId() : null)
                 .interestRatePercent(new BigDecimal("8.50"))
                 .periodMonths(6)
@@ -528,13 +626,10 @@ public class DataInitializer implements CommandLineRunner {
                 .branchId(eastBranch.getId())
                 .customerId(customer5.getId())
                 .customer(customer5)
-                .customerName("Kumar Fernando")
-                .customerNic("987456123V")
-                .customerAddress("23 Market Street, Matara")
-                .customerPhone("+94-77-8887777")
-                .customerType("Loyal")
+                .idType("NIC")
                 .patternMode("A")
                 .loanAmount(new BigDecimal("130000"))
+                .remainingBalance(new BigDecimal("130000"))
                 .interestRateId(rate1 != null ? rate1.getId() : null)
                 .interestRatePercent(new BigDecimal("7.50"))
                 .periodMonths(6)

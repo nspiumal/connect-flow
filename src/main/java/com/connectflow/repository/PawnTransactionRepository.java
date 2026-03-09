@@ -17,12 +17,13 @@ public interface PawnTransactionRepository extends JpaRepository<PawnTransaction
     // Find by pawn ID
     Optional<PawnTransaction> findByPawnId(String pawnId);
 
+    // Find by customer ID
+    List<PawnTransaction> findByCustomerId(UUID customerId);
+    Page<PawnTransaction> findByCustomerId(UUID customerId, Pageable pageable);
+
     // Find by branch
     List<PawnTransaction> findByBranchId(UUID branchId);
     Page<PawnTransaction> findByBranchId(UUID branchId, Pageable pageable);
-
-    // Find by customer NIC
-    List<PawnTransaction> findByCustomerNic(String customerNic);
 
     // Find by status
     List<PawnTransaction> findByStatus(String status);
@@ -31,17 +32,17 @@ public interface PawnTransactionRepository extends JpaRepository<PawnTransaction
     // Find by branch and status
     Page<PawnTransaction> findByBranchIdAndStatus(UUID branchId, String status, Pageable pageable);
 
-    // Search by customer name, NIC or pawn ID
+    // Search by customer name, NIC or pawn ID (via customer relationship)
     @Query("SELECT p FROM PawnTransaction p WHERE " +
-           "LOWER(p.customerName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(p.customerNic) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(p.customer.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(p.customer.nic) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(p.pawnId) LIKE LOWER(CONCAT('%', :search, '%'))")
     Page<PawnTransaction> searchTransactions(@Param("search") String search, Pageable pageable);
 
-    // Search within a branch
+    // Search within a branch (via customer relationship)
     @Query("SELECT p FROM PawnTransaction p WHERE p.branchId = :branchId AND " +
-           "(LOWER(p.customerName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(p.customerNic) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(LOWER(p.customer.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(p.customer.nic) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(p.pawnId) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<PawnTransaction> searchTransactionsByBranch(@Param("branchId") UUID branchId,
                                                       @Param("search") String search,
@@ -51,11 +52,11 @@ public interface PawnTransactionRepository extends JpaRepository<PawnTransaction
     @Query("SELECT p FROM PawnTransaction p WHERE p.status = 'Active' AND p.maturityDate < :today")
     List<PawnTransaction> findActiveOverdue(@Param("today") java.time.LocalDate today);
 
-    // Advanced search with optional filters and optional branch scope
+    // Advanced search with optional filters and optional branch scope (via customer relationship)
     @Query("SELECT p FROM PawnTransaction p WHERE " +
            "(:branchId IS NULL OR p.branchId = :branchId) AND " +
            "(:pawnId IS NULL OR LOWER(p.pawnId) LIKE LOWER(CONCAT('%', :pawnId, '%'))) AND " +
-           "(:customerNic IS NULL OR LOWER(p.customerNic) LIKE LOWER(CONCAT('%', :customerNic, '%'))) AND " +
+           "(:customerNic IS NULL OR LOWER(p.customer.nic) LIKE LOWER(CONCAT('%', :customerNic, '%'))) AND " +
            "(:status IS NULL OR p.status = :status) AND " +
            "(:minAmount IS NULL OR p.loanAmount >= :minAmount) AND " +
            "(:maxAmount IS NULL OR p.loanAmount <= :maxAmount) AND " +

@@ -12,12 +12,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "customers")
+@Table(name = "item_types")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Customer {
+public class ItemType {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -25,26 +25,18 @@ public class Customer {
     @Column(columnDefinition = "CHAR(36)")
     private UUID id;
 
-    @Column(nullable = false)
-    private String fullName;
+    @Column(nullable = false, unique = true, length = 100)
+    private String name;
 
-    @Column(nullable = false, unique = true)
-    private String nic;
-
-    @Column
-    private String phone;
-
-    @Column
-    private String address;
-
-    @Column
-    private String gender;  // Male, Female, Other
-
-    @Column(nullable = false)
-    private String customerType; // Regular, VIP, Loyal
+    @Column(length = 500)
+    private String description;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
+
+    @Column(name = "created_by")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    private UUID createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -56,7 +48,9 @@ public class Customer {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-        isActive = true;
+        if (isActive == null) {
+            isActive = true;
+        }
     }
 
     @PreUpdate
@@ -64,3 +58,4 @@ public class Customer {
         updatedAt = LocalDateTime.now();
     }
 }
+

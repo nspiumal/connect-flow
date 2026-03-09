@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Building2, Users, FileText, Search, ShieldAlert,
-  Percent, BarChart3, ClipboardList, LogOut, ChevronLeft, FilePlus,
+  Percent, BarChart3, ClipboardList, LogOut, ChevronLeft, FilePlus, Package,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,12 +33,13 @@ const navItems: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
   { title: "Branches", url: "/branches", icon: Building2, roles: ["SUPERADMIN", "ADMIN"] },
   { title: "Branch Requests", url: "/branch-requests", icon: ClipboardList, roles: ["SUPERADMIN", "ADMIN"] },
-  { title: "Users", url: "/users", icon: Users, roles: ["SUPERADMIN", "ADMIN", "MANAGER"] },
-  { title: "Pawn Transaction Creation", url: "/transactions/create", icon: FilePlus, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
-  { title: "Pawn Transaction History", url: "/transactions", icon: FileText, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
-  { title: "Customer Search", url: "/customers", icon: Search, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
-  { title: "Blacklist", url: "/blacklist", icon: ShieldAlert, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
-  { title: "Interest Rates", url: "/interest-rates", icon: Percent, roles: ["SUPERADMIN", "ADMIN"] },
+  { title: "Users", url: "/users", icon: Users, roles: ["ADMIN", "MANAGER"] },
+  { title: "Item Types", url: "/item-types", icon: Package, roles: ["ADMIN"] },
+  { title: "Interest Rates", url: "/interest-rates", icon: Percent, roles: ["ADMIN"] },
+  { title: "Pawn Transaction Creation", url: "/transactions/create", icon: FilePlus, roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { title: "Pawn Transaction History", url: "/transactions", icon: FileText, roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { title: "Customer Search", url: "/customers", icon: Search, roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { title: "Blacklist", url: "/blacklist", icon: ShieldAlert, roles: ["ADMIN", "MANAGER", "STAFF"] },
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["SUPERADMIN", "ADMIN", "MANAGER"] },
   { title: "Audit Logs", url: "/audit-logs", icon: ClipboardList, roles: ["SUPERADMIN"] },
 ];

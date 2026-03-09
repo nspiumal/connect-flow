@@ -9,11 +9,15 @@ const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
   const headers = new Headers(init.headers || {});
   const token = localStorage.getItem("token");
 
+  // Log the request URL for debugging
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : 'Request object';
+  console.log(`🔐 Auth request to: ${url}`);
+
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
-    console.log("Adding auth token to request");
+    console.log(`✅ Bearer token added (${token.substring(0, 20)}...)`);
   } else if (!token) {
-    console.log("No token found in localStorage");
+    console.warn("⚠️ No token found in localStorage - request may fail");
   }
 
   try {
@@ -21,20 +25,26 @@ const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
 
     // Handle 401 Unauthorized - redirect to login only if not already on login page
     if (response.status === 401) {
-      console.error("401 Unauthorized - Token may be invalid or expired");
+      console.error("❌ 401 Unauthorized - Token may be invalid or expired");
       // Only redirect if not already on login page
-      if (!window.location.pathname.includes("/login")) {
-        console.log("Redirecting to login page");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-      }
+      // if (!window.location.pathname.includes("/login")) {
+      //   console.log("🔄 Redirecting to login page");
+      //   localStorage.removeItem("token");
+      //   localStorage.removeItem("user");
+      //   window.location.href = "/login";
+      // }
       throw new Error("Unauthorized");
+    }
+
+    if (response.ok) {
+      console.log(`✅ Request successful: ${response.status} ${response.statusText}`);
+    } else {
+      console.error(`❌ Request failed: ${response.status} ${response.statusText}`);
     }
 
     return response;
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error("❌ Fetch error:", error);
     throw error;
   }
 };
@@ -267,6 +277,80 @@ export const apiClient = {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Failed to delete interest rate');
+    },
+  },
+
+  /**
+   * Item Types API
+   */
+  itemTypes: {
+    getAll: async () => {
+      const response = await authFetch(`${API_BASE_URL}/item-types`);
+      if (!response.ok) throw new Error('Failed to fetch item types');
+      return response.json();
+    },
+    getActive: async () => {
+      const response = await authFetch(`${API_BASE_URL}/item-types/active`);
+      if (!response.ok) throw new Error('Failed to fetch active item types');
+      return response.json();
+    },
+    getById: async (id: string) => {
+      const response = await authFetch(`${API_BASE_URL}/item-types/${id}`);
+      if (!response.ok) throw new Error('Failed to fetch item type');
+      return response.json();
+    },
+    search: async (filters: {
+      page?: number;
+      size?: number;
+      name?: string;
+      isActive?: boolean | null;
+      sortBy?: string;
+      sortDir?: string;
+    }) => {
+      const params = new URLSearchParams();
+      if (filters.page !== undefined) params.append('page', String(filters.page));
+      if (filters.size !== undefined) params.append('size', String(filters.size));
+      if (filters.name) params.append('name', filters.name);
+      if (filters.isActive !== null && filters.isActive !== undefined) params.append('isActive', String(filters.isActive));
+      if (filters.sortBy) params.append('sortBy', filters.sortBy);
+      if (filters.sortDir) params.append('sortDir', filters.sortDir);
+
+      const queryString = params.toString();
+      const url = `${API_BASE_URL}/item-types/search${queryString ? '?' + queryString : ''}`;
+
+      const response = await authFetch(url);
+      if (!response.ok) throw new Error('Failed to search item types');
+      return response.json();
+    },
+    create: async (data: { name: string; description?: string | null; createdBy?: string }) => {
+      const response = await authFetch(`${API_BASE_URL}/item-types`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to create item type');
+      return response.json();
+    },
+    update: async (id: string, data: { name: string; description?: string | null }) => {
+      const response = await authFetch(`${API_BASE_URL}/item-types/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update item type');
+      return response.json();
+    },
+    toggleActive: async (id: string) => {
+      const response = await authFetch(`${API_BASE_URL}/item-types/${id}/toggle-active`, {
+        method: 'PATCH',
+      });
+      if (!response.ok) throw new Error('Failed to toggle item type status');
+    },
+    delete: async (id: string) => {
+      const response = await authFetch(`${API_BASE_URL}/item-types/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete item type');
     },
   },
 

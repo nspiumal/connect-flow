@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Branches from "./pages/Branches";
 import BranchRequests from "./pages/BranchRequests";
 import UsersPage from "./pages/Users";
+import ItemTypes from "./pages/ItemTypes";
 import Transactions from "./pages/Transactions";
 import CreatePawning from "./pages/CreatePawning";
 import CreatePawningSample from "./pages/CreatePawningSample";
@@ -36,20 +37,21 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/branches" element={<Branches />} />
-              <Route path="/branch-requests" element={<BranchRequests />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/transactions/create-new" element={<CreatePawning />} />
-              <Route path="/transactions/create" element={<CreatePawningSample />} />
-              <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
-              <Route path="/transactions/info/:id" element={<TransactionInfo />} />
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/blacklist" element={<Blacklist />} />
-              <Route path="/interest-rates" element={<InterestRates />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/audit-logs" element={<AuditLogs />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/branches" element={<Branches />} />
+            <Route path="/branch-requests" element={<BranchRequests />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/item-types" element={<ItemTypes />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/transactions/create-new" element={<CreatePawning />} />
+            <Route path="/transactions/create" element={<CreatePawningSample />} />
+            <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
+            <Route path="/transactions/info/:id" element={<TransactionInfo />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/blacklist" element={<Blacklist />} />
+            <Route path="/interest-rates" element={<InterestRates />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/audit-logs" element={<AuditLogs />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

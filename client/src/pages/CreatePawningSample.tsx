@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +59,7 @@ interface Customer {
   nic: string;
   phone?: string;
   address?: string;
+  gender?: string
 }
 
 const emptyItemDraft: ItemDraft = {
@@ -78,6 +79,7 @@ export default function CreatePawningSample() {
 
   const [loading, setLoading] = useState(false);
   const [rates, setRates] = useState<Rate[]>([]);
+  const [itemTypes, setItemTypes] = useState<any[]>([]);
 
   // Customer fields
   const [customerName, setCustomerName] = useState("");
@@ -121,6 +123,9 @@ export default function CreatePawningSample() {
   const [customerSearchResults, setCustomerSearchResults] = useState<Customer[]>([]);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const selectingCustomerRef = useRef(false);
+  const skipNextAutoSearchRef = useRef(false);
+  const selectedNicRef = useRef<string | null>(null);
 
   const totals = useMemo(
     () =>
@@ -162,19 +167,72 @@ export default function CreatePawningSample() {
     }
   };
 
+  const fetchItemTypes = async () => {
+    console.log("🔄 Fetching item types from API...");
+    try {
+      const data = await apiClient.itemTypes.getAll();
+      console.log("✅ Fetched item types:", data);
+      console.log("📊 Number of item types:", data?.length || 0);
+      setItemTypes(data || []);
+
+      if (data && data.length > 0) {
+        toast({
+          title: "Item Types Loaded",
+          description: `${data.length} item types loaded from database`,
+        });
+      }
+    } catch (error: unknown) {
+      console.error("❌ Failed to fetch item types:", error);
+      console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
+      toast({
+        title: "Warning",
+        description: `Failed to load item types${error instanceof Error ? `: ${error.message}` : ''}. Using default options.`,
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchRatesCallback();
+    fetchItemTypes();
     fetchPatternConfig();
   }, []);
 
   useEffect(() => {
-    // Reset verification whenever identity type/value changes
+    // Skip reset when identity is changed by selecting from dropdown
+    if (selectingCustomerRef.current) {
+      selectingCustomerRef.current = false;
+      return;
+    }
+
+    // Reset verification whenever identity type/value changes by manual input
     setIdentityVerified(false);
     setCustomerFound(false);
     setBlockedReason(null);
   }, [idType, identityNumber]);
 
   useEffect(() => {
+    // Skip one auto-search cycle when NIC is set by dropdown selection
+    if (skipNextAutoSearchRef.current) {
+      skipNextAutoSearchRef.current = false;
+      setShowCustomerDropdown(false);
+      setCustomerSearchResults([]);
+      return;
+    }
+
+    // If NIC is already selected + verified, do not trigger dropdown search again
+    if (
+      idType === "NIC" &&
+      identityVerified &&
+      customerFound &&
+      selectedNicRef.current &&
+      selectedNicRef.current === identityNumber.trim()
+    ) {
+      setShowCustomerDropdown(false);
+      setCustomerSearchResults([]);
+      return;
+    }
+
     // Auto-search for customers when 5+ digits are entered in the NIC field
     if (idType !== "NIC" || identityNumber.length < 5) {
       setShowCustomerDropdown(false);
@@ -231,16 +289,24 @@ export default function CreatePawningSample() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [identityNumber, idType]);
+  }, [identityNumber, idType, identityVerified, customerFound]);
 
   const handleSelectCustomer = (customer: Customer) => {
+    // Mark as programmatic selection to avoid resetting verified state
+    selectingCustomerRef.current = true;
+    // Also skip the next auto-search effect so dropdown does not re-open
+    skipNextAutoSearchRef.current = true;
+    selectedNicRef.current = customer.nic || null;
+
     setIdentityNumber(customer.nic || "");
     setCustomerName(customer.fullName || "");
     setCustomerPhone(customer.phone || "");
     setCustomerAddress(customer.address || "");
+    setGender(customer.gender || "");  // ADD GENDER
     setCustomerFound(true);
     setIdentityVerified(true);
     setShowCustomerDropdown(false);
+    setCustomerSearchResults([]);
   };
 
   useEffect(() => {
@@ -644,7 +710,7 @@ export default function CreatePawningSample() {
       setShowPinDialog(false);
       setManagerPin("");
 
-      navigate("/transactions/create-sample");
+      navigate("/transactions/create");
     } catch (error: unknown) {
       toast({
         title: "Error",
@@ -769,14 +835,29 @@ export default function CreatePawningSample() {
                         <Select value={itemDraft.content} onValueChange={(v) => updateDraft({ content: v })}>
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select type" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Ring">Ring</SelectItem>
-                            <SelectItem value="Chain">Chain</SelectItem>
-                            <SelectItem value="Bracelet">Bracelet</SelectItem>
-                            <SelectItem value="Necklace">Necklace</SelectItem>
-                            <SelectItem value="Earrings">Earrings</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
+                            {itemTypes.length > 0 ? (
+                              itemTypes.map((type) => (
+                                <SelectItem key={type.id} value={type.name}>
+                                  {type.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <>
+                                <SelectItem value="Ring">Ring</SelectItem>
+                                <SelectItem value="Chain">Chain</SelectItem>
+                                <SelectItem value="Bracelet">Bracelet</SelectItem>
+                                <SelectItem value="Necklace">Necklace</SelectItem>
+                                <SelectItem value="Earrings">Earrings</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
+                        <p className="text-[10px] text-muted-foreground">
+                          {itemTypes.length > 0
+                            ? `${itemTypes.length} types from DB`
+                            : 'Loading types...'}
+                        </p>
                       </div>
 
                       <div className="space-y-1">
@@ -879,12 +960,30 @@ export default function CreatePawningSample() {
                       <div className="space-y-2">
                         {items.map((item, index) => (
                           <div key={`${item.description}-${index}`} className="flex items-start justify-between gap-2 p-2 bg-gray-50 rounded border border-gray-200">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-gray-900">Item {index + 1}</p>
-                              <p className="text-xs text-gray-600 truncate">{item.description}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                Weight: <span className="font-medium">{item.weightGrams}g</span> | Karat: <span className="font-medium">{item.karat}</span>
-                              </p>
+                            <div className="flex items-start gap-2 flex-1 min-w-0">
+                              <div className="w-12 h-12 rounded border bg-white overflow-hidden shrink-0">
+                                {item.images && item.images.length > 0 ? (
+                                  <img
+                                    src={item.images[0]}
+                                    alt={`Item ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">
+                                    No Img
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-900">Item {index + 1}</p>
+                                <p className="text-xs text-gray-600 truncate">{item.description}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Weight: <span className="font-medium">{item.weightGrams}g</span> | Karat: <span className="font-medium">{item.karat}</span>
+                                </p>
+                                {item.images && item.images.length > 1 && (
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">+{item.images.length - 1} more image(s)</p>
+                                )}
+                              </div>
                             </div>
                             <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleRemoveItem(index)}>
                               <X className="h-4 w-4 text-red-500" />

@@ -27,6 +27,7 @@ interface TransactionHistory {
   editType?: string;
   previousStatus?: string;
   previousAddress?: string;
+  previousPhone?: string;
   previousLoanAmount?: number;
   previousInterestRateId?: string;
   previousPeriodMonths?: number;
@@ -34,6 +35,7 @@ interface TransactionHistory {
   previousRemarks?: string;
   newStatus?: string;
   newAddress?: string;
+  newPhone?: string;
   newLoanAmount?: number;
   newInterestRateId?: string;
   newPeriodMonths?: number;
@@ -448,6 +450,7 @@ export default function TransactionInfo() {
 
                   {renderChange("Status", entry.previousStatus, entry.newStatus)}
                   {renderChange("Address", entry.previousAddress, entry.newAddress)}
+                  {renderChange("Phone", entry.previousPhone, entry.newPhone)}
 
                   {/* Show Remaining Balance for REDEMPTION type */}
                   {entry.editType === "REDEMPTION" && entry.newLoanAmount && (

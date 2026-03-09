@@ -49,6 +49,9 @@ public class TransactionEditHistory {
     @Column(name = "previous_address", length = 500)
     private String previousAddress;
 
+    @Column(name = "previous_phone")
+    private String previousPhone;
+
     @Column(name = "previous_loan_amount", precision = 12, scale = 2)
     private BigDecimal previousLoanAmount;
 
@@ -71,6 +74,9 @@ public class TransactionEditHistory {
 
     @Column(name = "new_address", length = 500)
     private String newAddress;
+
+    @Column(name = "new_phone")
+    private String newPhone;
 
     @Column(name = "new_loan_amount", precision = 12, scale = 2)
     private BigDecimal newLoanAmount;

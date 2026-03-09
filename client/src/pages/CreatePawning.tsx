@@ -21,6 +21,7 @@ export default function CreatePawning() {
 
   const [loading, setLoading] = useState(false);
   const [rates, setRates] = useState<any[]>([]);
+  const [itemTypes, setItemTypes] = useState<any[]>([]);
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
@@ -83,6 +84,7 @@ export default function CreatePawning() {
 
   useEffect(() => {
     fetchRates();
+    fetchItemTypes();
   }, []);
 
   const fetchRates = async () => {
@@ -105,6 +107,31 @@ export default function CreatePawning() {
       toast({
         title: "Error",
         description: "Failed to load interest rates",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchItemTypes = async () => {
+    console.log("🔄 Fetching item types from API...");
+    try {
+      const data = await apiClient.itemTypes.getAll();
+      console.log("✅ Fetched item types:", data);
+      console.log("📊 Number of item types:", data?.length || 0);
+      setItemTypes(data || []);
+
+      if (data && data.length > 0) {
+        toast({
+          title: "Item Types Loaded",
+          description: `${data.length} item types loaded from database`,
+        });
+      }
+    } catch (error: any) {
+      console.error("❌ Failed to fetch item types:", error);
+      console.error("Error details:", error.message);
+      toast({
+        title: "Warning",
+        description: `Failed to load item types: ${error.message}. Using default options.`,
         variant: "destructive",
       });
     }
@@ -779,18 +806,33 @@ export default function CreatePawning() {
                       <SelectValue placeholder="Select item type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Ring">Ring</SelectItem>
-                      <SelectItem value="Chain">Chain</SelectItem>
-                      <SelectItem value="Bracelet">Bracelet</SelectItem>
-                      <SelectItem value="Earrings">Earrings</SelectItem>
-                      <SelectItem value="Necklace">Necklace</SelectItem>
-                      <SelectItem value="Bangle">Bangle</SelectItem>
-                      <SelectItem value="Pendant">Pendant</SelectItem>
-                      <SelectItem value="Coin">Coin</SelectItem>
-                      <SelectItem value="Bar">Bar/Ingot</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      {itemTypes.length > 0 ? (
+                        itemTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.name}>
+                            {type.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="Ring">Ring</SelectItem>
+                          <SelectItem value="Chain">Chain</SelectItem>
+                          <SelectItem value="Bracelet">Bracelet</SelectItem>
+                          <SelectItem value="Earrings">Earrings</SelectItem>
+                          <SelectItem value="Necklace">Necklace</SelectItem>
+                          <SelectItem value="Bangle">Bangle</SelectItem>
+                          <SelectItem value="Pendant">Pendant</SelectItem>
+                          <SelectItem value="Coin">Coin</SelectItem>
+                          <SelectItem value="Bar">Bar/Ingot</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {itemTypes.length > 0
+                      ? `${itemTypes.length} item types available from database`
+                      : 'Loading item types from database...'}
+                  </p>
                 </div>
 
                 <div className="space-y-2">

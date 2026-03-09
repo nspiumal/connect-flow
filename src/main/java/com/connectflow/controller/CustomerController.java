@@ -181,6 +181,7 @@ public class CustomerController {
                 .nic(customer.getNic())
                 .phone(customer.getPhone())
                 .address(customer.getAddress())
+                .gender(customer.getGender())
                 .customerType(customer.getCustomerType())
                 .isActive(customer.getIsActive())
                 .createdAt(customer.getCreatedAt())

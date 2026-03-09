@@ -24,6 +24,7 @@ public class TransactionEditHistoryDTO {
 
     private String previousStatus;
     private String previousAddress;
+    private String previousPhone;
     private BigDecimal previousLoanAmount;
     private UUID previousInterestRateId;
     private Integer previousPeriodMonths;
@@ -32,6 +33,7 @@ public class TransactionEditHistoryDTO {
 
     private String newStatus;
     private String newAddress;
+    private String newPhone;
     private BigDecimal newLoanAmount;
     private UUID newInterestRateId;
     private Integer newPeriodMonths;
@@ -44,4 +46,3 @@ public class TransactionEditHistoryDTO {
 
     private LocalDateTime createdAt;
 }
-

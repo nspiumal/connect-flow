@@ -41,6 +41,7 @@ export default function TransactionEdit() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [originalCustomerAddress, setOriginalCustomerAddress] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [originalCustomerPhone, setOriginalCustomerPhone] = useState("");
 
   const [items, setItems] = useState<ItemDetail[]>([]);
 
@@ -50,12 +51,7 @@ export default function TransactionEdit() {
   const [originalRateId, setOriginalRateId] = useState("");
   const [periodMonths, setPeriodMonths] = useState("6");
   const [originalPeriodMonths, setOriginalPeriodMonths] = useState("6");
-  const [status, setStatus] = useState("Active");
-  const [originalStatus, setOriginalStatus] = useState("Active");
   const [remarks, setRemarks] = useState("");
-  const [blockReason, setBlockReason] = useState("");
-  const [policeReportNumber, setPoliceReportNumber] = useState("");
-  const [policeReportDate, setPoliceReportDate] = useState("");
 
   const [pawnId, setPawnId] = useState("");
   const [pawnDate, setPawnDate] = useState("");
@@ -110,6 +106,7 @@ export default function TransactionEdit() {
       setCustomerAddress(response.customerAddress || "");
       setOriginalCustomerAddress(response.customerAddress || "");
       setCustomerPhone(response.customerPhone || "");
+      setOriginalCustomerPhone(response.customerPhone || "");
 
       setLoanAmount(response.loanAmount ? String(response.loanAmount) : "");
       setOriginalLoanAmount(response.loanAmount ? String(response.loanAmount) : "");
@@ -117,10 +114,7 @@ export default function TransactionEdit() {
       setOriginalRateId(response.interestRateId || "");
       setPeriodMonths(response.periodMonths ? String(response.periodMonths) : "6");
       setOriginalPeriodMonths(response.periodMonths ? String(response.periodMonths) : "6");
-      setStatus(response.status || "Active");
-      setOriginalStatus(response.status || "Active");
       setRemarks(response.remarks || "");
-      setBlockReason(response.blockReason || "");
 
       setPawnId(response.pawnId || "");
       setPawnDate(response.pawnDate || "");
@@ -294,6 +288,7 @@ export default function TransactionEdit() {
 
     const detailsChanged =
       customerAddress !== originalCustomerAddress ||
+      customerPhone !== originalCustomerPhone ||
       loanAmount !== originalLoanAmount ||
       selectedRateId !== originalRateId ||
       periodMonths !== originalPeriodMonths ||
@@ -309,15 +304,6 @@ export default function TransactionEdit() {
       return;
     }
 
-    if (status === "Blocked" && !blockReason.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide a block reason when setting status to Blocked",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setLoading(true);
 
@@ -325,6 +311,7 @@ export default function TransactionEdit() {
       if (detailsChanged) {
         await apiClient.pawnTransactions.updateDetails(id!, {
           customerAddress,
+          customerPhone,
           loanAmount: loanAmount ? Number(loanAmount) : null,
           interestRateId: selectedRateId || null,
           periodMonths: periodMonths ? Number(periodMonths) : null,
@@ -332,27 +319,7 @@ export default function TransactionEdit() {
         });
       }
 
-      if (status !== originalStatus) {
-        await apiClient.pawnTransactions.updateStatus(id!, status);
-      }
-
       await apiClient.pawnTransactions.updateRemarks(id!, remarks);
-
-      if (status === "Blocked") {
-        await apiClient.pawnTransactions.updateBlockReason(id!, {
-          blockReason,
-          policeReportNumber: policeReportNumber || null,
-          policeReportDate: policeReportDate || null,
-        });
-      }
-
-      toast({
-        title: "Success",
-        description: "Transaction updated successfully",
-      });
-
-      // Navigate back to transaction history
-      navigate("/transactions");
 
     } catch (error) {
       console.error("Failed to update transaction:", error);
@@ -510,8 +477,8 @@ export default function TransactionEdit() {
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     placeholder="Enter phone number"
-                    disabled
-                    className="bg-muted"
+                    disabled={!pinVerified}
+                    className={!pinVerified ? "bg-muted" : ""}
                   />
                 </div>
 
@@ -635,8 +602,8 @@ export default function TransactionEdit() {
                     onChange={(e) => setLoanAmount(e.target.value)}
                     placeholder="Enter loan amount"
                     required
-                    disabled={!pinVerified}
-                    className={!pinVerified ? "bg-muted" : ""}
+                    disabled
+                    className="bg-muted"
                   />
                 </div>
 
@@ -662,8 +629,8 @@ export default function TransactionEdit() {
                   <Label htmlFor="periodMonths" className="text-sm font-medium">
                     Period (months)
                   </Label>
-                  <Select value={periodMonths} onValueChange={setPeriodMonths} disabled={!pinVerified}>
-                    <SelectTrigger id="periodMonths" className={!pinVerified ? "bg-muted" : ""}>
+                  <Select value={periodMonths} onValueChange={setPeriodMonths} disabled>
+                    <SelectTrigger id="periodMonths" className="bg-muted">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -685,82 +652,23 @@ export default function TransactionEdit() {
                     type="text"
                     value={maturityDate}
                     onChange={(e) => setMaturityDate(e.target.value)}
-                    disabled={!pinVerified}
-                    className={!pinVerified ? "bg-muted" : ""}
+                    disabled
+                    className={"bg-muted"}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="status" className="text-sm font-medium">
-                    Transaction Status <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger id="status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="Defaulted">Defaulted</SelectItem>
-                      <SelectItem value="Blocked">Blocked</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {status === "Blocked" && (
-                  <>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="blockReason" className="text-sm font-medium">
-                        Block Reason <span className="text-red-500">*</span>
-                      </Label>
-                      <Textarea
-                        id="blockReason"
-                        value={blockReason}
-                        onChange={(e) => setBlockReason(e.target.value)}
-                        placeholder="Enter the reason for blocking this transaction..."
-                        rows={3}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="policeReportNumber" className="text-sm font-medium">
-                        Police Report Number (Optional)
-                      </Label>
-                      <Input
-                        id="policeReportNumber"
-                        value={policeReportNumber}
-                        onChange={(e) => setPoliceReportNumber(e.target.value)}
-                        placeholder="e.g., PR-2026-12345"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="policeReportDate" className="text-sm font-medium">
-                        Police Report Date (Optional)
-                      </Label>
-                      <Input
-                        id="policeReportDate"
-                        type="date"
-                        value={policeReportDate}
-                        onChange={(e) => setPoliceReportDate(e.target.value)}
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="remarks" className="text-sm font-medium">
-                    Remarks / Notes
-                  </Label>
-                  <Textarea
-                    id="remarks"
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Add notes, payment details, or any other information..."
-                    rows={4}
-                  />
-                </div>
+                 <div className="space-y-2 md:col-span-2">
+                   <Label htmlFor="remarks" className="text-sm font-medium">
+                     Remarks / Notes
+                   </Label>
+                   <Textarea
+                     id="remarks"
+                     value={remarks}
+                     onChange={(e) => setRemarks(e.target.value)}
+                     placeholder="Add notes, payment details, or any other information..."
+                     rows={4}
+                   />
+                 </div>
               </div>
             </CardContent>
           </Card>

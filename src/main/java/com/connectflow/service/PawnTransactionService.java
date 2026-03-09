@@ -341,13 +341,7 @@ public class PawnTransactionService {
                 .branchId(branchId)
                 .customerId(customer.getId())
                 .customer(customer)
-                .customerName(request.getCustomerName().trim())
-                .customerNic(request.getCustomerNic().trim())
                 .idType(request.getIdType() != null ? request.getIdType() : "NIC")
-                .gender(request.getGender())
-                .customerAddress(request.getCustomerAddress())
-                .customerPhone(request.getCustomerPhone())
-                .customerType(request.getCustomerType() != null ? request.getCustomerType() : "Regular")
                 .patternMode(request.getPatternMode() != null ? request.getPatternMode() : "A")
                 .loanAmount(totalLoanAmount)
                 .remainingBalance(totalLoanAmount)
@@ -426,6 +420,10 @@ public class PawnTransactionService {
             customer.setAddress(request.getCustomerAddress());
             customer.setCustomerType(request.getCustomerType() != null ? request.getCustomerType() : "Regular");
             customer.setIsActive(true);
+            // Update gender if provided
+            if (request.getGender() != null && !request.getGender().trim().isEmpty()) {
+                customer.setGender(request.getGender());
+            }
             log.info("Updated existing customer with NIC: {}", request.getCustomerNic());
             return customerRepository.save(customer);
         } else {
@@ -435,10 +433,11 @@ public class PawnTransactionService {
                     .nic(request.getCustomerNic().trim())
                     .phone(request.getCustomerPhone())
                     .address(request.getCustomerAddress())
+                    .gender(request.getGender())  // ADD GENDER FIELD
                     .customerType(request.getCustomerType() != null ? request.getCustomerType() : "Regular")
                     .isActive(true)
                     .build();
-            log.info("Created new customer with NIC: {}", request.getCustomerNic());
+            log.info("Created new customer with NIC: {} and gender: {}", request.getCustomerNic(), request.getGender());
             return customerRepository.save(newCustomer);
         }
     }
@@ -539,9 +538,12 @@ public class PawnTransactionService {
 
         // Automatically add customer to blacklist with police report details
         try {
+            // Get customer details from customer relationship
+            Customer customer = transaction.getCustomer();
+
             BlacklistDTO blacklistEntry = new BlacklistDTO();
-            blacklistEntry.setCustomerName(transaction.getCustomerName());
-            blacklistEntry.setCustomerNic(transaction.getCustomerNic());
+            blacklistEntry.setCustomerName(customer.getFullName());
+            blacklistEntry.setCustomerNic(customer.getNic());
             blacklistEntry.setReason(blockReason);
             blacklistEntry.setPoliceReportNumber(policeReportNumber);
 
@@ -560,7 +562,7 @@ public class PawnTransactionService {
 
             blacklistService.addToBlacklist(blacklistEntry);
             log.info("Customer {} added to blacklist with reason: {}, police report: {}",
-                    transaction.getCustomerNic(), blockReason, policeReportNumber);
+                    customer.getNic(), blockReason, policeReportNumber);
         } catch (Exception e) {
             log.error("Failed to add customer to blacklist: {}", e.getMessage());
             // Continue even if blacklist fails - transaction is still blocked
@@ -572,7 +574,7 @@ public class PawnTransactionService {
     /**
      * Update transaction details
      * - Editable fields: loanAmount, interestRateId, periodMonths, maturityDate
-     * - Customer address is synced to the customer record
+     * - Customer address and phone are synced to the customer record
      */
     public PawnTransactionDTO updateTransactionDetails(UUID id, UpdatePawnTransactionDetailsRequest request,
                                                       UUID editedBy, String editedByName) {
@@ -580,20 +582,28 @@ public class PawnTransactionService {
                 .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
 
         // Store previous values for audit
-        String previousAddress = transaction.getCustomerAddress();
+        String previousAddress = transaction.getCustomer() != null ? transaction.getCustomer().getAddress() : null;
+        String previousPhone = transaction.getCustomer() != null ? transaction.getCustomer().getPhone() : null;
         BigDecimal previousLoanAmount = transaction.getLoanAmount();
         UUID previousInterestRateId = transaction.getInterestRateId();
         Integer previousPeriodMonths = transaction.getPeriodMonths();
         java.time.LocalDate previousMaturityDate = transaction.getMaturityDate();
 
-        if (request.getCustomerAddress() != null) {
-            transaction.setCustomerAddress(request.getCustomerAddress());
-            if (transaction.getCustomerId() != null) {
-                customerRepository.findById(transaction.getCustomerId())
-                        .ifPresent(customer -> {
-                            customer.setAddress(request.getCustomerAddress());
-                            customerRepository.save(customer);
-                        });
+        if (transaction.getCustomer() != null) {
+            boolean customerChanged = false;
+
+            if (request.getCustomerAddress() != null) {
+                transaction.getCustomer().setAddress(request.getCustomerAddress());
+                customerChanged = true;
+            }
+
+            if (request.getCustomerPhone() != null) {
+                transaction.getCustomer().setPhone(request.getCustomerPhone());
+                customerChanged = true;
+            }
+
+            if (customerChanged) {
+                customerRepository.save(transaction.getCustomer());
             }
         }
 
@@ -618,6 +628,10 @@ public class PawnTransactionService {
 
         PawnTransaction updated = pawnTransactionRepository.save(transaction);
 
+        // Get updated address from customer
+        String newAddress = transaction.getCustomer() != null ? transaction.getCustomer().getAddress() : null;
+        String newPhone = transaction.getCustomer() != null ? transaction.getCustomer().getPhone() : null;
+
         // Log edit history for details
         TransactionEditHistory history = TransactionEditHistory.builder()
                 .transactionId(transaction.getId())
@@ -626,7 +640,9 @@ public class PawnTransactionService {
                 .editedByName(editedByName)
                 .editType("DETAILS")
                 .previousAddress(previousAddress)
-                .newAddress(transaction.getCustomerAddress())
+                .newAddress(newAddress)
+                .previousPhone(previousPhone)
+                .newPhone(newPhone)
                 .previousLoanAmount(previousLoanAmount)
                 .newLoanAmount(transaction.getLoanAmount())
                 .previousInterestRateId(previousInterestRateId)
@@ -676,6 +692,7 @@ public class PawnTransactionService {
                 .editType(history.getEditType())
                 .previousStatus(history.getPreviousStatus())
                 .previousAddress(history.getPreviousAddress())
+                .previousPhone(history.getPreviousPhone())
                 .previousLoanAmount(history.getPreviousLoanAmount())
                 .previousInterestRateId(history.getPreviousInterestRateId())
                 .previousPeriodMonths(history.getPreviousPeriodMonths())
@@ -683,6 +700,7 @@ public class PawnTransactionService {
                 .previousRemarks(history.getPreviousRemarks())
                 .newStatus(history.getNewStatus())
                 .newAddress(history.getNewAddress())
+                .newPhone(history.getNewPhone())
                 .newLoanAmount(history.getNewLoanAmount())
                 .newInterestRateId(history.getNewInterestRateId())
                 .newPeriodMonths(history.getNewPeriodMonths())
@@ -775,18 +793,27 @@ public class PawnTransactionService {
             remainingBalance = transaction.getLoanAmount();
         }
 
+        // Get customer details from relationship
+        Customer customer = transaction.getCustomer();
+        String customerName = customer != null ? customer.getFullName() : null;
+        String customerNic = customer != null ? customer.getNic() : null;
+        String customerAddress = customer != null ? customer.getAddress() : null;
+        String customerPhone = customer != null ? customer.getPhone() : null;
+        String customerType = customer != null ? customer.getCustomerType() : null;
+        String gender = customer != null ? customer.getGender() : null;
+
         return PawnTransactionDTO.builder()
                 .id(transaction.getId())
                 .pawnId(transaction.getPawnId())
                 .branchId(transaction.getBranchId())
                 .branchName(branchName)
-                .customerName(transaction.getCustomerName())
-                .customerNic(transaction.getCustomerNic())
+                .customerName(customerName)
+                .customerNic(customerNic)
                 .idType(transaction.getIdType())
-                .gender(transaction.getGender())
-                .customerAddress(transaction.getCustomerAddress())
-                .customerPhone(transaction.getCustomerPhone())
-                .customerType(transaction.getCustomerType())
+                .gender(gender)
+                .customerAddress(customerAddress)
+                .customerPhone(customerPhone)
+                .customerType(customerType)
                 .patternMode(transaction.getPatternMode())
                 .loanAmount(transaction.getLoanAmount())
                 .remainingBalance(remainingBalance)

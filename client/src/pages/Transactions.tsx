@@ -35,6 +35,10 @@ export default function Transactions() {
   const [rates, setRates] = useState<any[]>([]);
   const [outstandingBalances, setOutstandingBalances] = useState<{ [key: string]: any }>({});
 
+  // Item Types state
+  const [itemTypes, setItemTypes] = useState<any[]>([]);
+  const [selectedItemTypeId, setSelectedItemTypeId] = useState("");
+
   // Category filter state (default to "A" only)
   const [categoryFilter, setCategoryFilter] = useState<"A" | "ALL">("A");
   const [patternUnlocked, setPatternUnlocked] = useState(false);
@@ -153,6 +157,16 @@ export default function Transactions() {
     }
   };
 
+  const fetchItemTypes = async () => {
+    try {
+      const data = await apiClient.itemTypes.getAll();
+      console.log("Fetched item types:", data);
+      setItemTypes(data || []);
+    } catch (error: any) {
+      console.error("Failed to fetch item types:", error);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -165,6 +179,12 @@ export default function Transactions() {
         await fetchRates();
       } catch (error) {
         console.error("Error loading rates:", error);
+      }
+
+      try {
+        await fetchItemTypes();
+      } catch (error) {
+        console.error("Error loading item types:", error);
       }
     };
 
@@ -218,7 +238,7 @@ export default function Transactions() {
     e.preventDefault();
 
     // Validate required fields
-    if (!customerName || !customerNic || !customerAddress || !itemDescription || !loanAmount || !selectedRateId || !periodMonths) {
+    if (!customerName || !customerNic || !customerAddress || !selectedItemTypeId || !loanAmount || !selectedRateId || !periodMonths) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
@@ -242,6 +262,21 @@ export default function Transactions() {
         return;
       }
 
+      // Get the selected item type
+      const selectedItemType = itemTypes.find(t => t.id === selectedItemTypeId);
+      if (!selectedItemType) {
+        toast({
+          title: "Error",
+          description: "Please select a valid item type",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Combine item type name with custom description
+      const fullItemDescription = selectedItemType.name + (itemDescription.trim() ? ` - ${itemDescription.trim()}` : "");
+
       // Calculate dates
       const today = new Date();
       const pawnDate = today.toISOString().split('T')[0]; // Today's date
@@ -261,7 +296,8 @@ export default function Transactions() {
         customerPhone,
         customerType: "Regular", // Default customer type
         patternMode: categoryFilter, // Store pattern mode (A or ALL)
-        itemDescription,
+        itemDescription: fullItemDescription,
+        itemTypeId: selectedItemTypeId, // Store item type ID if backend supports it
         itemContent,
         itemCondition,
         itemWeightGrams: itemWeight ? parseFloat(itemWeight) : 0,
@@ -292,7 +328,8 @@ export default function Transactions() {
       setGender("");
       setCustomerAddress("");
       setCustomerPhone("");
-      setItemDescription("");
+      setSelectedItemTypeId(""); // Reset item type
+      setItemDescription(""); // Reset custom description
       setItemContent("");
       setItemCondition("Good");
       setItemWeight("");
@@ -734,15 +771,54 @@ export default function Transactions() {
             </div>
             <hr />
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Item Description</Label><Input value={itemDescription} onChange={(e) => setItemDescription(e.target.value)} required /></div>
-              <div><Label>Weight (grams)</Label><Input type="number" step="0.01" value={itemWeight} onChange={(e) => setItemWeight(e.target.value)} required /></div>
-              <div><Label>Karat</Label>
+              <div>
+                <Label>Item Type *</Label>
+                <Select value={selectedItemTypeId} onValueChange={setSelectedItemTypeId} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select item type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {itemTypes.length > 0 ? (
+                      itemTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                          {type.description && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              - {type.description}
+                            </span>
+                          )}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        No item types available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Select the type of gold item being pawned
+                </p>
+              </div>
+              <div>
+                <Label>Additional Details (Optional)</Label>
+                <Input
+                  value={itemDescription}
+                  onChange={(e) => setItemDescription(e.target.value)}
+                  placeholder="e.g., With stones, 18 inch length"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Add specific details about this item
+                </p>
+              </div>
+              <div><Label>Weight (grams) *</Label><Input type="number" step="0.01" value={itemWeight} onChange={(e) => setItemWeight(e.target.value)} required /></div>
+              <div><Label>Karat *</Label>
                 <Select value={itemKarat} onValueChange={setItemKarat}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{[24,22,21,18,14].map((k) => <SelectItem key={k} value={String(k)}>{k}K</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Appraised Value</Label><Input type="number" step="0.01" value={appraisedValue} onChange={(e) => setAppraisedValue(e.target.value)} required /></div>
+              <div><Label>Appraised Value *</Label><Input type="number" step="0.01" value={appraisedValue} onChange={(e) => setAppraisedValue(e.target.value)} required /></div>
             </div>
             <hr />
             <div className="grid grid-cols-2 gap-4">

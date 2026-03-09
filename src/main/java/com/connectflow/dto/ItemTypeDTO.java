@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,15 +12,14 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CustomerDTO {
+public class ItemTypeDTO {
+
     private UUID id;
-    private String fullName;
-    private String nic;
-    private String phone;
-    private String address;
-    private String gender;
-    private String customerType;
+    private String name;
+    private String description;
     private Boolean isActive;
+    private UUID createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
+
