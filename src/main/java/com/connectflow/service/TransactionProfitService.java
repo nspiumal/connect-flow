@@ -63,7 +63,11 @@ public class TransactionProfitService {
                 .build();
 
         TransactionProfit savedProfit = transactionProfitRepository.save(profit);
-        log.info("Profit set successfully for transaction: {}", transactionId);
+
+        // Update the transaction status to "Profited"
+        transaction.setStatus("Profited");
+        pawnTransactionRepository.save(transaction);
+        log.info("Profit set and transaction status updated to 'Profited' for transaction: {}", transactionId);
 
         return convertToDTO(savedProfit, transaction, user);
     }

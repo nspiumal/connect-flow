@@ -222,6 +222,10 @@ export default function TransactionProfit() {
             </CardContent>
           </Card>
 
+        </div>
+
+        {/* Right Column - Transaction Details + Profit Form */}
+        <div className="space-y-4">
           {/* Transaction Details */}
           <Card>
             <CardHeader className="pb-3">
@@ -248,11 +252,9 @@ export default function TransactionProfit() {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Right Column - Profit Form */}
-        <div>
-          <Card className="h-full">
+          {/* Set Profit Form */}
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Set Profit</CardTitle>
             </CardHeader>

@@ -636,6 +636,8 @@ export default function Transactions() {
                         <span className="text-orange-600 font-semibold">Rs. {Number(t.remainingBalance).toLocaleString()}</span>
                       ) : t.status === "Completed" ? (
                         <span className="text-green-600 font-semibold">Settled</span>
+                      ) : t.status === "Profited" ? (
+                        <span className="text-purple-600 font-semibold">Profited</span>
                       ) : (
                         <span className="text-gray-500">-</span>
                       )}
@@ -661,8 +663,9 @@ export default function Transactions() {
                           <Badge variant={
                             t.status === "Active" ? "default" :
                             t.status === "Completed" ? "secondary" :
+                            t.status === "Profited" ? "outline" :
                             "destructive"
-                          }>
+                          } className={t.status === "Profited" ? "border-purple-500 text-purple-600 bg-purple-50" : ""}>
                             {t.status}
                           </Badge>
                         );
@@ -680,7 +683,7 @@ export default function Transactions() {
                             <Info className="h-4 w-4 mr-1" />
                             Info
                           </Button>
-                          {t.status !== "Completed" && t.status !== "Blocked" && (
+                          {t.status !== "Completed" && t.status !== "Blocked" && t.status !== "Profited" && (
                             <Button
                               variant="outline"
                               size="sm"

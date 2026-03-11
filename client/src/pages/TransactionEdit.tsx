@@ -348,34 +348,142 @@ export default function TransactionEdit() {
   }
 
   return (
-    <>
+    <div className="space-y-4">
       <LoadingOverlay isLoading={loading} />
-      <div className="container mx-auto py-6 px-4 max-w-7xl">
-        <div className="mb-6 flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate("/transactions")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Edit Pawn Transaction</h1>
-            <p className="text-gray-500 mt-1">Pawn ID: {pawnId} | Date: {pawnDate}</p>
-          </div>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Manager PIN</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-end">
-                <div className="space-y-2">
-                  <Label htmlFor="managerPin" className="text-sm font-medium">
-                    Branch Manager PIN
-                  </Label>
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => navigate("/transactions")}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Edit Pawn Transaction</h1>
+          <p className="text-sm text-muted-foreground">Pawn ID: {pawnId} | Date: {pawnDate}</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Customer Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Customer Name</Label>
+                    <p className="font-medium">{customerName || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Gender</Label>
+                    <p className="font-medium">{gender || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">ID Type</Label>
+                    <p className="font-medium">{idType || "NIC"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">ID Number</Label>
+                    <p className="font-medium">{customerNic || "N/A"}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="customerPhone" className="text-xs text-muted-foreground">Phone</Label>
+                    <Input
+                      id="customerPhone"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="Enter phone number"
+                      disabled={!pinVerified}
+                      className={`mt-1 h-9 ${!pinVerified ? "bg-muted" : ""}`}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="customerAddress" className="text-xs text-muted-foreground">Address</Label>
+                    <Input
+                      id="customerAddress"
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      placeholder="Enter address"
+                      disabled={!pinVerified}
+                      className={`mt-1 h-9 ${!pinVerified ? "bg-muted" : ""}`}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Item Details ({items.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {items.length > 0 ? (
+                  <div className="space-y-3">
+                    {items.map((item, itemIndex) => (
+                      <div key={itemIndex} className="p-3 rounded border bg-gray-50 text-sm space-y-2">
+                        <p className="text-xs font-semibold text-muted-foreground">Item {itemIndex + 1}</p>
+                        <div className="grid grid-cols-3 gap-x-3 gap-y-2">
+                          <div className="col-span-3">
+                            <Label className="text-xs text-muted-foreground">Description</Label>
+                            <p className="font-medium">{item.description || "N/A"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Weight</Label>
+                            <p className="font-medium">{item.weightGrams}g</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Karat</Label>
+                            <p className="font-medium">{item.karat}K</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Condition</Label>
+                            <p className="font-medium">{item.condition || "N/A"}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Content/Type</Label>
+                            <p className="font-medium">{item.content || "N/A"}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <Label className="text-xs text-muted-foreground">Appraised Value</Label>
+                            <p className="font-medium">Rs. {item.appraisedValue.toLocaleString()}</p>
+                          </div>
+                        </div>
+
+                        {item.images && item.images.length > 0 && (
+                          <div className="pt-2 space-y-2">
+                            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                              <ImageIcon className="h-3 w-3" /> Images ({item.images.length})
+                            </Label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {item.images.map((imageUrl: string, imageIndex: number) => (
+                                <img
+                                  key={imageIndex}
+                                  src={getImageSrc(imageUrl, `${itemIndex}-${imageIndex}`)}
+                                  alt={`Item ${itemIndex + 1} Image ${imageIndex + 1}`}
+                                  className="w-full h-20 object-cover rounded border"
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No items found</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Manager PIN</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label htmlFor="managerPin" className="text-xs text-muted-foreground">Branch Manager PIN</Label>
                   <Input
                     id="managerPin"
                     type="password"
@@ -383,6 +491,7 @@ export default function TransactionEdit() {
                     onChange={(e) => setPinInput(e.target.value)}
                     placeholder="Enter manager PIN to enable editing"
                     disabled={pinVerified}
+                    className="mt-1 h-9"
                   />
                 </div>
                 <Button
@@ -390,302 +499,101 @@ export default function TransactionEdit() {
                   variant={pinVerified ? "secondary" : "default"}
                   onClick={handleVerifyPin}
                   disabled={pinVerified || pinVerifying}
-                  className="h-10"
+                  className="w-full"
                 >
                   {pinVerified ? "Verified" : pinVerifying ? "Verifying..." : "Verify PIN"}
                 </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Required to edit address and transaction details.
-              </p>
-            </CardContent>
-          </Card>
+                <p className="text-xs text-muted-foreground">Required to edit address and transaction details.</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Customer Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="customerName" className="text-sm font-medium">
-                    Customer Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="customerName"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Enter customer name"
-                    required
-                    disabled
-                    className="bg-muted"
-                  />
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Transaction Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                  <div>
+                    <Label htmlFor="loanAmount" className="text-xs text-muted-foreground">Loan Amount (LKR)</Label>
+                    <Input
+                      id="loanAmount"
+                      type="number"
+                      step="0.01"
+                      value={loanAmount}
+                      onChange={(e) => setLoanAmount(e.target.value)}
+                      disabled
+                      className="mt-1 h-9 bg-muted"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="interestRate" className="text-xs text-muted-foreground">Interest Rate (%)</Label>
+                    <Input
+                      id="interestRate"
+                      type="number"
+                      step="0.01"
+                      value={selectedRateId}
+                      onChange={(e) => setSelectedRateId(e.target.value)}
+                      placeholder="Enter interest rate"
+                      disabled={!pinVerified}
+                      className={`mt-1 h-9 ${!pinVerified ? "bg-muted" : ""}`}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="periodMonths" className="text-xs text-muted-foreground">Period (months)</Label>
+                    <Select value={periodMonths} onValueChange={setPeriodMonths} disabled>
+                      <SelectTrigger id="periodMonths" className="mt-1 h-9 bg-muted">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[3, 6, 9, 12, 18, 24].map((m) => (
+                          <SelectItem key={m} value={String(m)}>{m} months</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="maturityDate" className="text-xs text-muted-foreground">Maturity Date</Label>
+                    <Input
+                      id="maturityDate"
+                      type="text"
+                      value={maturityDate}
+                      onChange={(e) => setMaturityDate(e.target.value)}
+                      disabled
+                      className="mt-1 h-9 bg-muted"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="remarks" className="text-xs text-muted-foreground">Remarks / Notes</Label>
+                    <Textarea
+                      id="remarks"
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Add notes, payment details, or any other information..."
+                      rows={4}
+                      className="mt-1 text-sm"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="gender" className="text-sm font-medium">
-                    Gender <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={gender} onValueChange={setGender} disabled>
-                    <SelectTrigger id="gender" className="bg-muted">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate("/transactions")}
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading} className="flex-1">
+                    {loading ? "Updating..." : "Update Transaction"}
+                  </Button>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="idType" className="text-sm font-medium">
-                    ID Type <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={idType} onValueChange={setIdType} disabled>
-                    <SelectTrigger id="idType" className="bg-muted">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NIC">National Identity Card (NIC)</SelectItem>
-                      <SelectItem value="Passport">Passport</SelectItem>
-                      <SelectItem value="DrivingLicense">Driving License</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="customerNic" className="text-sm font-medium">
-                    {idType === "NIC" ? "NIC Number" : idType === "Passport" ? "Passport Number" : "License Number"} <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="customerNic"
-                    value={customerNic}
-                    onChange={(e) => setCustomerNic(e.target.value)}
-                    placeholder={`Enter ${idType === "NIC" ? "NIC" : idType === "Passport" ? "passport" : "license"} number`}
-                    required
-                    disabled
-                    className="bg-muted"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="customerPhone" className="text-sm font-medium">
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="customerPhone"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="Enter phone number"
-                    disabled={!pinVerified}
-                    className={!pinVerified ? "bg-muted" : ""}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="customerAddress" className="text-sm font-medium">
-                    Address
-                  </Label>
-                  <Input
-                    id="customerAddress"
-                    value={customerAddress}
-                    onChange={(e) => setCustomerAddress(e.target.value)}
-                    placeholder="Enter address"
-                    disabled={!pinVerified}
-                    className={!pinVerified ? "bg-muted" : ""}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Item Information ({items.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {items.length > 0 ? (
-                <div className="space-y-6">
-                  {items.map((item, itemIndex) => (
-                    <div key={itemIndex} className="p-4 border rounded-lg space-y-4 bg-gray-50">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-semibold text-lg">Item {itemIndex + 1}</h3>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2 md:col-span-2">
-                          <Label className="text-sm font-medium">
-                            Item Description
-                          </Label>
-                          <p className="text-sm text-gray-700 p-2 bg-white rounded border">{item.description}</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">
-                            Item Content/Type
-                          </Label>
-                          <p className="text-sm text-gray-700 p-2 bg-white rounded border">{item.content || "N/A"}</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">
-                            Item Condition
-                          </Label>
-                          <p className="text-sm text-gray-700 p-2 bg-white rounded border">{item.condition}</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">
-                            Weight (grams)
-                          </Label>
-                          <p className="text-sm text-gray-700 p-2 bg-white rounded border">{item.weightGrams}</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">
-                            Karat
-                          </Label>
-                          <p className="text-sm text-gray-700 p-2 bg-white rounded border">{item.karat}K Gold</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">
-                            Appraised Value (LKR)
-                          </Label>
-                          <p className="text-sm text-gray-700 p-2 bg-white rounded border">{item.appraisedValue.toFixed(2)}</p>
-                        </div>
-                      </div>
-
-                      {item.images && item.images.length > 0 && (
-                        <div className="space-y-4 mt-4">
-                          <Label className="text-sm font-medium flex items-center gap-2">
-                            <ImageIcon className="h-4 w-4" />
-                            Item Images ({item.images.length})
-                          </Label>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {item.images.map((imageUrl: string, imageIndex: number) => (
-                              <div key={imageIndex} className="relative group">
-                                <img
-                                  src={getImageSrc(imageUrl, `${itemIndex}-${imageIndex}`)}
-                                  alt={`Item ${itemIndex + 1} Image ${imageIndex + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg border"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-4">No items found</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Transaction Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="loanAmount" className="text-sm font-medium">
-                    Loan Amount (LKR) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="loanAmount"
-                    type="number"
-                    step="0.01"
-                    value={loanAmount}
-                    onChange={(e) => setLoanAmount(e.target.value)}
-                    placeholder="Enter loan amount"
-                    required
-                    disabled
-                    className="bg-muted"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="interestRate" className="text-sm font-medium">
-                    Interest Rate (%) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="interestRate"
-                    type="number"
-                    step="0.01"
-                    value={selectedRateId}
-                    onChange={(e) => setSelectedRateId(e.target.value)}
-                    placeholder="Enter interest rate percentage"
-                    disabled={!pinVerified}
-                    className={!pinVerified ? "bg-muted" : ""}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="periodMonths" className="text-sm font-medium">
-                    Period (months)
-                  </Label>
-                  <Select value={periodMonths} onValueChange={setPeriodMonths} disabled>
-                    <SelectTrigger id="periodMonths" className="bg-muted">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[3, 6, 9, 12, 18, 24].map((m) => (
-                        <SelectItem key={m} value={String(m)}>
-                          {m} months
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="maturityDate" className="text-sm font-medium">
-                    Maturity Date
-                  </Label>
-                  <Input
-                    id="maturityDate"
-                    type="text"
-                    value={maturityDate}
-                    onChange={(e) => setMaturityDate(e.target.value)}
-                    disabled
-                    className={"bg-muted"}
-                  />
-                </div>
-
-                 <div className="space-y-2 md:col-span-2">
-                   <Label htmlFor="remarks" className="text-sm font-medium">
-                     Remarks / Notes
-                   </Label>
-                   <Textarea
-                     id="remarks"
-                     value={remarks}
-                     onChange={(e) => setRemarks(e.target.value)}
-                     placeholder="Add notes, payment details, or any other information..."
-                     rows={4}
-                   />
-                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/transactions")}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Updating..." : "Update Transaction"}
-            </Button>
+              </CardContent>
+            </Card>
           </div>
-        </form>
-      </div>
-    </>
+        </div>
+      </form>
+    </div>
   );
 }
