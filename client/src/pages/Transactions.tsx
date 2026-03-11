@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info, DollarSign, Filter } from "lucide-react";
+import { Plus, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info, DollarSign, TrendingUp, Filter } from "lucide-react";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 
@@ -700,6 +700,17 @@ export default function Transactions() {
                             >
                               <DollarSign className="h-4 w-4 mr-1" />
                               Redeem
+                            </Button>
+                          )}
+                          {t.status === "Active" && (role === "ADMIN" || role === "SUPERADMIN" || role === "MANAGER") && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/transactions/profit/${t.id}`)}
+                              disabled={loading}
+                            >
+                              <TrendingUp className="h-4 w-4 mr-1" />
+                              Profit
                             </Button>
                           )}
                         </div>

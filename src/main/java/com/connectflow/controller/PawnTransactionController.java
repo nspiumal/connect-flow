@@ -3,10 +3,13 @@ package com.connectflow.controller;
 import com.connectflow.dto.CreatePawnTransactionRequest;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.PawnTransactionDTO;
+import com.connectflow.dto.SetProfitRequest;
 import com.connectflow.dto.TransactionEditHistoryDTO;
+import com.connectflow.dto.TransactionProfitDTO;
 import com.connectflow.dto.UpdatePawnTransactionDetailsRequest;
 import com.connectflow.dto.UserDTO;
 import com.connectflow.service.PawnTransactionService;
+import com.connectflow.service.TransactionProfitService;
 import com.connectflow.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +35,7 @@ public class PawnTransactionController {
 
     private final PawnTransactionService pawnTransactionService;
     private final UserService userService;
+    private final TransactionProfitService transactionProfitService;
 
     @GetMapping
     @Operation(summary = "Get all pawn transactions")
@@ -161,7 +165,8 @@ public class PawnTransactionController {
             if (currentUser.isPresent()) {
                 UserDTO user = currentUser.get();
                 // Only apply branch filter for non-admin/super-admin users
-                if (!"ADMIN".equals(user.getRole()) && !"SUPERADMIN".equals(user.getRole())) {
+                if (user.getRole() != com.connectflow.model.UserRole.Role.ADMIN
+                        && user.getRole() != com.connectflow.model.UserRole.Role.SUPERADMIN) {
                     branchId = user.getBranchId();
                 }
             }
@@ -419,5 +424,51 @@ public class PawnTransactionController {
                 sortDir
         );
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/profit")
+    @Operation(summary = "Set transaction as profited")
+    public ResponseEntity<?> setProfitForTransaction(
+            @PathVariable UUID id,
+            @RequestBody SetProfitRequest request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || authentication.getPrincipal() == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            String email = authentication.getPrincipal().toString();
+            Optional<UserDTO> currentUser = userService.getUserByEmail(email);
+            if (currentUser.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            UserDTO user = currentUser.get();
+
+            if (user.getRole() != com.connectflow.model.UserRole.Role.ADMIN
+                    && user.getRole() != com.connectflow.model.UserRole.Role.SUPERADMIN
+                    && user.getRole() != com.connectflow.model.UserRole.Role.MANAGER) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only Admin and Manager can set profit"));
+            }
+
+            TransactionProfitDTO result = transactionProfitService.setProfitForTransaction(id, request, user.getId());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error setting profit for transaction: {}", id, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/profit")
+    @Operation(summary = "Get profit record for transaction")
+    public ResponseEntity<?> getProfitForTransaction(@PathVariable UUID id) {
+        try {
+            Optional<TransactionProfitDTO> result = transactionProfitService.getProfitByTransactionId(id);
+            return result.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            log.error("Error fetching profit for transaction: {}", id, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
     }
 }

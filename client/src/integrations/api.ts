@@ -563,6 +563,20 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to fetch pattern config');
       return response.json();
     },
+    setProfit: async (id: string, data: any) => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/profit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to set transaction profit');
+      return response.json();
+    },
+    getProfitByTransactionId: async (id: string) => {
+      const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/profit`);
+      if (!response.ok) throw new Error('Failed to fetch profit record');
+      return response.json();
+    },
   },
 
   /**
@@ -741,6 +755,35 @@ export const apiClient = {
 
       const response = await authFetch(`${API_BASE_URL}/customers/search/advanced?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to perform advanced search');
+      return response.json();
+    },
+  },
+
+  /**
+   * Profited Transactions API
+   */
+  profitedTransactions: {
+    getAll: async () => {
+      const response = await authFetch(`${API_BASE_URL}/profited-transactions`);
+      if (!response.ok) throw new Error('Failed to fetch profited transactions');
+      return response.json();
+    },
+    getPaginated: async (page: number = 0, size: number = 10, sortBy: string = 'profitRecordedDate', sortDir: string = 'desc') => {
+      const response = await authFetch(`${API_BASE_URL}/profited-transactions/paginated?page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`);
+      if (!response.ok) throw new Error('Failed to fetch profited transactions');
+      return response.json();
+    },
+    search: async (pawnId?: string, customerNic?: string, page: number = 0, size: number = 10, sortBy: string = 'profitRecordedDate', sortDir: string = 'desc') => {
+      const params = new URLSearchParams();
+      if (pawnId) params.append('pawnId', pawnId);
+      if (customerNic) params.append('customerNic', customerNic);
+      params.append('page', page.toString());
+      params.append('size', size.toString());
+      params.append('sortBy', sortBy);
+      params.append('sortDir', sortDir);
+
+      const response = await authFetch(`${API_BASE_URL}/profited-transactions/search?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to search profited transactions');
       return response.json();
     },
   },
