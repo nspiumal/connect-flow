@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.temporal.ChronoUnit;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +32,10 @@ public class PawnRedemptionService {
     private final PawnTransactionRepository transactionRepository;
     private final TransactionEditHistoryRepository editHistoryRepository;
 
+    private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+    private static final BigDecimal TWELVE = new BigDecimal("12");
+    private static final BigDecimal FIFTY_TWO = new BigDecimal("52");
+
     /**
      * Calculate outstanding balance (principal + accrued interest)
      */
@@ -44,13 +49,17 @@ public class PawnRedemptionService {
                 ? transaction.getRemainingBalance()
                 : transaction.getLoanAmount();
 
-        BigDecimal accrualInterest = calculateAccrualInterest(transaction);
+        InterestAccrualBreakdown breakdown = calculateAccrualInterest(transaction);
+        BigDecimal accrualInterest = breakdown.totalInterest();
         BigDecimal charges = BigDecimal.ZERO; // Placeholder for charges if needed
         BigDecimal total = principal.add(accrualInterest).add(charges);
 
         return OutstandingBalanceDTO.builder()
                 .principal(principal)
                 .accrualInterest(accrualInterest)
+                .monthlyInterest(breakdown.monthlyInterest())
+                .weeklyInterest(breakdown.weeklyInterest())
+                .weeklyPeriodsCharged(breakdown.weeklyPeriodsCharged())
                 .charges(charges)
                 .total(total)
                 .loanStatus(transaction.getStatus())
@@ -62,39 +71,22 @@ public class PawnRedemptionService {
     }
 
     /**
-     * Calculate accrued interest from last redemption date (or pawn date if no redemptions) to today
-     * Formula: remainingBalance * ratePercent% * (weeksCount / 52)
-     * Weeks run Monday through Sunday; any payment day in a week charges the full week.
+     * Unified interest logic:
+     * - First month always charges full monthly interest once.
+     * - Weekly charging starts on (pawnDate + 1 month + 2 days) based on business rule,
+     *   and each week is charged at week start date.
+     * - Partial payments do not reset the original timeline anchor (pawnDate).
      */
-    private BigDecimal calculateAccrualInterest(PawnTransaction transaction) {
+    private InterestAccrualBreakdown calculateAccrualInterest(PawnTransaction transaction) {
         if (transaction.getPawnDate() == null) {
-            return BigDecimal.ZERO;
+            return InterestAccrualBreakdown.zero();
         }
 
-        // Use lastRedemptionDate if available, otherwise use pawnDate
-        LocalDate startDate = transaction.getLastRedemptionDate() != null
-            ? transaction.getLastRedemptionDate()
-            : transaction.getPawnDate();
-
+        LocalDate pawnDate = transaction.getPawnDate();
         LocalDate today = LocalDate.now();
 
-        if (today.isBefore(startDate)) {
-            return BigDecimal.ZERO;
-        }
-
-        // If redemption was made today, no new interest accrues
-        if (today.equals(startDate)) {
-            return BigDecimal.ZERO;
-        }
-
-        LocalDate startMonday = startDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-        LocalDate endSunday = today.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY));
-
-        long daysInclusive = java.time.temporal.ChronoUnit.DAYS.between(startMonday, endSunday) + 1;
-        long weeksCount = daysInclusive / 7;
-
-        if (weeksCount <= 0) {
-            return BigDecimal.ZERO;
+        if (today.isBefore(pawnDate)) {
+            return InterestAccrualBreakdown.zero();
         }
 
         // Use remainingBalance (updated after payments) instead of original loanAmount
@@ -102,19 +94,94 @@ public class PawnRedemptionService {
                 ? transaction.getRemainingBalance()
                 : transaction.getLoanAmount();
 
-        BigDecimal ratePercent = transaction.getInterestRatePercent();
-        BigDecimal weeksInYear = BigDecimal.valueOf(52);
+        if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return InterestAccrualBreakdown.zero();
+        }
 
-        BigDecimal interest = principalAmount
-                .multiply(ratePercent)
-                .multiply(BigDecimal.valueOf(weeksCount))
-                .divide(weeksInYear, 2, RoundingMode.HALF_UP)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal normalRatePercent = transaction.getInterestRatePercent() != null
+                ? transaction.getInterestRatePercent()
+                : BigDecimal.ZERO;
+        BigDecimal firstMonthRatePercent = transaction.getFirstMonthInterestRatePercent() != null
+                ? transaction.getFirstMonthInterestRatePercent()
+                : normalRatePercent.divide(TWELVE, 8, RoundingMode.HALF_UP).setScale(4, RoundingMode.HALF_UP);
+        BigDecimal weeklyRatePercent = normalRatePercent
+                .divide(FIFTY_TWO, 8, RoundingMode.HALF_UP)
+                .setScale(4, RoundingMode.HALF_UP);
 
-        log.info("Interest calculation for transaction {}: startDate={}, weeksCount={}, principal={}, rate={}%, interest={}",
-                transaction.getPawnId(), startDate, weeksCount, principalAmount, ratePercent, interest);
+        // Example: pawnDate=2026-03-12 => firstMonthEndInclusive=2026-04-13, weeklyStart=2026-04-14
+        LocalDate firstMonthEndInclusive = pawnDate.plusMonths(1).plusDays(1);
+        LocalDate weeklyStart = firstMonthEndInclusive.plusDays(1);
+        LocalDate accrualStart = transaction.getLastRedemptionDate() != null
+                ? transaction.getLastRedemptionDate().plusDays(1)
+                : pawnDate;
 
-        return interest;
+        if (accrualStart.isAfter(today)) {
+            return InterestAccrualBreakdown.zero();
+        }
+
+        BigDecimal monthlyInterest = BigDecimal.ZERO;
+        if (transaction.getLastRedemptionDate() == null) {
+            monthlyInterest = principalAmount
+                    .multiply(firstMonthRatePercent)
+                    .divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
+        }
+
+        int weeklyPeriodsCharged = countWeeklyPeriodsToCharge(accrualStart, today, weeklyStart);
+        BigDecimal weeklyInterest = principalAmount
+                .multiply(weeklyRatePercent)
+                .multiply(BigDecimal.valueOf(weeklyPeriodsCharged))
+                .divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
+
+        BigDecimal totalInterest = monthlyInterest.add(weeklyInterest);
+
+        log.info(
+                "Interest calculation for transaction {}: pawnDate={}, accrualStart={}, firstMonthEndInclusive={}, weeklyStart={}, normalRate={}%, firstMonthRate={}%, weeklyRate={}%, weeklyPeriods={}, principal={}, monthlyInterest={}, weeklyInterest={}, totalInterest={}",
+                transaction.getPawnId(),
+                pawnDate,
+                accrualStart,
+                firstMonthEndInclusive,
+                weeklyStart,
+                normalRatePercent,
+                firstMonthRatePercent,
+                weeklyRatePercent,
+                weeklyPeriodsCharged,
+                principalAmount,
+                monthlyInterest,
+                weeklyInterest,
+                totalInterest
+        );
+
+        return new InterestAccrualBreakdown(monthlyInterest, weeklyInterest, weeklyPeriodsCharged, totalInterest);
+    }
+
+    private int countWeeklyPeriodsToCharge(LocalDate accrualStart, LocalDate today, LocalDate weeklyAnchorStart) {
+        if (today.isBefore(weeklyAnchorStart)) {
+            return 0;
+        }
+
+        LocalDate effectiveStart = accrualStart.isAfter(weeklyAnchorStart) ? accrualStart : weeklyAnchorStart;
+
+        long daysFromAnchorToStart = ChronoUnit.DAYS.between(weeklyAnchorStart, effectiveStart);
+        long weeksOffset = (long) Math.ceil(daysFromAnchorToStart / 7.0);
+        LocalDate firstChargeDate = weeklyAnchorStart.plusDays(weeksOffset * 7L);
+
+        if (firstChargeDate.isAfter(today)) {
+            return 0;
+        }
+
+        long daysBetween = ChronoUnit.DAYS.between(firstChargeDate, today);
+        return (int) (daysBetween / 7) + 1;
+    }
+
+    private record InterestAccrualBreakdown(
+            BigDecimal monthlyInterest,
+            BigDecimal weeklyInterest,
+            int weeklyPeriodsCharged,
+            BigDecimal totalInterest
+    ) {
+        private static InterestAccrualBreakdown zero() {
+            return new InterestAccrualBreakdown(BigDecimal.ZERO, BigDecimal.ZERO, 0, BigDecimal.ZERO);
+        }
     }
 
     /**

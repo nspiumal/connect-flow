@@ -28,6 +28,7 @@ type Rate = {
   name: string;
   ratePercent?: number;
   rate_percent?: number;
+  firstMonthRatePercent?: number;
   isDefault?: boolean;
 };
 
@@ -644,11 +645,14 @@ export default function CreatePawningSample() {
       const maturityDateStr = maturityDate.toISOString().split("T")[0];
 
       let effectiveRatePercent;
+      let firstMonthRatePercent;
       if (rateOverrideEnabled && manualInterestRate) {
         effectiveRatePercent = parseFloat(manualInterestRate);
+        firstMonthRatePercent = effectiveRatePercent / 12;
       } else {
         const selectedRate = rates.find((r) => r.id === selectedRateId);
         effectiveRatePercent = selectedRate?.rate_percent || selectedRate?.ratePercent || 0;
+        firstMonthRatePercent = selectedRate?.firstMonthRatePercent || effectiveRatePercent / 12;
       }
 
       const firstItem = items[0];
@@ -671,6 +675,7 @@ export default function CreatePawningSample() {
          loanAmount: parseFloat(loanAmount || "0"),
          interestRateId: selectedRateId,
          interestRatePercent: effectiveRatePercent,
+         firstMonthInterestRatePercent: firstMonthRatePercent,
          rateOverride: rateOverrideEnabled,
          periodMonths: parseInt(periodMonths, 10),
          patternMode: patternUnlocked ? "B" : "A",

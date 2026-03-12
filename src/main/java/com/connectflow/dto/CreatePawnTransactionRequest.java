@@ -26,6 +26,7 @@ public class CreatePawnTransactionRequest {
     private BigDecimal loanAmount;
     private UUID interestRateId;
     private BigDecimal interestRatePercent;
+    private BigDecimal firstMonthInterestRatePercent;
     private Integer periodMonths;
     private LocalDate pawnDate;
     private LocalDate maturityDate;

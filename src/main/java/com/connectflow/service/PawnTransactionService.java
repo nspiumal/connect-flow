@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -304,13 +305,17 @@ public class PawnTransactionService {
             log.info("Maturity date not provided, calculated: {}", maturityDate);
         }
 
-        // Get interest rate percent - use provided value or fetch from database
+        // Get interest rate values - use provided values or fetch from database
         java.math.BigDecimal interestRatePercent = request.getInterestRatePercent();
+        java.math.BigDecimal firstMonthInterestRatePercent = request.getFirstMonthInterestRatePercent();
         if (interestRatePercent == null && request.getInterestRateId() != null) {
             log.info("Interest rate percent not provided, fetching from database for rate ID: {}", request.getInterestRateId());
             var optionalRate = interestRateRepository.findById(request.getInterestRateId());
             if (optionalRate.isPresent()) {
                 interestRatePercent = optionalRate.get().getRatePercent();
+                if (firstMonthInterestRatePercent == null) {
+                    firstMonthInterestRatePercent = optionalRate.get().getFirstMonthRatePercent();
+                }
                 log.info("Fetched interest rate percent: {}", interestRatePercent);
             } else {
                 log.warn("Interest rate not found for ID: {}", request.getInterestRateId());
@@ -323,6 +328,11 @@ public class PawnTransactionService {
             // Final fallback
             interestRatePercent = new java.math.BigDecimal("8.50");
             log.warn("No interest rate percent available, using default: {}", interestRatePercent);
+        }
+
+        if (firstMonthInterestRatePercent == null) {
+            firstMonthInterestRatePercent = interestRatePercent.divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
+            log.info("First-month interest rate percent not provided, derived from normal rate: {}", firstMonthInterestRatePercent);
         }
 
         // Calculate total loan amount from all items
@@ -347,6 +357,7 @@ public class PawnTransactionService {
                 .remainingBalance(totalLoanAmount)
                 .interestRateId(request.getInterestRateId())
                 .interestRatePercent(interestRatePercent)
+                .firstMonthInterestRatePercent(firstMonthInterestRatePercent)
                 .periodMonths(request.getPeriodMonths() != null ? request.getPeriodMonths() : 6)
                 .pawnDate(pawnDate)
                 .maturityDate(maturityDate)
@@ -837,6 +848,7 @@ public class PawnTransactionService {
                 .interestRateId(transaction.getInterestRateId())
                 .interestRateName(interestRateName)
                 .interestRatePercent(transaction.getInterestRatePercent())
+                .firstMonthInterestRatePercent(transaction.getFirstMonthInterestRatePercent())
                 .periodMonths(transaction.getPeriodMonths())
                 .pawnDate(transaction.getPawnDate())
                 .maturityDate(transaction.getMaturityDate())

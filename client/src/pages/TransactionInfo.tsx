@@ -174,7 +174,7 @@ export default function TransactionInfo() {
   const renderChange = (label: string, previousValue?: string | number, newValue?: string | number) => {
     if (previousValue == null && newValue == null) return null;
     return (
-      <div className="text-xs text-gray-700">
+      <div className="text-xs text-foreground/80">
         <span className="font-medium">{label}:</span> {previousValue ?? "—"} → {newValue ?? "—"}
       </div>
     );
@@ -250,7 +250,7 @@ export default function TransactionInfo() {
             <CardContent>
               <div className="space-y-3">
                 {items.map((item, itemIndex) => (
-                  <div key={itemIndex} className="p-3 rounded border bg-gray-50 space-y-2 text-sm">
+                  <div key={itemIndex} className="p-3 rounded border bg-muted/30 space-y-2 text-sm">
                     <p className="text-xs font-semibold text-muted-foreground">Item {itemIndex + 1}</p>
                     <div className="grid grid-cols-3 gap-x-3 gap-y-2">
                       <div className="col-span-3">
@@ -353,7 +353,7 @@ export default function TransactionInfo() {
                   <>
                     <div className="col-span-2">
                       <Label className="text-xs text-red-500">Block Reason</Label>
-                      <p className="font-medium text-sm text-red-700">{transaction?.blockReason || transaction?.block_reason || "—"}</p>
+                      <p className="font-medium text-sm text-destructive">{transaction?.blockReason || transaction?.block_reason || "—"}</p>
                     </div>
                     {transaction?.policeReportNumber && (
                       <div>
@@ -384,10 +384,10 @@ export default function TransactionInfo() {
               ) : history.length > 0 ? (
                 <div className="space-y-3">
                   {history.map((entry) => (
-                    <div key={entry.id} className="p-3 border rounded bg-gray-50 space-y-1">
+                    <div key={entry.id} className="p-3 border rounded bg-muted/30 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="secondary" className="text-xs">{entry.editType || "EDIT"}</Badge>
-                        <span className="text-xs text-gray-700 font-medium">
+                        <span className="text-xs text-foreground/80 font-medium">
                           {entry.editedByName || entry.editedBy || "Unknown"}
                         </span>
                         <span className="text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
@@ -398,7 +398,7 @@ export default function TransactionInfo() {
                       {renderChange("Phone", entry.previousPhone, entry.newPhone)}
 
                       {entry.editType === "REDEMPTION" && entry.newLoanAmount != null && (
-                        <div className="text-xs text-gray-700">
+                        <div className="text-xs text-foreground/80">
                           <span className="font-medium">Remaining Balance:</span>{" "}
                           <span className="text-orange-600 font-semibold">
                             Rs. {Number(entry.newLoanAmount).toLocaleString()}
@@ -418,12 +418,12 @@ export default function TransactionInfo() {
                       {entry.editType !== "REDEMPTION" && renderChange("Remarks", entry.previousRemarks, entry.newRemarks)}
 
                       {entry.blockReason && (
-                        <div className="text-xs text-gray-700">
+                        <div className="text-xs text-foreground/80">
                           <span className="font-medium">Block Reason:</span> {entry.blockReason}
                         </div>
                       )}
                       {entry.policeReportNumber && (
-                        <div className="text-xs text-gray-700">
+                        <div className="text-xs text-foreground/80">
                           <span className="font-medium">Police Report No.:</span> {entry.policeReportNumber}
                         </div>
                       )}

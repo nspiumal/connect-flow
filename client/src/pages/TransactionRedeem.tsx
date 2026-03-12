@@ -206,7 +206,7 @@ export default function TransactionRedeem() {
             <CardContent>
               <div className="space-y-3">
                 {items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-x-3 gap-y-2 p-3 rounded border bg-gray-50 text-sm">
+                  <div key={index} className="grid grid-cols-3 gap-x-3 gap-y-2 p-3 rounded border bg-muted/30 text-sm">
                     <div className="col-span-3">
                       <Label className="text-xs text-muted-foreground">Description</Label>
                       <p className="font-medium">{item.description}</p>
@@ -234,7 +234,7 @@ export default function TransactionRedeem() {
           </Card>
 
           {/* Outstanding Balance Breakdown */}
-          <Card className="border-amber-200 bg-amber-50">
+          <Card className="border-border bg-muted/40">
             <CardHeader className="pb-3">
               <CardTitle className="text-base text-amber-900">Outstanding Balance Breakdown</CardTitle>
             </CardHeader>
@@ -246,6 +246,14 @@ export default function TransactionRedeem() {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Accrued Interest:</span>
                 <span className="font-medium">Rs. {toNumber(outstandingBalance?.accrualInterest).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Monthly Portion:</span>
+                <span>Rs. {toNumber(outstandingBalance?.monthlyInterest).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Weekly Portion ({toNumber(outstandingBalance?.weeklyPeriodsCharged)} weeks):</span>
+                <span>Rs. {toNumber(outstandingBalance?.weeklyInterest).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Charges:</span>
@@ -262,8 +270,8 @@ export default function TransactionRedeem() {
                   placeholder="0"
                 />
               </div>
-              <hr className="my-2 border-amber-300" />
-              <div className="flex justify-between font-bold text-amber-900">
+              <hr className="my-2 border-border" />
+              <div className="flex justify-between font-bold text-foreground">
                 <span>Total Outstanding:</span>
                 <span>Rs. {computedOutstandingTotal.toLocaleString()}</span>
               </div>
@@ -297,7 +305,7 @@ export default function TransactionRedeem() {
                 </div>
 
                 {redemptionAmount && computedOutstandingTotal > 0 && (
-                  <div className="p-3 rounded border bg-gray-50">
+                  <div className="p-3 rounded border bg-muted/40">
                     {parseFloat(redemptionAmount) === computedOutstandingTotal ? (
                       <div className="flex items-center gap-2 text-green-700">
                         <div className="h-2 w-2 rounded-full bg-green-700" />

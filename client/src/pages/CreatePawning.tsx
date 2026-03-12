@@ -476,6 +476,9 @@ export default function CreatePawning() {
   const effectiveRatePercent = manualRateEnabled
     ? parseFloat(manualRatePercent || "0")
     : (selectedRate?.rate_percent || selectedRate?.ratePercent || 0);
+  const firstMonthRatePercent = manualRateEnabled
+    ? effectiveRatePercent / 12
+    : (selectedRate?.firstMonthRatePercent || effectiveRatePercent / 12);
 
   const handleConfirmSubmit = async () => {
     try {
@@ -512,6 +515,7 @@ export default function CreatePawning() {
         loanAmount: parseFloat(loanAmount),
         interestRateId: manualRateEnabled ? null : selectedRateId,
         interestRatePercent: effectiveRatePercent,
+        firstMonthInterestRatePercent: firstMonthRatePercent,
         periodMonths: parseInt(periodMonths),
         pawnDate,
         maturityDate: maturityDateStr,

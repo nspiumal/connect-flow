@@ -63,6 +63,9 @@ public class PawnTransaction {
     @Column(name = "interest_rate_percent", nullable = false, precision = 5, scale = 2)
     private BigDecimal interestRatePercent;
 
+    @Column(name = "first_month_interest_rate_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal firstMonthInterestRatePercent;
+
     @Column(name = "period_months", nullable = false)
     private Integer periodMonths = 6;
 

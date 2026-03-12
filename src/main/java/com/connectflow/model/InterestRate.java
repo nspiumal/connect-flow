@@ -9,6 +9,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -32,6 +33,9 @@ public class InterestRate {
     @Column(name = "rate_percent", nullable = false, precision = 5, scale = 2)
     private BigDecimal ratePercent;
 
+    @Column(name = "first_month_rate_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal firstMonthRatePercent;
+
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
@@ -49,6 +53,9 @@ public class InterestRate {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (firstMonthRatePercent == null && ratePercent != null) {
+            firstMonthRatePercent = ratePercent.divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
+        }
         if (isActive == null) {
             isActive = true;
         }
@@ -60,5 +67,8 @@ public class InterestRate {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        if (firstMonthRatePercent == null && ratePercent != null) {
+            firstMonthRatePercent = ratePercent.divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
+        }
     }
 }

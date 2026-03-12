@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +56,7 @@ public class InterestRateService {
         InterestRate rate = InterestRate.builder()
             .name(dto.getName())
             .ratePercent(dto.getRatePercent())
+            .firstMonthRatePercent(resolveFirstMonthRatePercent(dto.getRatePercent(), dto.getFirstMonthRatePercent()))
             .isActive(isActive)
             .isDefault(Boolean.FALSE)
             .build();
@@ -79,6 +82,7 @@ public class InterestRateService {
 
         rate.setName(dto.getName());
         rate.setRatePercent(dto.getRatePercent());
+        rate.setFirstMonthRatePercent(resolveFirstMonthRatePercent(dto.getRatePercent(), dto.getFirstMonthRatePercent()));
 
         boolean targetActive = dto.getIsActive() != null ? dto.getIsActive() : wasActive;
         boolean requestedDefault = Boolean.TRUE.equals(dto.getIsDefault());
@@ -234,11 +238,22 @@ public class InterestRateService {
             .id(rate.getId())
             .name(rate.getName())
             .ratePercent(rate.getRatePercent())
+            .firstMonthRatePercent(rate.getFirstMonthRatePercent())
             .isActive(rate.getIsActive())
             .isDefault(rate.getIsDefault())
             .createdAt(rate.getCreatedAt())
             .updatedAt(rate.getUpdatedAt())
             .build();
+    }
+
+    private BigDecimal resolveFirstMonthRatePercent(BigDecimal normalRatePercent, BigDecimal firstMonthRatePercent) {
+        if (firstMonthRatePercent != null) {
+            return firstMonthRatePercent;
+        }
+        if (normalRatePercent == null) {
+            return BigDecimal.ZERO;
+        }
+        return normalRatePercent.divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
     }
 }
 

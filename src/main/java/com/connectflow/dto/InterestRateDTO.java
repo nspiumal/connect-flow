@@ -17,6 +17,7 @@ public class InterestRateDTO {
     private UUID id;
     private String name;
     private BigDecimal ratePercent;
+    private BigDecimal firstMonthRatePercent;
     private Boolean isActive;
     private Boolean isDefault;
     private UUID replacementDefaultRateId;

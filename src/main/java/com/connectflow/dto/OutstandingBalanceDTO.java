@@ -15,6 +15,9 @@ import java.time.LocalDate;
 public class OutstandingBalanceDTO {
     private BigDecimal principal;
     private BigDecimal accrualInterest;
+    private BigDecimal monthlyInterest;
+    private BigDecimal weeklyInterest;
+    private Integer weeklyPeriodsCharged;
     private BigDecimal charges;
     private BigDecimal total;
     private String loanStatus;

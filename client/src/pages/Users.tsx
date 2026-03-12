@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import apiClient from "@/integrations/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateUserDialog } from "@/components/users/CreateUserDialog";
 import { PinManagementDialog } from "@/components/users/PinManagementDialog";
-import { CommonSearch, SearchField } from "@/components/CommonSearch";
+import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 import { UserPlus, ChevronLeft, ChevronRight, Lock, Filter } from "lucide-react";
 
 interface User {
@@ -42,10 +42,10 @@ export default function UsersPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterName, setFilterName] = useState("");
   const [filterEmail, setFilterEmail] = useState("");
-  const [filterRole, setFilterRole] = useState("all");
+  const [filterRole, setFilterRole] = useState<string[]>([]);
   const [filterBranch, setFilterBranch] = useState("");
 
-  const fetchUsers = async (name?: string | null, email?: string | null, roleFilter?: string | null, branch?: string | null) => {
+  const fetchUsers = useCallback(async (name?: string | null, email?: string | null, roleFilter?: string | null, branch?: string | null) => {
     try {
       // Use filter API if any filters are provided, otherwise use paginated API
       const hasFilters = name || email || roleFilter || branch;
@@ -67,64 +67,34 @@ export default function UsersPage() {
     } catch (error) {
       console.error("Failed to fetch users:", error);
     }
-  };
-
-  useEffect(() => {
-    fetchUsers();
   }, [currentPage, pageSize]);
 
-  const handleSearch = (filters: Record<string, string | null>) => {
-    const { name, email, role: roleFilter, branch } = filters;
-    setFilterName(name || "");
-    setFilterEmail(email || "");
-    setFilterRole(roleFilter || "all");
-    setFilterBranch(branch || "");
+  useEffect(() => {
+    const selectedRole = filterRole.length === 1 ? filterRole[0] : undefined;
+    fetchUsers(
+      filterName || undefined,
+      filterEmail || undefined,
+      selectedRole,
+      filterBranch || undefined
+    );
+  }, [currentPage, pageSize, filterName, filterEmail, filterRole, filterBranch, fetchUsers]);
+
+  const handleSearch = (filters: Record<string, FilterValue>) => {
+    const name = typeof filters.name === "string" ? filters.name : "";
+    const email = typeof filters.email === "string" ? filters.email : "";
+    const branch = typeof filters.branch === "string" ? filters.branch : "";
+    const roleFilter = Array.isArray(filters.role)
+      ? filters.role.filter((value): value is string => typeof value === "string")
+      : [];
+
+    setFilterName(name);
+    setFilterEmail(email);
+    setFilterRole(roleFilter);
+    setFilterBranch(branch);
     setCurrentPage(0);
-    fetchUsers(name, email, roleFilter, branch);
   };
 
-  const handleClearFilters = () => {
-    setFilterName("");
-    setFilterEmail("");
-    setFilterRole("all");
-    setFilterBranch("");
-    setCurrentPage(0);
-    fetchUsers();
-  };
-
-  const searchFields: SearchField[] = [
-    {
-      name: "name",
-      label: "Name",
-      type: "text",
-      placeholder: "Enter name...",
-    },
-    {
-      name: "email",
-      label: "Email",
-      type: "text",
-      placeholder: "Enter email...",
-    },
-    {
-      name: "role",
-      label: "Role",
-      type: "select",
-      options: [
-        { label: "Superadmin", value: "SUPERADMIN" },
-        { label: "Admin", value: "ADMIN" },
-        { label: "Manager", value: "MANAGER" },
-        { label: "Staff", value: "STAFF" },
-      ],
-    },
-    {
-      name: "branch",
-      label: "Branch",
-      type: "text",
-      placeholder: "Enter branch name...",
-    },
-  ];
-
-  const hasActiveFilters = filterName !== "" || filterEmail !== "" || filterRole !== "all" || filterBranch !== "";
+  const hasActiveFilters = filterName !== "" || filterEmail !== "" || filterRole.length > 0 || filterBranch !== "";
 
   return (
     <div className="space-y-6">
@@ -139,7 +109,7 @@ export default function UsersPage() {
             Filters
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
-                {[filterName, filterEmail, filterRole !== "all" ? filterRole : "", filterBranch].filter(Boolean).length}
+                {[filterName, filterEmail, filterRole.length > 0 ? "role" : "", filterBranch].filter(Boolean).length}
               </Badge>
             )}
           </Button>
@@ -149,16 +119,43 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Filter Panel using CommonSearch */}
+      {/* Filter Panel using AdvancedSearchPanel */}
       {showFilters && (
-        <CommonSearch
-          fields={searchFields}
-          onSearch={handleSearch}
-          onClear={handleClearFilters}
-          isLoading={false}
+        <AdvancedSearchPanel
           title="User Filters"
+          subtitle="Search users by name, email, role, or branch"
+          inputFields={[
+            {
+              name: "name",
+              label: "Name",
+              placeholder: "Enter name...",
+            },
+            {
+              name: "email",
+              label: "Email",
+              placeholder: "Enter email...",
+            },
+            {
+              name: "branch",
+              label: "Branch",
+              placeholder: "Enter branch name...",
+            },
+          ]}
+          checkboxGroups={[
+            {
+              name: "role",
+              label: "Role",
+              options: [
+                { label: "Superadmin", value: "SUPERADMIN" },
+                { label: "Admin", value: "ADMIN" },
+                { label: "Manager", value: "MANAGER" },
+                { label: "Staff", value: "STAFF" },
+              ],
+            },
+          ]}
+          onSearch={handleSearch}
+          isLoading={false}
           backgroundColor="bg-gray-100"
-          borderColor="border-gray-300"
         />
       )}
 

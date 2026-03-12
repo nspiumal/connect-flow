@@ -15,8 +15,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Plus, Edit, Trash2, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
-import { CommonSearch, SearchField } from "@/components/CommonSearch";
+import { Plus, Edit, Trash2, Eye, EyeOff, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 
 interface ItemType {
   id: string;
@@ -32,6 +32,7 @@ export default function ItemTypes() {
   const [loading, setLoading] = useState(false);
   const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
   const [showDialog, setShowDialog] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "" });
 
@@ -42,49 +43,7 @@ export default function ItemTypes() {
   const [totalElements, setTotalElements] = useState(0);
 
   // Search filters
-  const [filters, setFilters] = useState<Record<string, string | null>>({});
-
-  // Define search fields for CommonSearch component
-  const searchFields: SearchField[] = [
-    {
-      name: "name",
-      label: "Item Type Name",
-      type: "text",
-      placeholder: "Search by name...",
-      optional: true,
-    },
-    {
-      name: "status",
-      label: "Status",
-      type: "select",
-      options: [
-        { label: "Active", value: "active" },
-        { label: "Inactive", value: "inactive" },
-      ],
-      optional: true,
-    },
-    {
-      name: "sortBy",
-      label: "Sort By",
-      type: "select",
-      options: [
-        { label: "Name", value: "name" },
-        { label: "Created Date", value: "createdAt" },
-        { label: "Updated Date", value: "updatedAt" },
-      ],
-      optional: true,
-    },
-    {
-      name: "sortDir",
-      label: "Order",
-      type: "select",
-      options: [
-        { label: "Ascending", value: "asc" },
-        { label: "Descending", value: "desc" },
-      ],
-      optional: true,
-    },
-  ];
+  const [filters, setFilters] = useState<Record<string, FilterValue>>({});
 
   // Load item types on mount
   useEffect(() => {
@@ -93,16 +52,35 @@ export default function ItemTypes() {
   }, []);
 
   const fetchItemTypes = useCallback(
-    async (page: number, searchFilters: Record<string, string | null>) => {
+    async (page: number, searchFilters: Record<string, FilterValue>) => {
       try {
         setLoading(true);
 
         // Parse filters
-        const name = searchFilters.name || undefined;
+        const name = typeof searchFilters.name === "string" ? searchFilters.name : undefined;
+
         const status = searchFilters.status;
-        const isActive = status === "active" ? true : status === "inactive" ? false : null;
-        const sortBy = searchFilters.sortBy || "name";
-        const sortDir = searchFilters.sortDir || "asc";
+        let isActive: boolean | null = null;
+        if (typeof status === "string") {
+          isActive = status === "active" ? true : status === "inactive" ? false : null;
+        } else if (Array.isArray(status) && status.length === 1) {
+          isActive = status[0] === "active" ? true : status[0] === "inactive" ? false : null;
+        }
+
+        const sortByValue = searchFilters.sortBy;
+        const sortDirValue = searchFilters.sortDir;
+        const sortBy =
+          typeof sortByValue === "string"
+            ? sortByValue
+            : Array.isArray(sortByValue) && sortByValue.length > 0
+              ? sortByValue[0]
+              : "name";
+        const sortDir =
+          typeof sortDirValue === "string"
+            ? sortDirValue
+            : Array.isArray(sortDirValue) && sortDirValue.length > 0
+              ? sortDirValue[0]
+              : "asc";
 
         // Call backend with pagination and filters
         const response = await apiClient.itemTypes.search({
@@ -131,17 +109,12 @@ export default function ItemTypes() {
     [pageSize, toast]
   );
 
-  const handleSearch = (searchFilters: Record<string, string | null>) => {
+  const handleSearch = (searchFilters: Record<string, FilterValue>) => {
     setFilters(searchFilters);
     setCurrentPage(0);
     fetchItemTypes(0, searchFilters);
   };
 
-  const handleClearFilters = () => {
-    setFilters({});
-    setCurrentPage(0);
-    fetchItemTypes(0, {});
-  };
 
   const handleOpenDialog = (item?: ItemType) => {
     if (item) {
@@ -259,22 +232,61 @@ export default function ItemTypes() {
       {loading && <LoadingOverlay isLoading={loading} />}
 
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Item Types</h1>
-          <p className="text-gray-500 mt-1">Manage gold item types for pawn transactions</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Item Types</h1>
+            <p className="text-gray-500 mt-1">Manage gold item types for pawn transactions</p>
+          </div>
+          <Button variant="outline" onClick={() => setShowFilters((prev) => !prev)} disabled={loading}>
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+          </Button>
         </div>
 
-        {/* CommonSearch Component - Advanced Filters */}
-        <CommonSearch
-          fields={searchFields}
-          onSearch={handleSearch}
-          onClear={handleClearFilters}
-          isLoading={loading}
-          title="Search & Filter"
-          showBorder={true}
-          borderColor="border-blue-300"
-          backgroundColor="bg-blue-50"
-        />
+        {showFilters && (
+          <AdvancedSearchPanel
+            title="Search & Filter"
+            subtitle="Filter item types by name, status, and sort options"
+            inputFields={[
+              {
+                name: "name",
+                label: "Item Type Name",
+                placeholder: "Search by name...",
+              },
+            ]}
+            checkboxGroups={[
+              {
+                name: "status",
+                label: "Status",
+                options: [
+                  { label: "Active", value: "active" },
+                  { label: "Inactive", value: "inactive" },
+                ],
+                defaultChecked: true,
+              },
+              {
+                name: "sortBy",
+                label: "Sort By",
+                options: [
+                  { label: "Name", value: "name" },
+                  { label: "Created Date", value: "createdAt" },
+                  { label: "Updated Date", value: "updatedAt" },
+                ],
+              },
+              {
+                name: "sortDir",
+                label: "Order",
+                options: [
+                  { label: "Ascending", value: "asc" },
+                  { label: "Descending", value: "desc" },
+                ],
+              },
+            ]}
+            onSearch={handleSearch}
+            isLoading={loading}
+            backgroundColor="bg-blue-50"
+          />
+        )}
 
         {/* Item Types List Card */}
         <Card>

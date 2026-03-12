@@ -599,7 +599,7 @@ export default function Transactions() {
           ]}
           onSearch={handleSearch}
           isLoading={loading}
-          backgroundColor="bg-gray-50"
+          backgroundColor="bg-muted/40"
         />
       )}
 
@@ -639,7 +639,7 @@ export default function Transactions() {
                       ) : t.status === "Profited" ? (
                         <span className="text-purple-600 font-semibold">Profited</span>
                       ) : (
-                        <span className="text-gray-500">-</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>{t.interestRatePercent || t.interest_rate_percent}%</TableCell>
@@ -951,8 +951,8 @@ export default function Transactions() {
               </div>
 
               {/* Outstanding Balance Breakdown */}
-              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                <h3 className="font-semibold text-amber-900 mb-3">Outstanding Balance Breakdown</h3>
+              <div className="bg-muted/40 p-4 rounded-lg border border-border">
+                <h3 className="font-semibold text-foreground mb-3">Outstanding Balance Breakdown</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Principal:</span>
@@ -978,7 +978,7 @@ export default function Transactions() {
                     />
                   </div>
                   <hr className="my-2" />
-                  <div className="flex justify-between text-base font-bold text-amber-900">
+                  <div className="flex justify-between text-base font-bold text-foreground">
                     <span>Total Outstanding:</span>
                     <span>Rs. {computedOutstandingTotal.toLocaleString()}</span>
                   </div>
@@ -999,14 +999,14 @@ export default function Transactions() {
                   />
 
                   {/* Payment Allocation Information */}
-                  <div className="mt-2 p-3 bg-yellow-50 rounded border border-yellow-200 text-sm">
-                    <p className="font-semibold text-yellow-900 mb-1">Payment Allocation:</p>
-                    <p className="text-yellow-800">Interest → Charges → Principal</p>
-                    <p className="text-yellow-700 mt-1 text-xs">Interest is calculated weekly (Mon-Sun). Paying any day counts the full week.</p>
+                  <div className="mt-2 p-3 bg-muted/40 rounded border border-border text-sm">
+                    <p className="font-semibold text-foreground mb-1">Payment Allocation:</p>
+                    <p className="text-foreground/80">Interest -&gt; Charges -&gt; Principal</p>
+                    <p className="text-muted-foreground mt-1 text-xs">Interest is calculated weekly (Mon-Sun). Paying any day counts the full week.</p>
                   </div>
 
                   {redemptionAmount && computedOutstandingTotal && (
-                    <div className="mt-2 p-2 bg-gray-100 rounded text-sm">
+                    <div className="mt-2 p-2 bg-muted rounded text-sm">
                       {parseFloat(redemptionAmount) === computedOutstandingTotal ? (
                         <p className="text-green-700 font-semibold">✓ Full Redemption (Complete Settlement)</p>
                       ) : parseFloat(redemptionAmount) < computedOutstandingTotal ? (

@@ -32,6 +32,7 @@ public class PawnTransactionDTO {
     private UUID interestRateId;
     private String interestRateName;
     private BigDecimal interestRatePercent;
+    private BigDecimal firstMonthInterestRatePercent;
     private Integer periodMonths;
     private LocalDate pawnDate;
     private LocalDate maturityDate;

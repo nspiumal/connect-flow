@@ -16,6 +16,7 @@ type InterestRate = {
   id: string;
   name: string;
   ratePercent: number;
+  firstMonthRatePercent?: number;
   isActive: boolean;
   isDefault: boolean;
 };
@@ -25,6 +26,7 @@ export default function InterestRates() {
   const [showDialog, setShowDialog] = useState(false);
   const [name, setName] = useState("");
   const [ratePercent, setRatePercent] = useState("");
+  const [firstMonthRatePercent, setFirstMonthRatePercent] = useState("");
   const [isDefault, setIsDefault] = useState(false);
 
   const [showReplaceDialog, setShowReplaceDialog] = useState(false);
@@ -74,6 +76,7 @@ export default function InterestRates() {
       await apiClient.interestRates.create({
         name,
         ratePercent: parseFloat(ratePercent),
+        firstMonthRatePercent: firstMonthRatePercent ? parseFloat(firstMonthRatePercent) : undefined,
         isActive: true,
         isDefault: shouldBeDefault,
       });
@@ -88,6 +91,7 @@ export default function InterestRates() {
       setShowDialog(false);
       setName("");
       setRatePercent("");
+      setFirstMonthRatePercent("");
       setIsDefault(false);
       fetchRates();
     } catch (error: any) {
@@ -154,6 +158,7 @@ export default function InterestRates() {
       await apiClient.interestRates.update(rate.id, {
         name: rate.name,
         ratePercent: rate.ratePercent,
+        firstMonthRatePercent: rate.firstMonthRatePercent,
         isActive: rate.isActive,
         isDefault: true,
       });
@@ -215,6 +220,7 @@ export default function InterestRates() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Rate %</TableHead>
+                <TableHead>First Month %</TableHead>
                 <TableHead>Default</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -225,6 +231,7 @@ export default function InterestRates() {
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
                   <TableCell>{r.ratePercent}%</TableCell>
+                  <TableCell>{(r.firstMonthRatePercent ?? r.ratePercent / 12).toFixed(2)}%</TableCell>
                   <TableCell>
                     {r.isDefault && r.isActive ? <Badge>Default</Badge> : <Badge variant="outline">No</Badge>}
                   </TableCell>
@@ -256,7 +263,7 @@ export default function InterestRates() {
               ))}
               {rates.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No interest rates found
                   </TableCell>
                 </TableRow>
@@ -284,6 +291,16 @@ export default function InterestRates() {
             <div>
               <Label>Rate (%)</Label>
               <Input type="number" step="0.01" value={ratePercent} onChange={(e) => setRatePercent(e.target.value)} required />
+            </div>
+            <div>
+              <Label>First Month Rate (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={firstMonthRatePercent}
+                onChange={(e) => setFirstMonthRatePercent(e.target.value)}
+                placeholder="Defaults to Rate / 12"
+              />
             </div>
 
             {activeRates.length > 0 && (
