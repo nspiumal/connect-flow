@@ -487,6 +487,9 @@ export const apiClient = {
       minAmount?: number;
       maxAmount?: number;
       patternMode?: string;
+      startDate?: string;
+      endDate?: string;
+      filterBranchId?: string;
       page?: number;
       size?: number;
       sortBy?: string;
@@ -499,6 +502,9 @@ export const apiClient = {
       if (params.minAmount !== undefined) queryParams.append('minAmount', params.minAmount.toString());
       if (params.maxAmount !== undefined) queryParams.append('maxAmount', params.maxAmount.toString());
       if (params.patternMode) queryParams.append('patternMode', params.patternMode);
+      if (params.startDate) queryParams.append('startDate', params.startDate);
+      if (params.endDate) queryParams.append('endDate', params.endDate);
+      if (params.filterBranchId) queryParams.append('filterBranchId', params.filterBranchId);
       queryParams.append('page', (params.page || 0).toString());
       queryParams.append('size', (params.size || 10).toString());
       queryParams.append('sortBy', params.sortBy || 'pawnDate');
@@ -784,6 +790,22 @@ export const apiClient = {
 
       const response = await authFetch(`${API_BASE_URL}/profited-transactions/search?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to search profited transactions');
+      return response.json();
+    },
+  },
+
+  /**
+   * Activity Logs API
+   */
+  activityLogs: {
+    search: async (userName?: string, action?: string, page: number = 0, size: number = 20) => {
+      const params = new URLSearchParams();
+      if (userName) params.append('userName', userName);
+      if (action)   params.append('action',   action);
+      params.append('page', String(page));
+      params.append('size', String(size));
+      const response = await authFetch(`${API_BASE_URL}/activity-logs?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch activity logs');
       return response.json();
     },
   },

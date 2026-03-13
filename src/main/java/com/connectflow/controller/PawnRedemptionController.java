@@ -1,5 +1,6 @@
 package com.connectflow.controller;
 
+import com.connectflow.aop.ActivityLog;
 import com.connectflow.dto.OutstandingBalanceDTO;
 import com.connectflow.dto.PawnRedemptionDTO;
 import com.connectflow.dto.RedemptionRequest;
@@ -39,6 +40,7 @@ public class PawnRedemptionController {
 
     @PostMapping("/{transactionId}/redeem")
     @Operation(summary = "Process redemption (full or partial)")
+    @ActivityLog(action = "PROCESS_REDEMPTION", description = "Processed pawn redemption payment")
     public ResponseEntity<PawnRedemptionDTO> processRedemption(
             @PathVariable UUID transactionId,
             @RequestBody RedemptionRequest request) {

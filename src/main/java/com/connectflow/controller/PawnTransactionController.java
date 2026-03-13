@@ -21,6 +21,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import com.connectflow.aop.ActivityLog;
+
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -149,12 +153,15 @@ public class PawnTransactionController {
             @RequestParam(required = false) Double minAmount,
             @RequestParam(required = false) Double maxAmount,
             @RequestParam(required = false) String patternMode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String filterBranchId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "pawnDate") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
-        log.info("GET /pawn-transactions/search/advanced - pawnId: {}, customerNic: {}, status: {}, minAmount: {}, maxAmount: {}, patternMode: {}",
-                 pawnId, customerNic, status, minAmount, maxAmount, patternMode);
+        log.info("GET /pawn-transactions/search/advanced - pawnId: {}, customerNic: {}, status: {}, startDate: {}, endDate: {}",
+                 pawnId, customerNic, status, startDate, endDate);
 
         // Get authenticated user's branch if needed
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -164,10 +171,11 @@ public class PawnTransactionController {
             Optional<UserDTO> currentUser = userService.getUserByEmail(email);
             if (currentUser.isPresent()) {
                 UserDTO user = currentUser.get();
-                // Only apply branch filter for non-admin/super-admin users
                 if (user.getRole() != com.connectflow.model.UserRole.Role.ADMIN
                         && user.getRole() != com.connectflow.model.UserRole.Role.SUPERADMIN) {
                     branchId = user.getBranchId();
+                } else if (filterBranchId != null && !filterBranchId.isEmpty()) {
+                    branchId = UUID.fromString(filterBranchId);
                 }
             }
         }
@@ -176,12 +184,15 @@ public class PawnTransactionController {
         java.math.BigDecimal maxAmountBD = maxAmount != null ? java.math.BigDecimal.valueOf(maxAmount) : null;
 
         PageResponse<PawnTransactionDTO> response = pawnTransactionService.searchTransactionsAdvanced(
-                pawnId, customerNic, status, minAmountBD, maxAmountBD, patternMode, branchId, page, size, sortBy, sortDir);
+                pawnId, customerNic, status, minAmountBD, maxAmountBD, patternMode, branchId,
+                startDate, endDate,
+                page, size, sortBy, sortDir);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping
     @Operation(summary = "Create new pawn transaction")
+    @ActivityLog(action = "CREATE_PAWN_TRANSACTION", description = "Created new pawn transaction")
     public ResponseEntity<PawnTransactionDTO> createTransaction(@RequestBody CreatePawnTransactionRequest request) {
         log.info("POST /pawn-transactions - Creating new transaction for customer: {}", request.getCustomerName());
 
@@ -220,6 +231,7 @@ public class PawnTransactionController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update transaction status")
+    @ActivityLog(action = "UPDATE_TRANSACTION_STATUS", description = "Updated pawn transaction status")
     public ResponseEntity<PawnTransactionDTO> updateTransactionStatus(
             @PathVariable UUID id,
             @RequestBody Map<String, String> body) {
@@ -255,6 +267,7 @@ public class PawnTransactionController {
 
     @PatchMapping("/{id}/remarks")
     @Operation(summary = "Update transaction remarks")
+    @ActivityLog(action = "UPDATE_TRANSACTION_REMARKS", description = "Updated pawn transaction remarks")
     public ResponseEntity<PawnTransactionDTO> updateTransactionRemarks(
             @PathVariable UUID id,
             @RequestBody Map<String, String> body) {
@@ -287,6 +300,7 @@ public class PawnTransactionController {
 
     @PatchMapping("/{id}/block-reason")
     @Operation(summary = "Update transaction block reason and add customer to blacklist with optional police report")
+    @ActivityLog(action = "BLOCK_TRANSACTION", description = "Blocked pawn transaction with reason")
     public ResponseEntity<PawnTransactionDTO> updateBlockReason(
             @PathVariable UUID id,
             @RequestBody Map<String, Object> body) {
@@ -335,6 +349,7 @@ public class PawnTransactionController {
 
     @PatchMapping("/{id}/details")
     @Operation(summary = "Update editable transaction details")
+    @ActivityLog(action = "UPDATE_TRANSACTION_DETAILS", description = "Updated editable pawn transaction details")
     public ResponseEntity<PawnTransactionDTO> updateTransactionDetails(
             @PathVariable UUID id,
             @RequestBody UpdatePawnTransactionDetailsRequest request) {
@@ -382,6 +397,9 @@ public class PawnTransactionController {
             @RequestParam(required = false) java.math.BigDecimal minAmount,
             @RequestParam(required = false) java.math.BigDecimal maxAmount,
             @RequestParam(required = false) String patternMode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String filterBranchId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "pawnDate") String sortBy,
@@ -408,20 +426,14 @@ public class PawnTransactionController {
                 log.error("User {} does not have a branch assigned", email);
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
             }
+        } else if (filterBranchId != null && !filterBranchId.isEmpty()) {
+            branchScope = UUID.fromString(filterBranchId);
         }
 
         PageResponse<PawnTransactionDTO> response = pawnTransactionService.searchTransactionsAdvanced(
-                pawnId,
-                customerNic,
-                status,
-                minAmount,
-                maxAmount,
-                patternMode,
-                branchScope,
-                page,
-                size,
-                sortBy,
-                sortDir
+                pawnId, customerNic, status, minAmount, maxAmount, patternMode, branchScope,
+                startDate, endDate,
+                page, size, sortBy, sortDir
         );
         return ResponseEntity.ok(response);
     }

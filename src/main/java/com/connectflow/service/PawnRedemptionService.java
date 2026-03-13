@@ -73,6 +73,8 @@ public class PawnRedemptionService {
     /**
      * Unified interest logic:
      * - First month always charges full monthly interest once.
+     *   - If still within first-month window, apply first-month rate.
+     *   - If first month has already passed, apply normal rate for that first month.
      * - Weekly charging starts on (pawnDate + 1 month + 2 days) based on business rule,
      *   and each week is charged at week start date.
      * - Partial payments do not reset the original timeline anchor (pawnDate).
@@ -103,7 +105,7 @@ public class PawnRedemptionService {
                 : BigDecimal.ZERO;
         BigDecimal firstMonthRatePercent = transaction.getFirstMonthInterestRatePercent() != null
                 ? transaction.getFirstMonthInterestRatePercent()
-                : normalRatePercent.divide(TWELVE, 8, RoundingMode.HALF_UP).setScale(4, RoundingMode.HALF_UP);
+                : normalRatePercent;
         BigDecimal weeklyRatePercent = normalRatePercent
                 .divide(FIFTY_TWO, 8, RoundingMode.HALF_UP)
                 .setScale(4, RoundingMode.HALF_UP);
@@ -120,9 +122,18 @@ public class PawnRedemptionService {
         }
 
         BigDecimal monthlyInterest = BigDecimal.ZERO;
+        BigDecimal appliedFirstMonthRatePercent = firstMonthRatePercent;
+        BigDecimal appliedFirstMonthMonthlyRatePercent = BigDecimal.ZERO;
         if (transaction.getLastRedemptionDate() == null) {
+            // If first month has already ended, use normal rate for the initial month.
+            appliedFirstMonthRatePercent = today.isAfter(firstMonthEndInclusive)
+                    ? normalRatePercent
+                    : firstMonthRatePercent;
+            appliedFirstMonthMonthlyRatePercent = appliedFirstMonthRatePercent
+                    .divide(TWELVE, 8, RoundingMode.HALF_UP)
+                    .setScale(4, RoundingMode.HALF_UP);
             monthlyInterest = principalAmount
-                    .multiply(firstMonthRatePercent)
+                    .multiply(appliedFirstMonthMonthlyRatePercent)
                     .divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
         }
 
@@ -135,7 +146,7 @@ public class PawnRedemptionService {
         BigDecimal totalInterest = monthlyInterest.add(weeklyInterest);
 
         log.info(
-                "Interest calculation for transaction {}: pawnDate={}, accrualStart={}, firstMonthEndInclusive={}, weeklyStart={}, normalRate={}%, firstMonthRate={}%, weeklyRate={}%, weeklyPeriods={}, principal={}, monthlyInterest={}, weeklyInterest={}, totalInterest={}",
+                "Interest calculation for transaction {}: pawnDate={}, accrualStart={}, firstMonthEndInclusive={}, weeklyStart={}, normalRate={}%, configuredFirstMonthRate={}%, appliedFirstMonthAnnualRate={}%, appliedFirstMonthMonthlyRate={}%, weeklyRate={}%, weeklyPeriods={}, principal={}, monthlyInterest={}, weeklyInterest={}, totalInterest={}",
                 transaction.getPawnId(),
                 pawnDate,
                 accrualStart,
@@ -143,6 +154,8 @@ public class PawnRedemptionService {
                 weeklyStart,
                 normalRatePercent,
                 firstMonthRatePercent,
+                appliedFirstMonthRatePercent,
+                appliedFirstMonthMonthlyRatePercent,
                 weeklyRatePercent,
                 weeklyPeriodsCharged,
                 principalAmount,

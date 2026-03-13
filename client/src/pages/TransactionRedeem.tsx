@@ -35,13 +35,17 @@ export default function TransactionRedeem() {
 
   const toNumber = (value: unknown) => Number(value) || 0;
 
+  /** Round a value up to the nearest multiple of 10 (101→110, 154→160, 200→200) */
+  const ceilToNearest10 = (value: number) => Math.ceil(value / 10) * 10;
+
   const fixedCharges = 50;
   const documentationValue = Number(documentationAmount) || 0;
   const effectiveCharges = fixedCharges + documentationValue;
-  const computedOutstandingTotal =
+  const computedOutstandingTotal = ceilToNearest10(
     toNumber(outstandingBalance?.principal) +
     toNumber(outstandingBalance?.accrualInterest) +
-    effectiveCharges;
+    effectiveCharges
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -232,7 +236,10 @@ export default function TransactionRedeem() {
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Right Column - Redemption Form */}
+        <div className="space-y-4">
           {/* Outstanding Balance Breakdown */}
           <Card className="border-border bg-muted/40">
             <CardHeader className="pb-3">
@@ -277,11 +284,9 @@ export default function TransactionRedeem() {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Right Column - Redemption Form */}
-        <div>
-          <Card className="h-full">
+          {/* Redemption Form */}
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Redemption Payment</CardTitle>
             </CardHeader>

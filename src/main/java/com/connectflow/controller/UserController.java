@@ -1,5 +1,6 @@
 package com.connectflow.controller;
 
+import com.connectflow.aop.ActivityLog;
 import com.connectflow.dto.CreateUserRequest;
 import com.connectflow.dto.PageResponse;
 import com.connectflow.dto.SetPinRequest;
@@ -95,6 +96,7 @@ public class UserController {
 
     @PostMapping
     @Operation(summary = "Create a new user (will be inserted into PROFILES table)")
+    @ActivityLog(action = "CREATE_USER", description = "Created new user")
     public ResponseEntity<UserDTO> createUser(@RequestBody CreateUserRequest request) {
         try {
             log.info("Received user creation request - Email: {}, Name: {}, Role: {}",

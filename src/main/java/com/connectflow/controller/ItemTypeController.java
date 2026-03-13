@@ -1,5 +1,6 @@
 package com.connectflow.controller;
 
+import com.connectflow.aop.ActivityLog;
 import com.connectflow.dto.ItemTypeDTO;
 import com.connectflow.service.ItemTypeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -92,6 +93,7 @@ public class ItemTypeController {
 
     @PostMapping
     @Operation(summary = "Create a new item type")
+    @ActivityLog(action = "CREATE_ITEM_TYPE", description = "Created new item type")
     public ResponseEntity<ItemTypeDTO> createItemType(@RequestBody ItemTypeDTO dto) {
         log.info("POST /item-types - Creating new item type: {}", dto.getName());
         try {
@@ -106,6 +108,7 @@ public class ItemTypeController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update an existing item type")
+    @ActivityLog(action = "UPDATE_ITEM_TYPE", description = "Updated item type")
     public ResponseEntity<ItemTypeDTO> updateItemType(
             @PathVariable UUID id,
             @RequestBody ItemTypeDTO dto) {
@@ -121,8 +124,9 @@ public class ItemTypeController {
     }
 
     @PatchMapping("/{id}/toggle-active")
-    @Operation(summary = "Toggle active status of an item type")
-    public ResponseEntity<Void> toggleActive(@PathVariable UUID id) {
+    @Operation(summary = "Toggle the active status of an item type")
+    @ActivityLog(action = "TOGGLE_ITEM_TYPE", description = "Toggled item type active status")
+    public ResponseEntity<ItemTypeDTO> toggleItemTypeActive(@PathVariable UUID id) {
         log.info("PATCH /item-types/{}/toggle-active - Toggling status", id);
         try {
             itemTypeService.toggleActive(id);
@@ -135,7 +139,8 @@ public class ItemTypeController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete an item type (soft delete)")
+    @Operation(summary = "Delete an item type")
+    @ActivityLog(action = "DELETE_ITEM_TYPE", description = "Deleted item type")
     public ResponseEntity<Void> deleteItemType(@PathVariable UUID id) {
         log.info("DELETE /item-types/{} - Deleting item type", id);
         try {

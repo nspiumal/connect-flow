@@ -25,6 +25,7 @@ import Blacklist from "./pages/Blacklist";
 import InterestRates from "./pages/InterestRates";
 import Reports from "./pages/Reports";
 import AuditLogs from "./pages/AuditLogs";
+import ActivityLogs from "./pages/ActivityLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/interest-rates" element={<InterestRates />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/audit-logs" element={<AuditLogs />} />
+            <Route path="/activity-logs" element={<ActivityLogs />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

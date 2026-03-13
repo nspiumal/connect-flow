@@ -60,7 +60,9 @@ public interface PawnTransactionRepository extends JpaRepository<PawnTransaction
            "(:status IS NULL OR p.status = :status) AND " +
            "(:minAmount IS NULL OR p.loanAmount >= :minAmount) AND " +
            "(:maxAmount IS NULL OR p.loanAmount <= :maxAmount) AND " +
-           "(:patternMode IS NULL OR p.patternMode = :patternMode)")
+           "(:patternMode IS NULL OR p.patternMode = :patternMode) AND " +
+           "(:startDate IS NULL OR p.pawnDate >= :startDate) AND " +
+           "(:endDate IS NULL OR p.pawnDate <= :endDate)")
     Page<PawnTransaction> searchTransactionsAdvanced(@Param("branchId") UUID branchId,
                                                      @Param("pawnId") String pawnId,
                                                      @Param("customerNic") String customerNic,
@@ -68,5 +70,7 @@ public interface PawnTransactionRepository extends JpaRepository<PawnTransaction
                                                      @Param("minAmount") java.math.BigDecimal minAmount,
                                                      @Param("maxAmount") java.math.BigDecimal maxAmount,
                                                      @Param("patternMode") String patternMode,
+                                                     @Param("startDate") java.time.LocalDate startDate,
+                                                     @Param("endDate") java.time.LocalDate endDate,
                                                      Pageable pageable);
 }

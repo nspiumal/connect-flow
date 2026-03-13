@@ -1,5 +1,6 @@
 package com.connectflow.controller;
 
+import com.connectflow.aop.ActivityLog;
 import com.connectflow.dto.InterestRateDTO;
 import com.connectflow.service.InterestRateService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,6 +54,7 @@ public class InterestRateController {
 
     @PostMapping
     @Operation(summary = "Create a new interest rate")
+    @ActivityLog(action = "CREATE_INTEREST_RATE", description = "Created new interest rate")
     public ResponseEntity<InterestRateDTO> createRate(@RequestBody InterestRateDTO dto) {
         log.info("POST /interest-rates - Creating new interest rate: {}", dto.getName());
         InterestRateDTO created = interestRateService.createRate(dto);
@@ -61,6 +63,7 @@ public class InterestRateController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update an existing interest rate")
+    @ActivityLog(action = "UPDATE_INTEREST_RATE", description = "Updated interest rate")
     public ResponseEntity<InterestRateDTO> updateRate(
             @PathVariable UUID id,
             @RequestBody InterestRateDTO dto) {
@@ -76,6 +79,7 @@ public class InterestRateController {
 
     @PatchMapping("/{id}/toggle-active")
     @Operation(summary = "Toggle active status of an interest rate")
+    @ActivityLog(action = "TOGGLE_INTEREST_RATE", description = "Toggled interest rate active status")
     public ResponseEntity<Void> toggleActive(
             @PathVariable UUID id,
             @RequestBody(required = false) InterestRateDTO dto) {

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Building2, Users, FileText, Search, ShieldAlert,
-  Percent, BarChart3, ClipboardList, LogOut, ChevronLeft, FilePlus, Package,
+  Percent, BarChart3, ClipboardList, LogOut, ChevronLeft, FilePlus, Package, Activity,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +41,7 @@ const navItems: NavItem[] = [
   { title: "Customer Search", url: "/customers", icon: Search, roles: ["ADMIN", "MANAGER", "STAFF"] },
   { title: "Blacklist", url: "/blacklist", icon: ShieldAlert, roles: ["ADMIN", "MANAGER", "STAFF"] },
   { title: "Reports", url: "/reports", icon: BarChart3, roles: ["SUPERADMIN", "ADMIN", "MANAGER"] },
+  { title: "Activity Logs", url: "/activity-logs", icon: Activity, roles: ["SUPERADMIN", "ADMIN"] },
   { title: "Audit Logs", url: "/audit-logs", icon: ClipboardList, roles: ["SUPERADMIN"] },
 ];
 

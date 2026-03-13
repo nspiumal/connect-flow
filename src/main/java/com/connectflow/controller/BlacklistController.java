@@ -1,5 +1,6 @@
 package com.connectflow.controller;
 
+import com.connectflow.aop.ActivityLog;
 import com.connectflow.dto.BlacklistDTO;
 import com.connectflow.dto.NicVerificationResponseDTO;
 import com.connectflow.dto.PageResponse;
@@ -152,6 +153,7 @@ public class BlacklistController {
 
     @PostMapping
     @Operation(summary = "Add customer to blacklist")
+    @ActivityLog(action = "ADD_BLACKLIST", description = "Added customer to blacklist")
     public ResponseEntity<BlacklistDTO> addToBlacklist(@RequestBody BlacklistDTO dto) {
         log.info("POST /blacklist - Adding customer to blacklist: {}", dto.getCustomerName());
 
@@ -189,6 +191,7 @@ public class BlacklistController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update blacklist entry")
+    @ActivityLog(action = "UPDATE_BLACKLIST", description = "Updated blacklist entry")
     public ResponseEntity<BlacklistDTO> updateBlacklist(
             @PathVariable UUID id,
             @RequestBody BlacklistDTO dto) {
@@ -204,6 +207,7 @@ public class BlacklistController {
 
     @PatchMapping("/{id}/toggle-active")
     @Operation(summary = "Toggle active status of blacklist entry")
+    @ActivityLog(action = "TOGGLE_BLACKLIST", description = "Toggled blacklist entry active status")
     public ResponseEntity<Void> toggleActive(@PathVariable UUID id) {
         log.info("PATCH /blacklist/{}/toggle-active - Toggling status", id);
         try {
@@ -217,6 +221,7 @@ public class BlacklistController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete blacklist entry")
+    @ActivityLog(action = "DELETE_BLACKLIST", description = "Deleted blacklist entry")
     public ResponseEntity<Void> deleteBlacklist(@PathVariable UUID id) {
         log.info("DELETE /blacklist/{} - Deleting blacklist entry", id);
         blacklistService.deleteBlacklist(id);
