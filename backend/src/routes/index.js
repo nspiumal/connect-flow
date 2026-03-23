@@ -51,6 +51,14 @@ const imageLimiter = rateLimit({
   message: { message: 'Too many image requests, please slow down.' },
 });
 
+const nicVerifyLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many NIC verification requests, please slow down.' },
+});
+
 // ── Auth (public) ─────────────────────────────────────────────────────────────
 router.post('/auth/login', authLimiter, AuthController.login);
 
@@ -133,7 +141,7 @@ router.get('/blacklist/active', BlacklistController.getActive);
 router.get('/blacklist/search', BlacklistController.search);
 router.get('/blacklist/filter', BlacklistController.filter);
 router.get('/blacklist/check/:nic', BlacklistController.check);
-router.get('/blacklist/verify/:nic', BlacklistController.verify);
+router.get('/blacklist/verify/:nic', nicVerifyLimiter, BlacklistController.verify);
 router.get('/blacklist/branch/:branchId', BlacklistController.getByBranch);
 router.get('/blacklist/:id', BlacklistController.getById);
 router.post('/blacklist', BlacklistController.create);
