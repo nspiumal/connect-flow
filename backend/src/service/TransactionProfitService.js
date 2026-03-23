@@ -21,24 +21,41 @@ module.exports = {
   },
 
   async search({ pawnId, customerNic, page = 0, size = 10 } = {}) {
-    const all = await TransactionProfitRepository.findAll();
-    let filtered = await Promise.all(
-      all.map(async (p) => {
-        const tx = await PawnTransactionRepository.findById(p.transactionId);
-        return { profit: p, tx };
-      })
-    );
-    if (pawnId) filtered = filtered.filter(({ tx }) => tx && tx.pawnId && tx.pawnId.toLowerCase().includes(pawnId.toLowerCase()));
-    if (customerNic) filtered = filtered.filter(({ tx }) => tx && tx.customer && tx.customer.nic && tx.customer.nic.toLowerCase().includes(customerNic.toLowerCase()));
-    const total = filtered.length;
-    const slice = filtered.slice(page * size, (page + 1) * size).map(({ profit }) => profit);
+    // Fetch all profits with joined transaction+customer in one query set
+    const { TransactionProfit, PawnTransaction, Customer } = require('../model');
+    const { Op } = require('sequelize');
+
+    const txWhere = {};
+    const customerWhere = {};
+    if (pawnId) txWhere.pawnId = { [Op.like]: `%${pawnId}%` };
+    if (customerNic) customerWhere.nic = { [Op.like]: `%${customerNic}%` };
+
+    const { count, rows } = await TransactionProfit.findAndCountAll({
+      include: [{
+        model: PawnTransaction,
+        as: 'transaction',
+        where: Object.keys(txWhere).length ? txWhere : undefined,
+        required: Object.keys(txWhere).length > 0,
+        include: [{
+          model: Customer,
+          as: 'customer',
+          where: Object.keys(customerWhere).length ? customerWhere : undefined,
+          required: Object.keys(customerWhere).length > 0,
+        }],
+      }],
+      limit: size,
+      offset: page * size,
+      order: [['profit_recorded_date', 'DESC']],
+      distinct: true,
+    });
+
     return {
-      content: slice,
+      content: rows,
       pageNumber: page,
       pageSize: size,
-      totalElements: total,
-      totalPages: Math.ceil(total / size),
-      last: (page + 1) * size >= total,
+      totalElements: count,
+      totalPages: Math.ceil(count / size),
+      last: (page + 1) * size >= count,
     };
   },
 

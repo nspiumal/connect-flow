@@ -82,14 +82,16 @@ module.exports = {
   async setPin(id, pin) {
     const user = await UserRepository.findById(id);
     if (!user) throw { status: 404, message: 'User not found' };
-    await UserRepository.update(id, { pin });
+    const hashedPin = await bcrypt.hash(pin, 12);
+    await UserRepository.update(id, { pin: hashedPin });
     return { message: 'PIN set successfully' };
   },
 
   async verifyPin(id, pin) {
     const user = await UserRepository.findById(id);
     if (!user) throw { status: 404, message: 'User not found' };
-    const match = user.pin === pin;
+    if (!user.pin) return { verified: false };
+    const match = await bcrypt.compare(pin, user.pin);
     return { verified: match };
   },
 
