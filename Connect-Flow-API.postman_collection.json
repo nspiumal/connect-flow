@@ -1,0 +1,612 @@
+{
+  "info": {
+    "name": "Connect Flow API",
+    "description": "Complete API collection for Connect Flow Gold Pawn Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"authToken\", jsonData.token);",
+                  "    pm.environment.set(\"authToken\", jsonData.token);",
+                  "    console.log(\"Token saved:\", jsonData.token.substring(0, 20) + \"...\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@connectflow.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login to get JWT token. Token will be automatically saved to collection variable."
+          },
+          "response": []
+        },
+        {
+          "name": "Login as Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"authToken\", jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@connectflow.com\",\n  \"password\": \"Manager@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login as Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"authToken\", jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff@connectflow.com\",\n  \"password\": \"Staff@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Item Types",
+      "item": [
+        {
+          "name": "Get All Item Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/item-types",
+              "host": ["{{baseUrl}}"],
+              "path": ["item-types"]
+            },
+            "description": "Get all item types (active and inactive)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Item Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/item-types/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["item-types", "active"]
+            },
+            "description": "Get only active item types"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item Type by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/item-types/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["item-types", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{itemTypeId}}",
+                  "description": "Item Type UUID"
+                }
+              ]
+            },
+            "description": "Get a specific item type by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Item Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gold Anklet\",\n  \"description\": \"Gold anklets and foot jewelry\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/item-types",
+              "host": ["{{baseUrl}}"],
+              "path": ["item-types"]
+            },
+            "description": "Create a new item type"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item Type",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gold Anklet\",\n  \"description\": \"Updated description - Gold anklets and foot jewelry\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/item-types/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["item-types", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{itemTypeId}}",
+                  "description": "Item Type UUID"
+                }
+              ]
+            },
+            "description": "Update an existing item type"
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle Item Type Active Status",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/item-types/:id/toggle-active",
+              "host": ["{{baseUrl}}"],
+              "path": ["item-types", ":id", "toggle-active"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{itemTypeId}}",
+                  "description": "Item Type UUID"
+                }
+              ]
+            },
+            "description": "Toggle the active status of an item type"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item Type",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/item-types/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["item-types", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{itemTypeId}}",
+                  "description": "Item Type UUID"
+                }
+              ]
+            },
+            "description": "Delete an item type (soft delete)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Interest Rates",
+      "item": [
+        {
+          "name": "Get All Interest Rates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/interest-rates",
+              "host": ["{{baseUrl}}"],
+              "path": ["interest-rates"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Interest Rates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/interest-rates/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["interest-rates", "active"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Get All Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers/search?query=John",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "John"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Blacklist",
+      "item": [
+        {
+          "name": "Verify NIC",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nic\": \"123456789V\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/blacklist/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["blacklist", "verify"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Blacklist Entries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/blacklist",
+              "host": ["{{baseUrl}}"],
+              "path": ["blacklist"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Pawn Transactions",
+      "item": [
+        {
+          "name": "Get All Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pawn-transactions?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["pawn-transactions"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pawn-transactions/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["pawn-transactions", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{transactionId}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"Test Customer\",\n  \"customerNic\": \"999999999V\",\n  \"customerAddress\": \"123 Test Street\",\n  \"customerPhone\": \"+94-77-1234567\",\n  \"customerType\": \"Regular\",\n  \"gender\": \"Male\",\n  \"idType\": \"NIC\",\n  \"loanAmount\": 100000,\n  \"interestRateId\": \"rate-id-here\",\n  \"interestRatePercent\": 8.5,\n  \"periodMonths\": 12,\n  \"patternMode\": \"A\",\n  \"remarks\": \"Test transaction\",\n  \"items\": [\n    {\n      \"description\": \"Gold Ring\",\n      \"content\": \"Ring\",\n      \"condition\": \"Good\",\n      \"weightGrams\": 10.5,\n      \"karat\": \"22K\",\n      \"appraisedValue\": 100000,\n      \"marketValue\": 120000,\n      \"images\": []\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pawn-transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["pawn-transactions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Advanced Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pawn-transactions/advanced-search?status=Active",
+              "host": ["{{baseUrl}}"],
+              "path": ["pawn-transactions", "advanced-search"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Active"
+                },
+                {
+                  "key": "pawnId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "customerNic",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/email/:email",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "email", ":email"],
+              "variable": [
+                {
+                  "key": "email",
+                  "value": "admin@connectflow.com"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Branches",
+      "item": [
+        {
+          "name": "Get All Branches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/branches",
+              "host": ["{{baseUrl}}"],
+              "path": ["branches"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Branches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/branches/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["branches", "active"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the API is running"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
+
