@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 
 const AuthController = require('../controller/AuthController');
@@ -17,8 +18,41 @@ const ImageServeController = require('../controller/ImageServeController');
 const ActivityLogController = require('../controller/ActivityLogController');
 const ProfitedTransactionController = require('../controller/ProfitedTransactionController');
 
+// ── Rate limiters ─────────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many login attempts, please try again later.' },
+});
+
+const pinLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many PIN verification attempts, please try again later.' },
+});
+
+const redeemLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many redemption requests, please slow down.' },
+});
+
+const imageLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many image requests, please slow down.' },
+});
+
 // ── Auth (public) ─────────────────────────────────────────────────────────────
-router.post('/auth/login', AuthController.login);
+router.post('/auth/login', authLimiter, AuthController.login);
 
 // ── Health (public) ───────────────────────────────────────────────────────────
 router.get('/health', HealthController.health);
@@ -34,8 +68,8 @@ router.get('/users/:id/has-pin', UserController.hasPin);
 router.get('/users/:id', UserController.getById);
 router.post('/users', UserController.create);
 router.put('/users/:id', UserController.update);
-router.patch('/users/:id/pin', UserController.setPin);
-router.post('/users/:id/verify-pin', UserController.verifyPin);
+router.patch('/users/:id/pin', pinLimiter, UserController.setPin);
+router.post('/users/:id/verify-pin', pinLimiter, UserController.verifyPin);
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 router.get('/branches', BranchController.getAll);
@@ -90,7 +124,7 @@ router.delete('/pawn-transactions/:id', PawnTransactionController.delete);
 // ── Pawn Redemptions ──────────────────────────────────────────────────────────
 router.get('/pawn-redemptions/outstanding-balance/:transactionId', PawnRedemptionController.getOutstandingBalance);
 router.get('/pawn-redemptions/:transactionId/history', PawnRedemptionController.getHistory);
-router.post('/pawn-redemptions/:transactionId/redeem', PawnRedemptionController.redeem);
+router.post('/pawn-redemptions/:transactionId/redeem', redeemLimiter, PawnRedemptionController.redeem);
 
 // ── Blacklist ─────────────────────────────────────────────────────────────────
 router.get('/blacklist', BlacklistController.getAll);
@@ -109,7 +143,7 @@ router.delete('/blacklist/:id', BlacklistController.delete);
 
 // ── Images ────────────────────────────────────────────────────────────────────
 router.post('/images/upload', ...ImageUploadController.upload);
-router.get('/images/serve/:filename', ImageServeController.serveImage);
+router.get('/images/serve/:filename', imageLimiter, ImageServeController.serveImage);
 
 // ── Activity Logs ─────────────────────────────────────────────────────────────
 router.get('/activity-logs', ActivityLogController.getLogs);
