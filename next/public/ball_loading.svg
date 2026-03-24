@@ -1,0 +1,27 @@
+<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @keyframes bounce {
+        0%, 100% { cx: 15; opacity: 0.6; }
+        50% { cx: 45; opacity: 1; }
+      }
+      @keyframes fadeInOut {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+      }
+      .ball-left { animation: bounce 1.2s infinite; }
+      .ball-middle { animation: fadeInOut 1.2s infinite; }
+      .ball-right { animation: bounce 1.2s infinite reverse; }
+    </style>
+  </defs>
+
+  <!-- Ball 1 (Left) -->
+  <circle class="ball-left" cy="30" r="6" fill="#3b82f6" />
+
+  <!-- Ball 2 (Middle) -->
+  <circle class="ball-middle" cx="30" cy="30" r="6" fill="#3b82f6" />
+
+  <!-- Ball 3 (Right) -->
+  <circle class="ball-right" cy="30" r="6" fill="#3b82f6" />
+</svg>
+

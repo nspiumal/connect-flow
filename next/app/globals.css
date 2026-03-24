@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 215 25% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 12%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 24% 25%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 215 16% 47%;
+    --muted-foreground: 215 13% 34%;
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 20% 92%;
+    --input: 215 20% 92%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 215 24% 25%;
+
+    --sidebar-foreground: 0 0% 95%;
+
+    --sidebar-primary: 217 91% 60%;
+
+    --sidebar-primary-foreground: 0 0% 100%;
+
+    --sidebar-accent: 215 18% 40%;
+
+    --sidebar-accent-foreground: 0 0% 100%;
+
+    --sidebar-border: 215 30% 35%;
+
+    --sidebar-ring: 217 91% 60%;
+  }
+
+  .dark {
+    --background: 215 28% 14%;
+    --foreground: 0 0% 95%;
+
+    --card: 215 28% 18%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 215 28% 18%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 215 28% 14%;
+
+    --secondary: 215 20% 65%;
+    --secondary-foreground: 215 28% 14%;
+
+    --muted: 215 18% 40%;
+    --muted-foreground: 215 15% 58%;
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 215 28% 14%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 215 28% 14%;
+
+    --border: 215 30% 35%;
+    --input: 215 30% 30%;
+    --ring: 217 91% 60%;
+    --sidebar-background: 215 24% 20%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 215 28% 14%;
+    --sidebar-accent: 215 18% 35%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 215 30% 30%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* App-level styles */
+#__next {
+  width: 100%;
+  min-height: 100vh;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Disable transitions for animations */
+.animate-spin,
+.animate-pulse {
+  transition: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Animation delays */
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.glass-dark {
+  background: rgba(30, 41, 59, 0.25);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
