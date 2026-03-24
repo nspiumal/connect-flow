@@ -1,0 +1,16 @@
+# Next.js build output
+.next/
+out/
+
+# Node.js
+node_modules/
+
+# Environment variables (copy .env.local.example to .env.local and fill in values)
+.env.local
+
+# Debug logs
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts

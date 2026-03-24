@@ -1,0 +1,74 @@
+"use client";
+
+import "./App.css";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AppLayout } from "@/components/layout/AppLayout";
+import Login from "./views/Login";
+import Dashboard from "./views/Dashboard";
+import Branches from "./views/Branches";
+import BranchRequests from "./views/BranchRequests";
+import UsersPage from "./views/Users";
+import ItemTypes from "./views/ItemTypes";
+import Transactions from "./views/Transactions";
+import CreatePawning from "./views/CreatePawning";
+import CreatePawningSample from "./views/CreatePawningSample";
+import TransactionEdit from "./views/TransactionEdit";
+import TransactionInfo from "./views/TransactionInfo";
+import TransactionRedeem from "./views/TransactionRedeem";
+import TransactionProfit from "./views/TransactionProfit";
+import ProfitedItems from "./views/ProfitedItems";
+import Customers from "./views/Customers";
+import Blacklist from "./views/Blacklist";
+import InterestRates from "./views/InterestRates";
+import Reports from "./views/Reports";
+import AuditLogs from "./views/AuditLogs";
+import ActivityLogs from "./views/ActivityLogs";
+import NotFound from "./views/NotFound";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/branches" element={<Branches />} />
+            <Route path="/branch-requests" element={<BranchRequests />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/item-types" element={<ItemTypes />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/transactions/create-new" element={<CreatePawning />} />
+            <Route path="/transactions/create" element={<CreatePawningSample />} />
+            <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
+            <Route path="/transactions/info/:id" element={<TransactionInfo />} />
+            <Route path="/transactions/redeem/:id" element={<TransactionRedeem />} />
+            <Route path="/transactions/profit/:id" element={<TransactionProfit />} />
+            <Route path="/profited-items" element={<ProfitedItems />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/blacklist" element={<Blacklist />} />
+            <Route path="/interest-rates" element={<InterestRates />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/audit-logs" element={<AuditLogs />} />
+            <Route path="/activity-logs" element={<ActivityLogs />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;
