@@ -100,7 +100,7 @@ async function bootstrap() {
 
     // Sync tables (alter: true to apply schema changes without dropping data)
     // await sequelize.sync({ alter: true });
-    console.log('[DB] All models synchronized.');
+    // console.log('[DB] All models synchronized.');
 
     // await seedData();
 
