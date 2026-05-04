@@ -96,11 +96,11 @@ async function seedData() {
 async function bootstrap() {
   try {
     await sequelize.authenticate();
-    console.log('[DB] Connected to MySQL successfully.');
+    console.log('[DB] Connected to the database successfully.');
 
-    // Sync tables (alter: true to apply schema changes without dropping data)
-    // await sequelize.sync({ alter: true });
-    // console.log('[DB] All models synchronized.');
+    // Sync tables (force: true to recreate tables with correct schema)
+    // await sequelize.sync({ force: true });
+    console.log('[DB] All models synchronized (FORCED).');
 
     // await seedData();
 
