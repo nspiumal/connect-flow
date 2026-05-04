@@ -26,7 +26,7 @@ interface ActivityLogEntry {
 export default function ActivityLogs() {
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   const [filterUserName, setFilterUserName] = useState("");
   const [filterAction, setFilterAction] = useState("");
@@ -77,14 +77,6 @@ export default function ActivityLogs() {
           <h1 className="text-2xl font-bold">Activity Logs</h1>
           <p className="text-sm text-muted-foreground">Track all user actions across the system</p>
         </div>
-        <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-          Filters
-          {hasActiveFilters && (
-            <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
-              {[filterUserName, filterAction].filter(Boolean).length}
-            </Badge>
-          )}
-        </Button>
       </div>
 
       {/* Advanced Search Panel */}

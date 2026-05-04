@@ -51,7 +51,7 @@ export default function Transactions() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   const { toast } = useToast();
   const { role } = useAuth();
@@ -536,18 +536,6 @@ export default function Transactions() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Pawn Transactions</h1>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            disabled={loading}
-          >
-            Filters
-            {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
-                {[filterPawnId, filterNic, filterMinAmount, filterMaxAmount, statusFilter !== "all" ? statusFilter : ""].filter(Boolean).length}
-              </Badge>
-            )}
-          </Button>
           {(role !== "STAFF" || role === "STAFF") && branchId && (
             <Button onClick={() => navigate("/transactions/create")} variant="default">
               Create Pawning

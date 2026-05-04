@@ -43,13 +43,13 @@ export default function UsersPage() {
   const { role } = useAuth();
 
   // Filter state
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [filterName, setFilterName] = useState("");
   const [filterEmail, setFilterEmail] = useState("");
   const [filterRole, setFilterRole] = useState<string[]>([]);
   const [filterBranch, setFilterBranch] = useState("");
 
-  const fetchUsers = useCallback(async (name?: string | null, email?: string | null, roleFilter?: string | null, branch?: string | null) => {
+  const fetchUsers = useCallback(async (name?: string | null, email?: string | null, roleFilter?: string | string[] | null, branch?: string | null) => {
     try {
       // Use filter API if any filters are provided, otherwise use paginated API
       const hasFilters = name || email || roleFilter || branch;
@@ -78,11 +78,10 @@ export default function UsersPage() {
   }, [currentPage, pageSize]);
 
   useEffect(() => {
-    const selectedRole = filterRole.length === 1 ? filterRole[0] : undefined;
     fetchUsers(
       filterName || undefined,
       filterEmail || undefined,
-      selectedRole,
+      filterRole.length > 0 ? filterRole : undefined,
       filterBranch || undefined
     );
   }, [currentPage, pageSize, filterName, filterEmail, filterRole, filterBranch, fetchUsers]);
@@ -109,18 +108,6 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">User Management</h1>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="mr-2 h-4 w-4" />
-            Filters
-            {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
-                {[filterName, filterEmail, filterRole.length > 0 ? "role" : "", filterBranch].filter(Boolean).length}
-              </Badge>
-            )}
-          </Button>
           {(role === "SUPERADMIN" || role === "ADMIN") && (
             <Button onClick={() => setShowCreate(true)}><UserPlus className="mr-2 h-4 w-4" /> Create User</Button>
           )}

@@ -39,7 +39,7 @@ export default function Customers() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   const { toast } = useToast();
 
@@ -119,18 +119,6 @@ export default function Customers() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Customer Management</h1>
-        <Button
-          variant="outline"
-          onClick={() => setShowFilters(!showFilters)}
-          disabled={loading}
-        >
-          Filters
-          {hasActiveFilters && (
-            <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
-              {[filterNic, filterPhone, filterStatus !== "all" ? filterStatus : ""].filter(Boolean).length}
-            </Badge>
-          )}
-        </Button>
       </div>
 
       {/* Filter Panel using AdvancedSearchPanel */}

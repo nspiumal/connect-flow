@@ -35,7 +35,7 @@ export default function ItemTypes() {
   const [loading, setLoading] = useState(false);
   const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
   const [showDialog, setShowDialog] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "" });
 
@@ -237,15 +237,6 @@ export default function ItemTypes() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Item Types Management</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowFilters(!showFilters)} disabled={loading}>
-            <Filter className="mr-2 h-4 w-4" />
-            Filters
-            {Object.keys(filters).length > 0 && (
-              <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
-                {Object.keys(filters).filter(k => filters[k] !== undefined && filters[k] !== null && filters[k] !== "").length}
-              </Badge>
-            )}
-          </Button>
           <Button onClick={() => handleOpenDialog()} disabled={loading}>
             <Plus className="mr-2 h-4 w-4" />
             Add Item Type

@@ -20,7 +20,7 @@ export default function ProfitedItems() {
 
   const [profitedItems, setProfitedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   // Filter state
   const [filterPawnId, setFilterPawnId] = useState("");
@@ -127,18 +127,6 @@ export default function ProfitedItems() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Profited Items</h1>
-        <Button
-          variant="outline"
-          onClick={() => setShowFilters(!showFilters)}
-          disabled={loading}
-        >
-          Filters
-          {hasActiveFilters && (
-            <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
-              {[filterPawnId, filterCustomerNic].filter(Boolean).length}
-            </Badge>
-          )}
-        </Button>
       </div>
 
       {/* Advanced Search Panel */}

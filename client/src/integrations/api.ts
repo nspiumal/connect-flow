@@ -167,11 +167,17 @@ export const apiClient = {
       return response.json();
     },
 
-    filter: async (name?: string, email?: string, role?: string, branch?: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+    filter: async (name?: string, email?: string, role?: string | string[], branch?: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
       const params = new URLSearchParams();
       if (name) params.append('name', name);
       if (email) params.append('email', email);
-      if (role && role !== 'all') params.append('role', role);
+      if (role && role !== 'all') {
+        if (Array.isArray(role)) {
+          role.forEach(r => params.append('role', r));
+        } else {
+          params.append('role', role);
+        }
+      }
       if (branch) params.append('branch', branch);
       params.append('page', String(page));
       params.append('size', String(size));

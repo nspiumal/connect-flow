@@ -32,7 +32,7 @@ export default function Blacklist() {
   const [totalElements, setTotalElements] = useState(0);
 
   // Filter state
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [filterNic, setFilterNic] = useState("");
   const [filterPoliceReport, setFilterPoliceReport] = useState("");
   const [filterStatus, setFilterStatus] = useState<string | string[]>("all");
@@ -179,18 +179,6 @@ export default function Blacklist() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Blacklist Management</h1>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            disabled={loading}
-          >
-            Filters
-            {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
-                {[filterNic, filterPoliceReport, filterStatus !== "all" ? filterStatus : ""].filter(Boolean).length}
-              </Badge>
-            )}
-          </Button>
           <Button
             onClick={() => setShowDialog(true)}
             disabled={loading}
