@@ -151,7 +151,7 @@ export default function TransactionProfit() {
         <div>
           <h1 className="text-2xl font-bold">Set Transaction as Profited</h1>
           <p className="text-sm text-muted-foreground">
-            Pawn ID: {String(transaction?.pawnId || transaction?.pawn_id || "")}
+            Receipt No: {String(transaction?.pawnId || transaction?.pawn_id || "")}
           </p>
         </div>
       </div>

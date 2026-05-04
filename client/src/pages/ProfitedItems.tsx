@@ -132,7 +132,6 @@ export default function ProfitedItems() {
           onClick={() => setShowFilters(!showFilters)}
           disabled={loading}
         >
-          <Filter className="h-4 w-4 mr-2" />
           Filters
           {hasActiveFilters && (
             <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
@@ -146,12 +145,12 @@ export default function ProfitedItems() {
       {showFilters && (
         <AdvancedSearchPanel
           title="Profited Items Search"
-          subtitle="Search profited transactions by Pawn ID or Customer NIC"
+          subtitle="Search profited transactions by Receipt No or Customer NIC"
           inputFields={[
             {
               name: "pawnId",
-              label: "Pawn ID",
-              placeholder: "Enter Pawn ID",
+              label: "Receipt No",
+              placeholder: "Enter Receipt No",
             },
             {
               name: "customerNic",
@@ -171,7 +170,7 @@ export default function ProfitedItems() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Pawn ID</TableHead>
+                  <TableHead>Receipt No</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Profit Amount</TableHead>
                   <TableHead>Profit Date</TableHead>
@@ -199,7 +198,6 @@ export default function ProfitedItems() {
                           onClick={() => navigate(`/transactions/info/${item.transactionId}`)}
                           disabled={loading}
                         >
-                          <Info className="h-4 w-4 mr-1" />
                           View Details
                         </Button>
                       </TableCell>

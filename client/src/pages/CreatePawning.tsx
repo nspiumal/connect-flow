@@ -525,7 +525,7 @@ export default function CreatePawning() {
 
       toast({
         title: "Success",
-        description: `Pawning transaction created successfully! Pawn ID: ${response.pawnId || response.pawn_id}`,
+        description: `Pawning transaction created successfully! Receipt No: ${response.pawnId || response.pawn_id}`,
       });
 
       setShowSummary(false);

@@ -94,6 +94,7 @@ export default function Transactions() {
 
   const fetchTransactions = async () => {
     try {
+      setLoading(true);
       const minAmount = appliedFilters.minAmount.trim() !== ""
         ? Number(appliedFilters.minAmount)
         : undefined;
@@ -146,6 +147,8 @@ export default function Transactions() {
         description: "Failed to load transactions",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -320,7 +323,7 @@ export default function Transactions() {
 
       toast({
         title: "Success",
-        description: `Transaction created successfully! Pawn ID: ${response.pawnId || response.pawn_id}`,
+        description: `Transaction created successfully! Receipt No: ${response.pawnId || response.pawn_id}`,
       });
 
       // Reset form
@@ -487,13 +490,12 @@ export default function Transactions() {
     const minAmount = typeof filters.minAmount === 'string' ? filters.minAmount : undefined;
     const maxAmount = typeof filters.maxAmount === 'string' ? filters.maxAmount : undefined;
 
-    // Handle status - can be array or string
-    let status = "all";
+    // Handle status - allow arrays for multiple selection
+    let status: string | string[] = "all";
     if (filters.status) {
       if (Array.isArray(filters.status)) {
-        // If multiple statuses selected, keep first one or "all"
-        if (filters.status.length === 1) {
-          status = filters.status[0];
+        if (filters.status.length > 0) {
+          status = filters.status;
         }
       } else if (typeof filters.status === 'string') {
         status = filters.status;
@@ -539,7 +541,6 @@ export default function Transactions() {
             onClick={() => setShowFilters(!showFilters)}
             disabled={loading}
           >
-            <Filter className="h-4 w-4 mr-2" />
             Filters
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
@@ -549,7 +550,7 @@ export default function Transactions() {
           </Button>
           {(role !== "STAFF" || role === "STAFF") && branchId && (
             <Button onClick={() => navigate("/transactions/create")} variant="default">
-              <Plus className="mr-2 h-4 w-4" /> Create Pawning
+              Create Pawning
             </Button>
           )}
         </div>
@@ -559,12 +560,12 @@ export default function Transactions() {
       {showFilters && (
         <AdvancedSearchPanel
           title="Transaction Search"
-          subtitle="Search pawn transactions by Pawn ID, NIC, amount, or status"
+          subtitle="Search pawn transactions by Receipt No, NIC, amount, or status"
           inputFields={[
             {
               name: "pawnId",
-              label: "Pawn ID",
-              placeholder: "Enter Pawn ID",
+              label: "Receipt No",
+              placeholder: "Enter Receipt No",
             },
             {
               name: "customerNic",
@@ -610,7 +611,7 @@ export default function Transactions() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Pawn ID</TableHead>
+                  <TableHead>Receipt No</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>NIC</TableHead>
                   <TableHead>Loan Amount</TableHead>
@@ -681,7 +682,6 @@ export default function Transactions() {
                             onClick={() => navigate(`/transactions/info/${t.id}`)}
                             disabled={loading}
                           >
-                            <Info className="h-4 w-4 mr-1" />
                             Info
                           </Button>
                           {t.status !== "Completed" && t.status !== "Blocked" && t.status !== "Profited" && (
@@ -691,7 +691,6 @@ export default function Transactions() {
                               onClick={() => navigate(`/transactions/edit/${t.id}`)}
                               disabled={loading}
                             >
-                              <Edit className="h-4 w-4 mr-1" />
                               Edit
                             </Button>
                           )}
@@ -702,7 +701,6 @@ export default function Transactions() {
                               onClick={() => navigate(`/transactions/redeem/${t.id}`)}
                               disabled={loading}
                             >
-                              <DollarSign className="h-4 w-4 mr-1" />
                               Redeem
                             </Button>
                           )}
@@ -713,7 +711,6 @@ export default function Transactions() {
                               onClick={() => navigate(`/transactions/profit/${t.id}`)}
                               disabled={loading}
                             >
-                              <TrendingUp className="h-4 w-4 mr-1" />
                               Profit
                             </Button>
                           )}

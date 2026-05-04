@@ -78,7 +78,6 @@ export default function ActivityLogs() {
           <p className="text-sm text-muted-foreground">Track all user actions across the system</p>
         </div>
         <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-          <Filter className="mr-2 h-4 w-4" />
           Filters
           {hasActiveFilters && (
             <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">

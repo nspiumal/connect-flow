@@ -357,7 +357,7 @@ export default function TransactionEdit() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Edit Pawn Transaction</h1>
-          <p className="text-sm text-muted-foreground">Pawn ID: {pawnId} | Date: {pawnDate}</p>
+          <p className="text-sm text-muted-foreground">Receipt No: {pawnId} | Date: {pawnDate}</p>
         </div>
       </div>
 

@@ -6,7 +6,25 @@ const { v4: uuidv4 } = require('uuid');
  * Express middleware that logs an activity entry after each non-public request.
  * Runs asynchronously so it never delays the response.
  */
+const EXCLUDED_LOG_PATHS = [
+  { method: 'GET', path: /^\/api\/activity-logs/ },
+  { method: 'GET', path: /^\/api\/interest-rates\/active/ },
+  { method: 'GET', path: /^\/api\/item-types/ },
+  { method: 'GET', path: /^\/api\/pawn-redemptions\/outstanding-balance/ },
+  { method: 'GET', path: /^\/api\/customers\/filter/ },
+  { method: 'GET', path: /^\/api\/pawn-transactions\/search\/advanced/ },
+];
+
 function activityLogMiddleware(req, res, next) {
+  // Skip logging for excluded paths
+  const isExcluded = EXCLUDED_LOG_PATHS.some(
+    (e) => e.method === req.method && (e.path.test(req.originalUrl) || e.path.test(req.path))
+  );
+
+  if (isExcluded) {
+    return next();
+  }
+
   const originalJson = res.json.bind(res);
   const startTime = Date.now();
 
@@ -18,7 +36,7 @@ function activityLogMiddleware(req, res, next) {
         const userName = req.user ? req.user.fullName : null;
         const action = `${req.method} ${req.route ? req.route.path : req.path}`;
         const description = `${req.method} ${req.originalUrl} - ${res.statusCode}`;
-        
+
         ActivityLogEntry.create({
           id: uuidv4(),
           userName,
@@ -31,8 +49,8 @@ function activityLogMiddleware(req, res, next) {
           status: res.statusCode >= 400 ? 'FAILURE' : 'SUCCESS',
           errorMessage: res.statusCode >= 400 ? (body && body.message ? String(body.message).substring(0, 1000) : null) : null,
           createdAt: new Date()
-        }).catch(() => {/* swallow logging errors */});
-      } catch (_) {/* swallow */}
+        }).catch(() => {/* swallow logging errors */ });
+      } catch (_) {/* swallow */ }
     });
 
     return originalJson(body);

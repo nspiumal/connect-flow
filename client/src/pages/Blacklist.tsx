@@ -35,12 +35,12 @@ export default function Blacklist() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterNic, setFilterNic] = useState("");
   const [filterPoliceReport, setFilterPoliceReport] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState<string | string[]>("all");
 
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const fetchBlacklist = async (nic?: string | null, policeReport?: string | null, status?: string | null) => {
+  const fetchBlacklist = async (nic?: string | null, policeReport?: string | null, status?: string | string[] | null) => {
     try {
       setLoading(true);
 
@@ -75,13 +75,12 @@ export default function Blacklist() {
     const nic = typeof filters.nic === 'string' ? filters.nic : undefined;
     const policeReport = typeof filters.policeReport === 'string' ? filters.policeReport : undefined;
 
-    // Handle status - can be array or string
-    let status: string | undefined;
+    // Handle status - allow arrays for multiple selection
+    let status: string | string[] = "all";
     if (filters.status) {
       if (Array.isArray(filters.status)) {
-        // If both active and inactive are selected, don't filter by status
-        if (filters.status.length === 1) {
-          status = filters.status[0];
+        if (filters.status.length > 0) {
+          status = filters.status;
         }
       } else if (typeof filters.status === 'string') {
         status = filters.status;
@@ -165,7 +164,6 @@ export default function Blacklist() {
             onClick={() => setShowFilters(!showFilters)}
             disabled={loading}
           >
-            <Filter className="mr-2 h-4 w-4" />
             Filters
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
@@ -177,7 +175,6 @@ export default function Blacklist() {
             onClick={() => setShowDialog(true)}
             disabled={loading}
           >
-            <Plus className="mr-2 h-4 w-4" />
             {loading ? "Loading..." : "Add to Blacklist"}
           </Button>
         </div>

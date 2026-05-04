@@ -435,7 +435,13 @@ export const apiClient = {
       const params = new URLSearchParams();
       if (nic) params.append('nic', nic);
       if (policeReport) params.append('policeReport', policeReport);
-      if (status && status !== 'all') params.append('status', status);
+      if (status && status !== 'all') {
+        if (Array.isArray(status)) {
+          status.forEach(s => params.append('status', s));
+        } else {
+          params.append('status', status);
+        }
+      }
       params.append('page', String(page));
       params.append('size', String(size));
       params.append('sortBy', sortBy);
@@ -505,7 +511,13 @@ export const apiClient = {
       const queryParams = new URLSearchParams();
       if (params.pawnId) queryParams.append('pawnId', params.pawnId);
       if (params.customerNic) queryParams.append('customerNic', params.customerNic);
-      if (params.status) queryParams.append('status', params.status);
+      if (params.status) {
+        if (Array.isArray(params.status)) {
+          params.status.forEach(s => queryParams.append('status', s));
+        } else {
+          queryParams.append('status', params.status);
+        }
+      }
       if (params.minAmount !== undefined) queryParams.append('minAmount', params.minAmount.toString());
       if (params.maxAmount !== undefined) queryParams.append('maxAmount', params.maxAmount.toString());
       if (params.patternMode) queryParams.append('patternMode', params.patternMode);
@@ -739,11 +751,17 @@ export const apiClient = {
       return response.json();
     },
 
-    filter: async (nic?: string, phone?: string, status?: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+    filter: async (nic?: string, phone?: string, status?: string | string[], page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
       const params = new URLSearchParams();
       if (nic) params.append('nic', nic);
       if (phone) params.append('phone', phone);
-      if (status && status !== 'all') params.append('status', status);
+      if (status && status !== 'all') {
+        if (Array.isArray(status)) {
+          status.forEach(s => params.append('status', s));
+        } else {
+          params.append('status', status);
+        }
+      }
       params.append('page', String(page));
       params.append('size', String(size));
       params.append('sortBy', sortBy);
@@ -754,13 +772,19 @@ export const apiClient = {
       return response.json();
     },
 
-    searchAdvanced: async (nic?: string, phone?: string, name?: string, customerType?: string, status?: string, page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+    searchAdvanced: async (nic?: string, phone?: string, name?: string, customerType?: string, status?: string | string[], page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
       const params = new URLSearchParams();
       if (nic) params.append('nic', nic);
       if (phone) params.append('phone', phone);
       if (name) params.append('name', name);
       if (customerType) params.append('customerType', customerType);
-      if (status && status !== 'all') params.append('status', status);
+      if (status && status !== 'all') {
+        if (Array.isArray(status)) {
+          status.forEach(s => params.append('status', s));
+        } else {
+          params.append('status', status);
+        }
+      }
       params.append('page', String(page));
       params.append('size', String(size));
       params.append('sortBy', sortBy);

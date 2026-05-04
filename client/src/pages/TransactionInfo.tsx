@@ -206,7 +206,7 @@ export default function TransactionInfo() {
         <div>
           <h1 className="text-2xl font-bold">Transaction Info</h1>
           <p className="text-sm text-muted-foreground">
-            Pawn ID: {transaction?.pawnId || transaction?.pawn_id}
+            Receipt No: {transaction?.pawnId || transaction?.pawn_id}
           </p>
         </div>
       </div>

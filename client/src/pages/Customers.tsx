@@ -25,7 +25,7 @@ export default function Customers() {
   // Filter state
   const [filterNic, setFilterNic] = useState("");
   const [filterPhone, setFilterPhone] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState<string | string[]>("all");
 
   // UI state
   const [results, setResults] = useState<Customer[]>([]);
@@ -80,13 +80,12 @@ export default function Customers() {
     const nic = typeof filters.nic === 'string' ? filters.nic : undefined;
     const phone = typeof filters.phone === 'string' ? filters.phone : undefined;
 
-    // Handle status - can be array or string
-    let status = "all";
+    // Handle status - allow arrays for multiple selection
+    let status: string | string[] = "all";
     if (filters.status) {
       if (Array.isArray(filters.status)) {
-        // If both active and inactive are selected, show all
-        if (filters.status.length === 1) {
-          status = filters.status[0];
+        if (filters.status.length > 0) {
+          status = filters.status;
         }
       } else if (typeof filters.status === 'string') {
         status = filters.status;
@@ -114,7 +113,6 @@ export default function Customers() {
           onClick={() => setShowFilters(!showFilters)}
           disabled={loading}
         >
-          <Filter className="h-4 w-4 mr-2" />
           Filters
           {hasActiveFilters && (
             <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
