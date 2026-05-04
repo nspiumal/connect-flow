@@ -10,7 +10,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CreateUserDialog } from "@/components/users/CreateUserDialog";
 import { PinManagementDialog } from "@/components/users/PinManagementDialog";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
-import { UserPlus, ChevronLeft, ChevronRight, Lock, Filter } from "lucide-react";
+import { UserPlus, ChevronLeft, ChevronRight, Lock, Filter, Edit } from "lucide-react";
+import { EditUserDialog } from "@/components/users/EditUserDialog";
 
 interface User {
   id: string;
@@ -18,6 +19,7 @@ interface User {
   email: string;
   roles: string[];
   branchName: string;
+  branchId?: string;
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -31,7 +33,9 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [showPinDialog, setShowPinDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedUserForPin, setSelectedUserForPin] = useState<User | null>(null);
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -54,13 +58,17 @@ export default function UsersPage() {
         ? await apiClient.users.filter(name || undefined, email || undefined, roleFilter || undefined, branch || undefined, currentPage, pageSize, "fullName", "asc")
         : await apiClient.users.getPaginated(currentPage, pageSize, "fullName", "asc");
 
-      const normalized: User[] = response.content.map((u: Record<string, unknown>) => ({
-        id: u.id as string,
-        full_name: u.fullName as string,
-        email: u.email as string,
-        roles: u.role ? [u.role as string] : [],
-        branchName: (u.branch as string) || "—",
-      }));
+      const normalized: User[] = response.content.map((u: any) => {
+        const primaryRole = u.roles && u.roles.length > 0 ? u.roles[0] : null;
+        return {
+          id: u.id,
+          full_name: u.fullName,
+          email: u.email,
+          roles: primaryRole ? [primaryRole.role] : [],
+          branchName: primaryRole && primaryRole.branch ? primaryRole.branch.name : "—",
+          branchId: primaryRole ? primaryRole.branchId : undefined,
+        };
+      });
       setUsers(normalized);
       setTotalPages(response.totalPages as number);
       setTotalElements(response.totalElements as number);
@@ -189,19 +197,35 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>{u.branchName}</TableCell>
                   <TableCell className="text-right">
-                    {(role === "SUPERADMIN" || role === "ADMIN") && u.roles.includes("MANAGER") && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUserForPin(u);
-                          setShowPinDialog(true);
-                        }}
-                        className="gap-2"
-                      >
-                        <Lock className="h-4 w-4" />
-                        PIN
-                      </Button>
+                    {(role === "SUPERADMIN" || role === "ADMIN") && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUserForEdit(u);
+                            setShowEditDialog(true);
+                          }}
+                          className="gap-2"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        {u.roles.includes("MANAGER") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedUserForPin(u);
+                              setShowPinDialog(true);
+                            }}
+                            className="gap-2"
+                          >
+                            <Lock className="h-4 w-4" />
+                            PIN
+                          </Button>
+                        )}
+                      </>
                     )}
                   </TableCell>
                 </TableRow>
@@ -261,6 +285,13 @@ export default function UsersPage() {
       </div>
 
       <CreateUserDialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) fetchUsers(); }} />
+
+      <EditUserDialog
+        user={selectedUserForEdit}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onSuccess={fetchUsers}
+      />
 
       {selectedUserForPin && (
         <PinManagementDialog

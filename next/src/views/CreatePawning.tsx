@@ -120,14 +120,8 @@ export default function CreatePawning() {
       console.log("📊 Number of item types:", data?.length || 0);
       setItemTypes(data || []);
 
-      if (data && data.length > 0) {
-        toast({
-          title: "Item Types Loaded",
-          description: `${data.length} item types loaded from database`,
-        });
-      }
     } catch (error: any) {
-      console.error("❌ Failed to fetch item types:", error);
+      console.error("Failed to fetch item types:", error);
       console.error("Error details:", error.message);
       toast({
         title: "Warning",
@@ -506,6 +500,7 @@ export default function CreatePawning() {
         customerAddress,
         customerPhone,
         customerType: "Regular",
+        branchId: user?.branchId || branchId,
         itemDescription,
         itemContent: items[0]?.content || "",
         itemCondition: items[0]?.condition || "Good",

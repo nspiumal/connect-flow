@@ -120,14 +120,8 @@ export default function CreatePawning() {
       console.log("📊 Number of item types:", data?.length || 0);
       setItemTypes(data || []);
 
-      if (data && data.length > 0) {
-        toast({
-          title: "Item Types Loaded",
-          description: `${data.length} item types loaded from database`,
-        });
-      }
     } catch (error: any) {
-      console.error("❌ Failed to fetch item types:", error);
+      console.error("Failed to fetch item types:", error);
       console.error("Error details:", error.message);
       toast({
         title: "Warning",
@@ -614,13 +608,12 @@ export default function CreatePawning() {
             {[1, 2, 3].map((step) => (
               <div key={step} className="flex items-center flex-1">
                 <div className="flex items-center flex-col">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                    currentStep === step
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${currentStep === step
                       ? 'bg-primary text-primary-foreground'
                       : currentStep > step
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}>
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
                     {currentStep > step ? <CheckCircle2 className="h-5 w-5" /> : step}
                   </div>
                   <span className="text-xs mt-1 font-medium">
@@ -628,9 +621,8 @@ export default function CreatePawning() {
                   </span>
                 </div>
                 {step < 3 && (
-                  <div className={`flex-1 h-1 mx-2 ${
-                    currentStep > step ? 'bg-green-500' : 'bg-gray-200'
-                  }`} />
+                  <div className={`flex-1 h-1 mx-2 ${currentStep > step ? 'bg-green-500' : 'bg-gray-200'
+                    }`} />
                 )}
               </div>
             ))}

@@ -11,13 +11,13 @@ const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
 
   // Log the request URL for debugging
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : 'Request object';
-  console.log(`🔐 Auth request to: ${url}`);
+  console.log(`🌐 [API_REQ] ${init.method || 'GET'} ${url}`);
 
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
-    console.log(`✅ Bearer token added (${token.substring(0, 20)}...)`);
+    console.log(`🔑 [API_AUTH] Bearer token attached`);
   } else if (!token) {
-    console.warn("⚠️ No token found in localStorage - request may fail");
+    console.warn("⚠️ [API_WARN] No token found in localStorage");
   }
 
   try {
@@ -25,26 +25,19 @@ const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
 
     // Handle 401 Unauthorized - redirect to login only if not already on login page
     if (response.status === 401) {
-      console.error("❌ 401 Unauthorized - Token may be invalid or expired");
-      // Only redirect if not already on login page
-      // if (!window.location.pathname.includes("/login")) {
-      //   console.log("🔄 Redirecting to login page");
-      //   localStorage.removeItem("token");
-      //   localStorage.removeItem("user");
-      //   window.location.href = "/login";
-      // }
+      console.error("🚫 [API_ERR] 401 Unauthorized - Token invalid or expired");
       throw new Error("Unauthorized");
     }
 
     if (response.ok) {
-      console.log(`✅ Request successful: ${response.status} ${response.statusText}`);
+      console.log(`✅ [API_RES] ${response.status} ${response.statusText}`);
     } else {
-      console.error(`❌ Request failed: ${response.status} ${response.statusText}`);
+      console.error(`❌ [API_FAIL] ${response.status} ${response.statusText}`);
     }
 
     return response;
   } catch (error) {
-    console.error("❌ Fetch error:", error);
+    console.error("🚨 [API_FETCH_ERR]", error);
     throw error;
   }
 };
@@ -110,6 +103,11 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to fetch users by role');
       return response.json();
     },
+    getDashboardStatsAdmin: async () => {
+      const response = await authFetch(`${API_BASE_URL}/users/dashboard-stats/admin`);
+      if (!response.ok) throw new Error('Failed to fetch admin dashboard stats');
+      return response.json();
+    },
     getByBranch: async (branchId: string) => {
       const response = await authFetch(`${API_BASE_URL}/users/branch/${branchId}`);
       if (!response.ok) throw new Error('Failed to fetch users by branch');
@@ -122,6 +120,15 @@ export const apiClient = {
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to create user');
+      return response.json();
+    },
+    update: async (id: string, data: any) => {
+      const response = await authFetch(`${API_BASE_URL}/users/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update user');
       return response.json();
     },
     setPin: async (userId: string, pin: string) => {
@@ -212,7 +219,7 @@ export const apiClient = {
     },
     update: async (id: string, data: any) => {
       const response = await authFetch(`${API_BASE_URL}/branches/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -257,7 +264,7 @@ export const apiClient = {
     },
     update: async (id: string, data: any) => {
       const response = await authFetch(`${API_BASE_URL}/interest-rates/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -333,7 +340,7 @@ export const apiClient = {
     },
     update: async (id: string, data: { name: string; description?: string | null }) => {
       const response = await authFetch(`${API_BASE_URL}/item-types/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -404,7 +411,7 @@ export const apiClient = {
     },
     update: async (id: string, data: any) => {
       const response = await authFetch(`${API_BASE_URL}/blacklist/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });

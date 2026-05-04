@@ -1,8 +1,9 @@
 'use strict';
 const { v4: uuidv4 } = require('uuid');
 const CustomerRepository = require('../repository/CustomerRepository');
+const { wrapWithLogging } = require('../utils/methodLogger');
 
-module.exports = {
+const CustomerService = {
   async getAll({ isActive = true } = {}) {
     return CustomerRepository.findAll({ isActive });
   },
@@ -61,3 +62,5 @@ module.exports = {
     await CustomerRepository.delete(id);
   },
 };
+
+module.exports = wrapWithLogging('CustomerService', CustomerService);

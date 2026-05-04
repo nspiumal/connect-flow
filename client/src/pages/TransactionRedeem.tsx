@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import NumberInput from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
@@ -268,11 +269,9 @@ export default function TransactionRedeem() {
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Documentation:</span>
-                <Input
-                  type="number"
-                  step="0.01"
+                <NumberInput
                   value={documentationAmount}
-                  onChange={(e) => setDocumentationAmount(e.target.value)}
+                  onChange={setDocumentationAmount}
                   className="w-28 h-7 text-right text-sm"
                   placeholder="0"
                 />
@@ -294,12 +293,10 @@ export default function TransactionRedeem() {
               <form onSubmit={handleRedeemTransaction} className="space-y-4">
                 <div>
                   <Label htmlFor="redemptionAmount" className="text-sm">Redemption Amount (LKR) *</Label>
-                  <Input
+                  <NumberInput
                     id="redemptionAmount"
-                    type="number"
-                    step="0.01"
                     value={redemptionAmount}
-                    onChange={(e) => setRedemptionAmount(e.target.value)}
+                    onChange={setRedemptionAmount}
                     placeholder="Enter amount to pay"
                     className="mt-1"
                     required

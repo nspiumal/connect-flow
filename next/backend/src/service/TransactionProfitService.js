@@ -8,6 +8,12 @@ module.exports = {
     return TransactionProfitRepository.findAll();
   },
 
+  async getByTransactionId(transactionId) {
+    const profit = await TransactionProfitRepository.findByTransactionId(transactionId);
+    if (!profit) throw { status: 404, message: 'No profit record found for this transaction' };
+    return profit;
+  },
+
   async getPaginated({ page = 0, size = 10, sortBy = 'profit_recorded_date', sortDir = 'desc' } = {}) {
     const { count, rows } = await TransactionProfitRepository.findPaginated({ page, size, sortBy, sortDir });
     return {

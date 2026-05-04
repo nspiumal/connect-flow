@@ -1,6 +1,7 @@
 'use strict';
 const PawnTransactionService = require('../service/PawnTransactionService');
 const PawnRedemptionService = require('../service/PawnRedemptionService');
+const BranchService = require('../service/BranchService');
 
 function handleErr(res, err) {
   res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
@@ -25,17 +26,20 @@ module.exports = {
 
   async search(req, res) {
     try {
-      const { search, branchId, pawnId, customerNic, status, minAmount, maxAmount, patternMode, startDate, endDate, ...rest } = req.query;
-      if (pawnId || customerNic || status || minAmount || maxAmount || patternMode || startDate || endDate) {
-        res.json(await PawnTransactionService.searchAdvanced({
-          pawnId, customerNic,
-          status: status && status !== 'all' ? status : undefined,
-          minAmount, maxAmount, patternMode, branchId, startDate, endDate,
-          ...paginationParams(rest),
-        }));
-      } else {
-        res.json(await PawnTransactionService.search({ search, branchId, ...paginationParams(rest) }));
-      }
+      const { search, branchId, ...rest } = req.query;
+      res.json(await PawnTransactionService.search({ search, branchId, ...paginationParams(rest) }));
+    } catch (e) { handleErr(res, e); }
+  },
+
+  async searchAdvanced(req, res) {
+    try {
+      const { pawnId, customerNic, status, minAmount, maxAmount, patternMode, startDate, endDate, filterBranchId, ...rest } = req.query;
+      res.json(await PawnTransactionService.searchAdvanced({
+        pawnId, customerNic,
+        status: status && status !== 'all' ? status : undefined,
+        minAmount, maxAmount, patternMode, branchId: filterBranchId, startDate, endDate,
+        ...paginationParams(rest),
+      }));
     } catch (e) { handleErr(res, e); }
   },
 
@@ -65,8 +69,18 @@ module.exports = {
 
   async create(req, res) {
     try {
-      const branchId = req.body.branchId || (req.user && req.user.branchId);
+      let branchId = req.body.branchId || (req.user && req.user.branchId);
       const createdBy = req.user ? req.user.id : null;
+      
+      if (!branchId) {
+        const activeBranches = await BranchService.getActive();
+        if (activeBranches && activeBranches.length > 0) {
+          branchId = activeBranches[0].id;
+        } else {
+          throw { status: 400, message: "No active branches available to assign to this transaction." };
+        }
+      }
+
       res.status(201).json(await PawnTransactionService.create(req.body, branchId, createdBy));
     } catch (e) { handleErr(res, e); }
   },

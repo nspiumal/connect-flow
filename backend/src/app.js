@@ -7,6 +7,7 @@ const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const sequelize = require('./config/database');
+const logger = require('./config/logger');
 const { startOverdueScheduler } = require('./scheduler/OverdueScheduler');
 const jwtMiddleware = require('./security/jwtMiddleware');
 const activityLogMiddleware = require('./aop/activityLogMiddleware');
@@ -22,24 +23,33 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(morgan('combined'));
+app.use(morgan('combined', {
+  stream: { write: (message) => logger.http(message.trim()) },
+}));
+
+// ── Context Root: /api ───────────────────────────────────────────────────────
+const apiRouter = express.Router();
 
 // Swagger docs (public)
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+apiRouter.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // JWT authentication
-app.use(jwtMiddleware);
+apiRouter.use(jwtMiddleware);
 
 // Activity logging (only for authenticated routes)
-app.use(activityLogMiddleware);
+apiRouter.use(activityLogMiddleware);
 
-// Mount all API routes under /api
-app.use('/api', routes);
+// Mount all API routes
+apiRouter.use('/', routes);
+
+// Mount the router under the context root
+app.use('/api', apiRouter);
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('[GlobalError]', err);
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
+  const status = err.status || 500;
+  logger.error(`[GlobalError] ${status} ${req.method} ${req.url} — ${err.message}`, { stack: err.stack });
+  res.status(status).json({ message: err.message || 'Internal server error' });
 });
 
 // ── Seed initial data (mirrors Spring Boot DataInitializer) ───────────────────
@@ -89,10 +99,10 @@ async function bootstrap() {
     console.log('[DB] Connected to MySQL successfully.');
 
     // Sync tables (alter: true to apply schema changes without dropping data)
-    await sequelize.sync({ alter: true });
+    // await sequelize.sync({ alter: true });
     console.log('[DB] All models synchronized.');
 
-    await seedData();
+    // await seedData();
 
     // Start cron scheduler
     startOverdueScheduler();

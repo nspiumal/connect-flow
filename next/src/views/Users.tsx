@@ -54,12 +54,18 @@ export default function UsersPage() {
         ? await apiClient.users.filter(name || undefined, email || undefined, roleFilter || undefined, branch || undefined, currentPage, pageSize, "fullName", "asc")
         : await apiClient.users.getPaginated(currentPage, pageSize, "fullName", "asc");
 
-      const normalized: User[] = response.content.map((u: Record<string, unknown>) => ({
-        id: u.id as string,
-        full_name: u.fullName as string,
-        email: u.email as string,
-        roles: u.role ? [u.role as string] : [],
-        branchName: (u.branch as string) || "—",
+      const normalized: User[] = response.content.map((u: any) => ({
+        id: u.id,
+        full_name: u.fullName,
+        email: u.email,
+        // roles is an array of UserRole objects: { role: "ADMIN", branch: {...} }
+        roles: Array.isArray(u.roles)
+          ? u.roles.map((r: any) => r.role as string).filter(Boolean)
+          : [],
+        // branch name lives in the first role's nested branch object
+        branchName: Array.isArray(u.roles) && u.roles.length > 0
+          ? (u.roles[0]?.branch?.name ?? "—")
+          : "—",
       }));
       setUsers(normalized);
       setTotalPages(response.totalPages as number);

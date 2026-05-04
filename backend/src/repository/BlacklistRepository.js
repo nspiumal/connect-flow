@@ -24,7 +24,7 @@ module.exports = {
       include,
       limit: size,
       offset: page * size,
-      order: [[sortBy || 'created_at', sortDir || 'desc']],
+      order: [[sortBy === 'createdAt' ? 'created_at' : (sortBy || 'created_at'), sortDir || 'desc']],
       distinct: true,
     });
   },

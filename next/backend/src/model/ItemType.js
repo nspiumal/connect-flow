@@ -8,11 +8,11 @@ const ItemType = sequelize.define('ItemType', {
   description: { type: DataTypes.STRING(500) },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
   createdBy: { type: DataTypes.CHAR(36), field: 'created_by' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'created_at' },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'updated_at' },
 }, {
   tableName: 'item_types',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  timestamps: false,
 });
 
 module.exports = ItemType;

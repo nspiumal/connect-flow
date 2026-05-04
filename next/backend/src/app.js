@@ -16,13 +16,12 @@ const routes = require('./routes');
 require('./model');
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '8080', 10);
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(morgan('combined'));
+app.use(morgan('dev'));
 
 // Swagger docs (public)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -38,49 +37,15 @@ app.use('/api', routes);
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('[GlobalError]', err);
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
+  const status = err.status || 500;
+  if (status >= 500) {
+    console.error(`[GlobalError] ${status} ${req.method} ${req.url} — ${err.message}`);
+    if (err.stack) console.error(err.stack);
+  } else {
+    console.warn(`[GlobalError] ${status} ${req.method} ${req.url} — ${err.message}`);
+  }
+  res.status(status).json({ message: err.message || 'Internal server error' });
 });
-
-// ── Seed initial data (mirrors Spring Boot DataInitializer) ───────────────────
-async function seedData() {
-  const bcrypt = require('bcryptjs');
-  const { v4: uuidv4 } = require('uuid');
-  const { User, UserRole, Branch, InterestRate, ItemType } = require('./model');
-
-  // Default branch
-  let branch = await Branch.findOne({ where: { name: 'Main Branch' } });
-  if (!branch) {
-    branch = await Branch.create({ id: uuidv4(), name: 'Main Branch', address: 'Head Office', phone: '0000000000', isActive: true });
-    console.log('[Seed] Created default branch: Main Branch');
-  }
-
-  // Default superadmin
-  let admin = await User.findOne({ where: { email: 'admin@connectflow.com' } });
-  if (!admin) {
-    const hash = await bcrypt.hash('admin123', 12);
-    admin = await User.create({ id: uuidv4(), fullName: 'System Administrator', email: 'admin@connectflow.com', phone: '0000000000', password: hash });
-    await UserRole.create({ id: uuidv4(), userId: admin.id, role: 'SUPERADMIN', branchId: branch.id });
-    console.log('[Seed] Created default admin: admin@connectflow.com / admin123');
-  }
-
-  // Default interest rate
-  const existingRate = await InterestRate.findOne({ where: { name: 'Standard Rate' } });
-  if (!existingRate) {
-    await InterestRate.create({ id: uuidv4(), name: 'Standard Rate', ratePercent: 12.0, firstMonthRatePercent: 1.0, isActive: true, isDefault: true });
-    console.log('[Seed] Created default interest rate: Standard Rate 12%');
-  }
-
-  // Default item types
-  const defaultTypes = ['Gold Ring', 'Gold Chain', 'Gold Bracelet', 'Gold Earring', 'Other'];
-  for (const name of defaultTypes) {
-    const exists = await ItemType.findOne({ where: { name } });
-    if (!exists) {
-      await ItemType.create({ id: uuidv4(), name, description: `${name} item type`, isActive: true, createdBy: admin.id });
-      console.log(`[Seed] Created item type: ${name}`);
-    }
-  }
-}
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 async function bootstrap() {
@@ -88,25 +53,57 @@ async function bootstrap() {
     await sequelize.authenticate();
     console.log('[DB] Connected to MySQL successfully.');
 
-    // Sync tables (alter: true to apply schema changes without dropping data)
-    await sequelize.sync({ alter: true });
-    console.log('[DB] All models synchronized.');
+    // Create tables that are owned by the Node.js app and not managed by
+    // Spring Boot's Hibernate (no corresponding @Entity in the Java project).
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS \`transaction_profits\` (
+        \`id\`                   CHAR(36)       NOT NULL,
+        \`transaction_id\`       CHAR(36)       DEFAULT NULL,
+        \`profit_amount\`        DECIMAL(18,2)  DEFAULT NULL,
+        \`pawn_id\`              VARCHAR(255)   DEFAULT NULL,
+        \`profit_notes\`         TEXT           DEFAULT NULL,
+        \`profit_recorded_date\` DATETIME       DEFAULT NULL,
+        \`profit_recorded_by\`   CHAR(36)       DEFAULT NULL,
+        \`created_at\`           DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\`           DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`),
+        KEY \`idx_tp_transaction_id\` (\`transaction_id\`),
+        KEY \`idx_tp_profit_recorded_date\` (\`profit_recorded_date\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+    console.log('[DB] transaction_profits table ready.');
 
-    await seedData();
+    // Ensure the activity_log table has all columns defined in the Sequelize model.
+    // Spring Boot's Hibernate may have created the table before newer columns were added
+    // to the Java entity (user_name, user_email, http_method, endpoint, ip_address, etc.)
+    const activityLogColumns = [
+      "ADD COLUMN IF NOT EXISTS `user_name`    VARCHAR(255)  DEFAULT NULL",
+      "ADD COLUMN IF NOT EXISTS `user_email`   VARCHAR(255)  DEFAULT NULL",
+      "ADD COLUMN IF NOT EXISTS `http_method`  VARCHAR(10)   DEFAULT NULL",
+      "ADD COLUMN IF NOT EXISTS `endpoint`     VARCHAR(500)  DEFAULT NULL",
+      "ADD COLUMN IF NOT EXISTS `ip_address`   VARCHAR(50)   DEFAULT NULL",
+      "ADD COLUMN IF NOT EXISTS `status`       VARCHAR(20)   DEFAULT NULL",
+      "ADD COLUMN IF NOT EXISTS `error_message` VARCHAR(1000) DEFAULT NULL",
+    ];
+    for (const col of activityLogColumns) {
+      await sequelize.query(`ALTER TABLE \`activity_log\` ${col};`).catch(() => {});
+    }
+    console.log('[DB] activity_log columns verified.');
+
+    // Widen profiles.pin so it can store a 60-char bcrypt hash (was incorrectly VARCHAR(10))
+    await sequelize.query(
+      "ALTER TABLE `profiles` MODIFY COLUMN `pin` VARCHAR(255) DEFAULT NULL;"
+    ).catch(() => {});
+    console.log('[DB] profiles.pin column verified.');
 
     // Start cron scheduler
     startOverdueScheduler();
 
-    app.listen(PORT, () => {
-      console.log(`[Server] Connect Flow API running on http://localhost:${PORT}/api`);
-      console.log(`[Swagger] API docs available at http://localhost:${PORT}/api-docs`);
-    });
+    console.log('[Bootstrap] Express app ready.');
   } catch (err) {
-    console.error('[Bootstrap] Failed to start server:', err);
-    process.exit(1);
+    console.error('[Bootstrap] Failed to initialise:', err);
+    throw err; // Let the combined server handle exit
   }
 }
 
-bootstrap();
-
-module.exports = app;
+module.exports = { app, bootstrap };

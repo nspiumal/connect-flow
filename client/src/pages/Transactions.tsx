@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import NumberInput from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -968,11 +969,9 @@ export default function Transactions() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Documentation:</span>
-                    <Input
-                      type="number"
-                      step="0.01"
+                    <NumberInput
                       value={documentationAmount}
-                      onChange={(e) => setDocumentationAmount(e.target.value)}
+                      onChange={setDocumentationAmount}
                       placeholder="0"
                       className="w-28 h-8 text-right"
                     />
@@ -989,11 +988,9 @@ export default function Transactions() {
               <div className="space-y-4">
                 <div>
                   <Label className="font-semibold">Redemption Amount *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
+                  <NumberInput
                     value={redemptionAmount}
-                    onChange={(e) => setRedemptionAmount(e.target.value)}
+                    onChange={setRedemptionAmount}
                     placeholder="Enter amount to pay"
                     required
                   />

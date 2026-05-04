@@ -69,6 +69,7 @@ PawnTransaction.hasMany(TransactionEditHistory, { foreignKey: 'transaction_id', 
 TransactionProfit.belongsTo(PawnTransaction, { foreignKey: 'transaction_id', as: 'transaction' });
 PawnTransaction.hasOne(TransactionProfit, { foreignKey: 'transaction_id', as: 'profit' });
 
+
 module.exports = {
   User,
   Branch,

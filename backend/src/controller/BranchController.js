@@ -9,6 +9,15 @@ module.exports = {
   async getAll(req, res) {
     try { res.json(await BranchService.getAll()); } catch (e) { handleErr(res, e); }
   },
+  async getPaginated(req, res) {
+    try {
+      const { page = 0, size = 10, sortBy = 'createdAt', sortDir = 'desc' } = req.query;
+      res.json(await BranchService.getPaginated({ page: +page, size: +size, sortBy, sortDir }));
+    } catch (e) { handleErr(res, e); }
+  },
+  async getActive(req, res) {
+    try { res.json(await BranchService.getActive()); } catch (e) { handleErr(res, e); }
+  },
   async getById(req, res) {
     try { res.json(await BranchService.getById(req.params.id)); } catch (e) { handleErr(res, e); }
   },

@@ -5,7 +5,10 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "debug": "node --inspect=0.0.0.0:9229 src/app.js",
+    "debug:brk": "node --inspect-brk=0.0.0.0:9229 src/app.js",
+    "debug:watch": "nodemon --inspect=0.0.0.0:9229 src/app.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

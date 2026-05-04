@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +41,7 @@ export default function ItemTypes() {
 
   // Pagination and Filter State
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
 
@@ -93,7 +96,7 @@ export default function ItemTypes() {
         });
 
         setItemTypes(response.content || []);
-        setCurrentPage(response.number || 0);
+        setCurrentPage(response.pageNumber !== undefined ? response.pageNumber : page);
         setTotalPages(response.totalPages || 0);
         setTotalElements(response.totalElements || 0);
       } catch (error: unknown) {
@@ -228,185 +231,161 @@ export default function ItemTypes() {
   };
 
   return (
-    <>
+    <div className="space-y-6">
       {loading && <LoadingOverlay isLoading={loading} />}
 
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Item Types</h1>
-            <p className="text-gray-500 mt-1">Manage gold item types for pawn transactions</p>
-          </div>
-          <Button variant="outline" onClick={() => setShowFilters((prev) => !prev)} disabled={loading}>
-            <Filter className="h-4 w-4 mr-2" />
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Item Types Management</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowFilters(!showFilters)} disabled={loading}>
+            <Filter className="mr-2 h-4 w-4" />
             Filters
+            {Object.keys(filters).length > 0 && (
+              <Badge variant="secondary" className="ml-2 bg-slate-600 text-white">
+                {Object.keys(filters).filter(k => filters[k] !== undefined && filters[k] !== null && filters[k] !== "").length}
+              </Badge>
+            )}
+          </Button>
+          <Button onClick={() => handleOpenDialog()} disabled={loading}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Item Type
           </Button>
         </div>
+      </div>
 
-        {showFilters && (
-          <AdvancedSearchPanel
-            title="Search & Filter"
-            subtitle="Filter item types by name, status, and sort options"
-            inputFields={[
-              {
-                name: "name",
-                label: "Item Type Name",
-                placeholder: "Search by name...",
-              },
-            ]}
-            checkboxGroups={[
-              {
-                name: "status",
-                label: "Status",
-                options: [
-                  { label: "Active", value: "active" },
-                  { label: "Inactive", value: "inactive" },
-                ],
-                defaultChecked: true,
-              },
-              {
-                name: "sortBy",
-                label: "Sort By",
-                options: [
-                  { label: "Name", value: "name" },
-                  { label: "Created Date", value: "createdAt" },
-                  { label: "Updated Date", value: "updatedAt" },
-                ],
-              },
-              {
-                name: "sortDir",
-                label: "Order",
-                options: [
-                  { label: "Ascending", value: "asc" },
-                  { label: "Descending", value: "desc" },
-                ],
-              },
-            ]}
-            onSearch={handleSearch}
-            isLoading={loading}
-            backgroundColor="bg-blue-50"
-          />
-        )}
+      {showFilters && (
+        <AdvancedSearchPanel
+          title="Search & Filter"
+          subtitle="Filter item types by name, status, and sort options"
+          inputFields={[
+            {
+              name: "name",
+              label: "Item Type Name",
+              placeholder: "Search by name...",
+            },
+          ]}
+          checkboxGroups={[
+            {
+              name: "status",
+              label: "Status",
+              options: [
+                { label: "Active", value: "active" },
+                { label: "Inactive", value: "inactive" },
+              ],
+            },
+          ]}
+          onSearch={handleSearch}
+          isLoading={loading}
+          backgroundColor="bg-gray-100"
+        />
+      )}
 
-        {/* Item Types List Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Item Types List</CardTitle>
-              <p className="text-sm text-gray-500 mt-1">
-                Showing {itemTypes.length} of {totalElements} items
-              </p>
-            </div>
-            <Button onClick={() => handleOpenDialog()} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Item Type
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {itemTypes.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="max-w-xs truncate">{item.description || "—"}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant={item.isActive ? "default" : "secondary"}>
+                      {item.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleActive(item.id)}
+                      title={item.isActive ? "Deactivate" : "Activate"}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    >
+                      {item.isActive ? (
+                        <Eye className="h-4 w-4" />
+                      ) : (
+                        <EyeOff className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenDialog(item)}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 gap-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(item.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {itemTypes.length === 0 && (
+                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No item types found</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Showing {itemTypes.length > 0 ? currentPage * pageSize + 1 : 0} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} items
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">Rows per page:</Label>
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(0); }}>
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
+            >
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-          </CardHeader>
-
-          <CardContent>
-            {itemTypes.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No item types found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Name</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Description</th>
-                      <th className="text-center py-3 px-4 font-semibold text-gray-700">Status</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itemTypes.map((item) => (
-                      <tr key={item.id} className="border-b hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4 font-medium text-gray-900">{item.name}</td>
-                        <td className="py-3 px-4 text-gray-600 max-w-xs truncate">
-                          {item.description || "-"}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              item.isActive
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {item.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right space-x-2 flex justify-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleActive(item.id)}
-                            title={item.isActive ? "Deactivate" : "Activate"}
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            {item.isActive ? (
-                              <Eye className="h-4 w-4" />
-                            ) : (
-                              <EyeOff className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenDialog(item)}
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(item.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Page {currentPage + 1} of {totalPages}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 0}
-                  className="gap-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages - 1}
-                  className="gap-2"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
+            <span className="text-sm">
+              Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages || 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(Math.min(totalPages - 1, currentPage + 1))}
+              disabled={currentPage >= totalPages - 1 || totalPages === 0}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Add/Edit Dialog */}
@@ -454,7 +433,7 @@ export default function ItemTypes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 

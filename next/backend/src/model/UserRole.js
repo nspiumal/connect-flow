@@ -10,11 +10,11 @@ const UserRole = sequelize.define('UserRole', {
     allowNull: false,
   },
   branchId: { type: DataTypes.CHAR(36), field: 'branch_id' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'created_at' },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'updated_at' },
 }, {
   tableName: 'user_roles',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  timestamps: false,
 });
 
 module.exports = UserRole;

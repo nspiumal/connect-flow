@@ -21,11 +21,11 @@ const PawnTransaction = sequelize.define('PawnTransaction', {
   status: { type: DataTypes.STRING(50), defaultValue: 'Active' },
   remarks: { type: DataTypes.TEXT },
   createdBy: { type: DataTypes.CHAR(36), field: 'created_by' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'created_at' },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'updated_at' },
 }, {
   tableName: 'pawn_transactions',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  timestamps: false,
 });
 
 module.exports = PawnTransaction;

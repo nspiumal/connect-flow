@@ -1,13 +1,16 @@
 'use strict';
 const ItemTypeService = require('../service/ItemTypeService');
-
-function handleErr(res, err) {
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
-}
+const handleErr = require('../utils/handleErr');
 
 module.exports = {
   async getAll(req, res) {
     try { res.json(await ItemTypeService.getAll()); } catch (e) { handleErr(res, e); }
+  },
+  async getActive(req, res) {
+    try { res.json(await ItemTypeService.getActive()); } catch (e) { handleErr(res, e); }
+  },
+  async search(req, res) {
+    try { res.json(await ItemTypeService.search(req.query)); } catch (e) { handleErr(res, e); }
   },
   async getById(req, res) {
     try { res.json(await ItemTypeService.getById(req.params.id)); } catch (e) { handleErr(res, e); }
@@ -20,6 +23,9 @@ module.exports = {
   },
   async update(req, res) {
     try { res.json(await ItemTypeService.update(req.params.id, req.body)); } catch (e) { handleErr(res, e); }
+  },
+  async toggleActive(req, res) {
+    try { res.json(await ItemTypeService.toggleActive(req.params.id)); } catch (e) { handleErr(res, e); }
   },
   async delete(req, res) {
     try { await ItemTypeService.delete(req.params.id); res.status(204).send(); } catch (e) { handleErr(res, e); }

@@ -15,8 +15,8 @@ import apiClient from "@/integrations/api";
 type InterestRate = {
   id: string;
   name: string;
-  ratePercent: number;
-  firstMonthRatePercent?: number;
+  ratePercent: number | string;         // Sequelize DECIMAL → string at runtime
+  firstMonthRatePercent?: number | string | null;
   isActive: boolean;
   isDefault: boolean;
 };
@@ -230,8 +230,8 @@ export default function InterestRates() {
               {rates.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>{r.ratePercent}%</TableCell>
-                  <TableCell>{(r.firstMonthRatePercent ?? r.ratePercent / 12).toFixed(2)}%</TableCell>
+                  <TableCell>{Number(r.ratePercent).toFixed(2)}%</TableCell>
+                  <TableCell>{Number(r.firstMonthRatePercent ?? Number(r.ratePercent) / 12).toFixed(2)}%</TableCell>
                   <TableCell>
                     {r.isDefault && r.isActive ? <Badge>Default</Badge> : <Badge variant="outline">No</Badge>}
                   </TableCell>

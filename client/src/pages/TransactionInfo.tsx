@@ -14,7 +14,7 @@ interface ItemDetail {
   content: string;
   condition: string;
   weightGrams: number;
-  karat: number;
+  karat: string | number;
   appraisedValue: number;
   images: string[];
 }
@@ -71,16 +71,26 @@ export default function TransactionInfo() {
       const response = await apiClient.pawnTransactions.getById(transactionId);
       setTransaction(response);
 
-      if (response.itemDetails && Array.isArray(response.itemDetails) && response.itemDetails.length > 0) {
-        const itemsWithImages = response.itemDetails.map((item: any) => ({
-          description: item.itemDescription || item.description || "",
-          content: item.itemContent || item.content || "",
-          condition: item.itemCondition || item.condition || "Good",
-          weightGrams: item.itemWeightGrams || item.weightGrams || 0,
-          karat: item.itemKarat || item.karat || 24,
-          appraisedValue: item.appraisedValue || 0,
-          images: item.imageUrls || item.images || [],
-        }));
+      // Support both flat (itemDetails) and nested (items) response formats
+      const rawItems = response.itemDetails || response.items;
+
+      if (rawItems && Array.isArray(rawItems) && rawItems.length > 0) {
+        const itemsWithImages = rawItems.map((item: any) => {
+          // Images can be plain URL strings or objects with an imageUrl property
+          const rawImages: any[] = item.imageUrls || item.images || [];
+          const imageUrls: string[] = rawImages.map((img: any) =>
+            typeof img === "string" ? img : img.imageUrl || ""
+          ).filter(Boolean);
+          return {
+            description: item.itemDescription || item.description || "",
+            content: item.itemContent || item.content || "",
+            condition: item.itemCondition || item.condition || "Good",
+            weightGrams: item.itemWeightGrams || item.weightGrams || 0,
+            karat: item.itemKarat ?? item.karat ?? 24,
+            appraisedValue: item.appraisedValue || 0,
+            images: imageUrls,
+          };
+        });
         setItems(itemsWithImages);
         itemsWithImages.forEach((item: ItemDetail, itemIndex: number) => {
           item.images.forEach((imageUrl: string, imageIndex: number) => {
@@ -93,7 +103,7 @@ export default function TransactionInfo() {
           content: response.itemContent || "",
           condition: response.itemCondition || "Good",
           weightGrams: response.itemWeightGrams || 0,
-          karat: response.itemKarat || 24,
+          karat: response.itemKarat ?? 24,
           appraisedValue: response.appraisedValue || 0,
           images: response.imageUrls || response.images || [],
         };
@@ -216,11 +226,11 @@ export default function TransactionInfo() {
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div>
                   <Label className="text-xs text-muted-foreground">Customer Name</Label>
-                  <p className="font-medium">{transaction?.customerName || transaction?.customer_name || "N/A"}</p>
+                  <p className="font-medium">{transaction?.customerName || transaction?.customer_name || transaction?.customer?.fullName || "N/A"}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Gender</Label>
-                  <p className="font-medium">{transaction?.gender || "N/A"}</p>
+                  <p className="font-medium">{transaction?.gender || transaction?.customer?.gender || "N/A"}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">ID Type</Label>
@@ -228,15 +238,15 @@ export default function TransactionInfo() {
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">ID Number</Label>
-                  <p className="font-medium">{transaction?.customerNic || transaction?.customer_nic || "N/A"}</p>
+                  <p className="font-medium">{transaction?.customerNic || transaction?.customer_nic || transaction?.customer?.nic || "N/A"}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Phone</Label>
-                  <p className="font-medium">{transaction?.customerPhone || transaction?.customer_phone || "N/A"}</p>
+                  <p className="font-medium">{transaction?.customerPhone || transaction?.customer_phone || transaction?.customer?.phone || "N/A"}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Address</Label>
-                  <p className="font-medium truncate">{transaction?.customerAddress || transaction?.customer_address || "N/A"}</p>
+                  <p className="font-medium truncate">{transaction?.customerAddress || transaction?.customer_address || transaction?.customer?.address || "N/A"}</p>
                 </div>
               </div>
             </CardContent>
@@ -263,7 +273,7 @@ export default function TransactionInfo() {
                       </div>
                       <div>
                         <Label className="text-xs text-muted-foreground">Karat</Label>
-                        <p className="font-medium">{item.karat}K</p>
+                        <p className="font-medium">{item.karat === "N/A" || String(item.karat).includes("K") ? item.karat : `${item.karat}K`}</p>
                       </div>
                       <div>
                         <Label className="text-xs text-muted-foreground">Condition</Label>

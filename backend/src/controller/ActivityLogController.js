@@ -5,16 +5,18 @@ const { Op } = require('sequelize');
 module.exports = {
   async getLogs(req, res) {
     try {
-      const { page = 0, size = 20, userId, action } = req.query;
+      const { page = 0, size = 20, email, action } = req.query;
       const where = {};
-      if (userId) where.userId = userId;
+      if (email) where.userEmail = { [Op.like]: `%${email}%` };
       if (action) where.action = { [Op.like]: `%${action}%` };
+      
       const { count, rows } = await ActivityLogEntry.findAndCountAll({
         where,
         limit: +size,
         offset: +page * +size,
         order: [['created_at', 'DESC']],
       });
+      
       res.json({
         content: rows,
         pageNumber: +page,

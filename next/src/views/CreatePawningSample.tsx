@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,7 @@ const emptyItemDraft: ItemDraft = {
 export default function CreatePawningSample() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, branchId } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [rates, setRates] = useState<Rate[]>([]);
@@ -176,14 +178,8 @@ export default function CreatePawningSample() {
       console.log("📊 Number of item types:", data?.length || 0);
       setItemTypes(data || []);
 
-      if (data && data.length > 0) {
-        toast({
-          title: "Item Types Loaded",
-          description: `${data.length} item types loaded from database`,
-        });
-      }
     } catch (error: unknown) {
-      console.error("❌ Failed to fetch item types:", error);
+      console.error("Failed to fetch item types:", error);
       console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
       toast({
         title: "Warning",
@@ -355,19 +351,19 @@ export default function CreatePawningSample() {
     }
   }, [items, totals.appraised]);
 
-   const fetchPatternConfig = async () => {
-     try {
-       const data = await apiClient.pawnTransactions.getPatternConfig();
-       if (data?.pattern && typeof data.pattern === "string") {
-         setSpecialPattern(data.pattern);
-       }
-     } catch {
-       // keep fallback local default if config fetch fails
-       setSpecialPattern("TND");
-     }
-   };
+  const fetchPatternConfig = async () => {
+    try {
+      const data = await apiClient.pawnTransactions.getPatternConfig();
+      if (data?.pattern && typeof data.pattern === "string") {
+        setSpecialPattern(data.pattern);
+      }
+    } catch {
+      // keep fallback local default if config fetch fails
+      setSpecialPattern("TND");
+    }
+  };
 
-   const updateDraft = (patch: Partial<ItemDraft>) => {
+  const updateDraft = (patch: Partial<ItemDraft>) => {
     setItemDraft((prev) => ({ ...prev, ...patch }));
   };
 
@@ -595,11 +591,6 @@ export default function CreatePawningSample() {
       return;
     }
 
-    if (!identityVerified) {
-      toast({ title: "Validation Error", description: "Please verify identity first", variant: "destructive" });
-      return;
-    }
-
     if (blockedReason) {
       toast({ title: "Blocked Customer", description: blockedReason, variant: "destructive" });
       return;
@@ -658,33 +649,34 @@ export default function CreatePawningSample() {
       const firstItem = items[0];
       const allImages = items.flatMap((item) => item.images);
 
-       const transactionData = {
-         customerName,
-         customerNic: identityNumber.trim(),
-         idType,
-         gender,
-         customerAddress,
-         customerPhone,
-         customerType: "Regular",
-         itemDescription: items.length > 1 ? `Multiple items (${items.length})` : firstItem.description,
-         itemContent: firstItem.content,
-         itemCondition: firstItem.condition,
-         itemWeightGrams: totals.weight,
-         itemKarat: firstItem.karat,
-         appraisedValue: totals.appraised,
-         loanAmount: parseFloat(loanAmount || "0"),
-         interestRateId: selectedRateId,
-         interestRatePercent: effectiveRatePercent,
-         firstMonthInterestRatePercent: firstMonthRatePercent,
-         rateOverride: rateOverrideEnabled,
-         periodMonths: parseInt(periodMonths, 10),
-         patternMode: patternUnlocked ? "B" : "A",
-         pawnDate,
-         maturityDate: maturityDateStr,
-         remarks,
-         imageUrls: allImages,
-         items,
-       };
+      const transactionData = {
+        customerName,
+        customerNic: identityNumber.trim(),
+        idType,
+        gender,
+        customerAddress,
+        customerPhone,
+        customerType: "Regular",
+        branchId: user?.branchId || branchId,
+        itemDescription: items.length > 1 ? `Multiple items (${items.length})` : firstItem.description,
+        itemContent: firstItem.content,
+        itemCondition: firstItem.condition,
+        itemWeightGrams: totals.weight,
+        itemKarat: firstItem.karat,
+        appraisedValue: totals.appraised,
+        loanAmount: parseFloat(loanAmount || "0"),
+        interestRateId: selectedRateId,
+        interestRatePercent: effectiveRatePercent,
+        firstMonthInterestRatePercent: firstMonthRatePercent,
+        rateOverride: rateOverrideEnabled,
+        periodMonths: parseInt(periodMonths, 10),
+        patternMode: patternUnlocked ? "B" : "A",
+        pawnDate,
+        maturityDate: maturityDateStr,
+        remarks,
+        imageUrls: allImages,
+        items,
+      };
 
       const response = await apiClient.pawnTransactions.create(transactionData);
 
@@ -899,7 +891,7 @@ export default function CreatePawningSample() {
                       </div>
 
                       <div className="space-y-1">
-                        <Label className="text-xs">Appraised (LKR) *</Label>
+                        <Label className="text-xs">Loan Amount (LKR) *</Label>
                         <NumberInput value={itemDraft.appraisedValue} onChange={(value) => updateDraft({ appraisedValue: value })} onKeyDown={handleItemKeyDown} />
                       </div>
 
@@ -1030,30 +1022,30 @@ export default function CreatePawningSample() {
                         )}
                       </div>
 
-                       {rateOverrideEnabled ? (
-                         <div className="space-y-1">
-                           <NumberInput
-                             value={manualInterestRate}
-                             onChange={(value) => {
-                               setManualInterestRate(value);
-                             }}
-                             placeholder="0.1 - 50"
-                             className="border-amber-500"
-                           />
-                           <p className="text-[10px] text-amber-600">⚠️ Manager override (0.1% - 50%)</p>
-                         </div>
-                       ) : (
-                         <Select value={selectedRateId} onValueChange={setSelectedRateId}>
-                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select rate" /></SelectTrigger>
-                           <SelectContent>
-                             {rates.map((r) => (
-                               <SelectItem key={r.id} value={r.id}>
-                                 {r.name} - {r.rate_percent || r.ratePercent}% per annum
-                               </SelectItem>
-                             ))}
-                           </SelectContent>
-                         </Select>
-                       )}
+                      {rateOverrideEnabled ? (
+                        <div className="space-y-1">
+                          <NumberInput
+                            value={manualInterestRate}
+                            onChange={(value) => {
+                              setManualInterestRate(value);
+                            }}
+                            placeholder="0.1 - 50"
+                            className="border-amber-500"
+                          />
+                          <p className="text-[10px] text-amber-600">⚠️ Manager override (0.1% - 50%)</p>
+                        </div>
+                      ) : (
+                        <Select value={selectedRateId} onValueChange={setSelectedRateId}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select rate" /></SelectTrigger>
+                          <SelectContent>
+                            {rates.map((r) => (
+                              <SelectItem key={r.id} value={r.id}>
+                                {r.name} - {r.rate_percent || r.ratePercent}% per annum
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     {patternUnlocked ? (

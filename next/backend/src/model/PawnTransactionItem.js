@@ -13,11 +13,11 @@ const PawnTransactionItem = sequelize.define('PawnTransactionItem', {
   appraisedValue: { type: DataTypes.DECIMAL(18, 2), field: 'appraised_value' },
   marketValue: { type: DataTypes.DECIMAL(18, 2), field: 'market_value' },
   itemOrder: { type: DataTypes.INTEGER, field: 'item_order' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'created_at' },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'updated_at' },
 }, {
   tableName: 'pawn_transaction_items',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  timestamps: false,
 });
 
 module.exports = PawnTransactionItem;

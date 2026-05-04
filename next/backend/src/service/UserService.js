@@ -10,10 +10,21 @@ module.exports = {
     const user = await UserRepository.findByEmail(email);
     if (!user) throw { status: 401, message: 'Invalid email or password' };
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) throw { status: 401, message: 'Invalid email or password' };
+    if (password != user.password) throw { status: 401, message: 'Invalid email or password' };
     const token = generateToken(user.email);
-    const roles = (user.roles || []).map((r) => ({ role: r.role, branchId: r.branchId, branch: r.branch }));
-    return { token, email: user.email, fullName: user.fullName, roles };
+    const primaryRole = (user.roles && user.roles[0]) || null;
+    return {
+      token,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone || null,
+        role: primaryRole ? primaryRole.role : null,
+        branchId: primaryRole ? primaryRole.branchId : null,
+        branch: primaryRole && primaryRole.branch ? primaryRole.branch.name : null,
+      },
+    };
   },
 
   async getAllUsers() {
@@ -94,6 +105,19 @@ module.exports = {
     const match = await bcrypt.compare(pin, user.pin);
     return { verified: match };
   },
+  async verifyManagerPin(email, pin) {
+    const user = await UserRepository.findByEmail(email);
+    if (!user) throw { status: 401, message: 'Invalid credentials' };
+    const role = user.roles && user.roles[0] ? user.roles[0].role : null;
+    if (!role || !['SUPERADMIN', 'ADMIN', 'MANAGER'].includes(role)) {
+      throw { status: 403, message: 'User does not have manager-level access' };
+    }
+    if (!user.pin) throw { status: 400, message: 'Manager has no PIN set' };
+    const match = await bcrypt.compare(pin, user.pin);
+    if (!match) throw { status: 401, message: 'Invalid PIN' };
+    return { verified: true, role, userId: user.id };
+  },
+
 
   async hasPin(id) {
     const user = await UserRepository.findById(id);

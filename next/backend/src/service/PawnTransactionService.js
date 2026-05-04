@@ -13,12 +13,14 @@ const SPECIAL_PATTERN = process.env.SPECIAL_PATTERN || 'TND';
 
 async function generatePawnId() {
   const latest = await PawnTransactionRepository.getLatestPawnId();
-  if (!latest) return 'A-0001';
+  if (!latest || !latest.pawnId) return 'A-0001';
   const lastId = latest.pawnId;
   const parts = lastId.split('-');
+  if (parts.length < 2 || !parts[1]) return `${parts[0]}-0001`;
   const prefix = parts[0];
-  const num = parseInt(parts[1] || '0', 10) + 1;
-  const padded = String(num).padStart(4, '0');
+  const num = parseInt(parts[1], 10);
+  if (isNaN(num)) return `${prefix}-0001`;
+  const padded = String(num + 1).padStart(4, '0');
   return `${prefix}-${padded}`;
 }
 
@@ -237,7 +239,6 @@ module.exports = {
       newLoanAmount: data.loanAmount || prevLoan,
       previousRemarks: prevRemarks,
       newRemarks: data.remarks || prevRemarks,
-      editReason: data.editReason || null,
     });
 
     return PawnTransactionRepository.findById(id);
@@ -247,8 +248,8 @@ module.exports = {
     return this.update(id, { status, editType: 'STATUS_CHANGE', editReason: reason }, editedBy, editedByName);
   },
 
-  async getEditHistory(id) {
-    return TransactionEditHistoryRepository.findByTransactionId(id);
+  async getEditHistory(id, limit = 10) {
+    return TransactionEditHistoryRepository.findByTransactionId(id, limit);
   },
 
   async delete(id) {

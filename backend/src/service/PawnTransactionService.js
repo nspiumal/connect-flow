@@ -7,9 +7,48 @@ const TransactionEditHistoryRepository = require('../repository/TransactionEditH
 const CustomerRepository = require('../repository/CustomerRepository');
 const InterestRateRepository = require('../repository/InterestRateRepository');
 const BlacklistService = require('./BlacklistService');
+const CloudinaryService = require('./CloudinaryService');
+const { wrapWithLogging } = require('../utils/methodLogger');
 require('dotenv').config();
 
 const SPECIAL_PATTERN = process.env.SPECIAL_PATTERN || 'TND';
+
+async function hydrateImages(txs) {
+  if (!txs) return txs;
+  const isArray = Array.isArray(txs);
+  const list = isArray ? txs : [txs];
+
+  for (let i = 0; i < list.length; i++) {
+    let tx = list[i].toJSON ? list[i].toJSON() : list[i];
+
+    // Map customer details for frontend compatibility
+    tx.customerName = tx.customer ? tx.customer.fullName : null;
+    tx.customerNic = tx.customer ? tx.customer.nic : null;
+    tx.gender = tx.customer ? tx.customer.gender : null;
+    tx.customerAddress = tx.customer ? tx.customer.address : null;
+    tx.customerPhone = tx.customer ? tx.customer.phone : null;
+    tx.customerType = tx.customer ? tx.customer.customerType : null;
+
+    if (tx.items && Array.isArray(tx.items)) {
+      tx.itemDetails = [];
+      for (const item of tx.items) {
+        let imageUrls = [];
+        if (item.images && Array.isArray(item.images)) {
+          for (const img of item.images) {
+            if (img.imageUrl && img.imageUrl.startsWith('http')) {
+              img.imageUrl = await CloudinaryService.getBase64FromUrl(img.imageUrl);
+            }
+            imageUrls.push(img.imageUrl);
+          }
+        }
+        item.imageUrls = imageUrls;
+        tx.itemDetails.push(item);
+      }
+    }
+    list[i] = tx;
+  }
+  return isArray ? list : list[0];
+}
 
 async function generatePawnId() {
   const latest = await PawnTransactionRepository.getLatestPawnId();
@@ -22,15 +61,16 @@ async function generatePawnId() {
   return `${prefix}-${padded}`;
 }
 
-module.exports = {
+const PawnTransactionService = {
   async getAll() {
-    return PawnTransactionRepository.findAll();
+    const txs = await PawnTransactionRepository.findAll();
+    return hydrateImages(txs);
   },
 
   async getPaginated({ page = 0, size = 10, sortBy = 'created_at', sortDir = 'desc', branchId, status } = {}) {
     const { count, rows } = await PawnTransactionRepository.findPaginated({ page, size, sortBy, sortDir, branchId, status });
     return {
-      content: rows,
+      content: await hydrateImages(rows),
       pageNumber: page,
       pageSize: size,
       totalElements: count,
@@ -42,23 +82,24 @@ module.exports = {
   async getById(id) {
     const t = await PawnTransactionRepository.findById(id);
     if (!t) throw { status: 404, message: 'Transaction not found' };
-    return t;
+    return hydrateImages(t);
   },
 
   async getByPawnId(pawnId) {
     const t = await PawnTransactionRepository.findByPawnId(pawnId);
     if (!t) throw { status: 404, message: 'Transaction not found' };
-    return t;
+    return hydrateImages(t);
   },
 
   async getByBranch(branchId) {
-    return PawnTransactionRepository.findByBranchId(branchId);
+    const txs = await PawnTransactionRepository.findByBranchId(branchId);
+    return hydrateImages(txs);
   },
 
   async search({ search, branchId, page = 0, size = 10, sortBy = 'created_at', sortDir = 'desc' } = {}) {
     const { count, rows } = await PawnTransactionRepository.search({ search, branchId, page, size, sortBy, sortDir });
     return {
-      content: rows,
+      content: await hydrateImages(rows),
       pageNumber: page,
       pageSize: size,
       totalElements: count,
@@ -70,7 +111,7 @@ module.exports = {
   async searchAdvanced({ pawnId, customerNic, status, minAmount, maxAmount, patternMode, branchId, startDate, endDate, page = 0, size = 10, sortBy = 'created_at', sortDir = 'desc' } = {}) {
     const { count, rows } = await PawnTransactionRepository.searchAdvanced({ pawnId, customerNic, status, minAmount, maxAmount, patternMode, branchId, startDate, endDate, page, size, sortBy, sortDir });
     return {
-      content: rows,
+      content: await hydrateImages(rows),
       pageNumber: page,
       pageSize: size,
       totalElements: count,
@@ -187,18 +228,20 @@ module.exports = {
       // Save images if any
       if (item.images && item.images.length > 0) {
         for (let j = 0; j < item.images.length; j++) {
+          const cloudinaryUrl = await CloudinaryService.uploadBase64(item.images[j]);
           await PawnTransactionItemImageRepository.create({
             id: uuidv4(),
             itemId,
             transactionId: txId,
-            imageUrl: item.images[j],
+            imageUrl: cloudinaryUrl,
             imageOrder: j + 1,
           });
         }
       }
     }
 
-    return PawnTransactionRepository.findById(txId);
+    const createdTx = await PawnTransactionRepository.findById(txId);
+    return hydrateImages(createdTx);
   },
 
   async update(id, data, editedBy, editedByName) {
@@ -240,7 +283,8 @@ module.exports = {
       editReason: data.editReason || null,
     });
 
-    return PawnTransactionRepository.findById(id);
+    const updatedTx = await PawnTransactionRepository.findById(id);
+    return hydrateImages(updatedTx);
   },
 
   async changeStatus(id, status, editedBy, editedByName, reason) {
@@ -255,3 +299,5 @@ module.exports = {
     await PawnTransactionRepository.delete(id);
   },
 };
+
+module.exports = wrapWithLogging('PawnTransactionService', PawnTransactionService);

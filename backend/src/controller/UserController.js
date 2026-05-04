@@ -10,6 +10,10 @@ module.exports = {
     try { res.json(await UserService.getAllUsers()); } catch (e) { handleErr(res, e); }
   },
 
+  async getDashboardStatsAdmin(req, res) {
+    try { res.json(await UserService.getDashboardStatsAdmin()); } catch (e) { handleErr(res, e); }
+  },
+
   async getPaginated(req, res) {
     try {
       const { page = 0, size = 10, sortBy = 'created_at', sortDir = 'desc', name, email, role, branchId } = req.query;

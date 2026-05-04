@@ -9,6 +9,9 @@ module.exports = {
   async getAll(req, res) {
     try { res.json(await InterestRateService.getAll()); } catch (e) { handleErr(res, e); }
   },
+  async getActive(req, res) {
+    try { res.json(await InterestRateService.getActive()); } catch (e) { handleErr(res, e); }
+  },
   async getById(req, res) {
     try { res.json(await InterestRateService.getById(req.params.id)); } catch (e) { handleErr(res, e); }
   },
@@ -20,6 +23,13 @@ module.exports = {
   },
   async update(req, res) {
     try { res.json(await InterestRateService.update(req.params.id, req.body)); } catch (e) { handleErr(res, e); }
+  },
+  async toggleActive(req, res) {
+    try {
+      const replacementId = req.body ? req.body.replacementDefaultRateId : null;
+      await InterestRateService.toggleActive(req.params.id, replacementId);
+      res.json({ message: 'Toggled successfully' });
+    } catch (e) { handleErr(res, e); }
   },
   async delete(req, res) {
     try { await InterestRateService.delete(req.params.id); res.status(204).send(); } catch (e) { handleErr(res, e); }

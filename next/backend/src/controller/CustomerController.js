@@ -1,9 +1,6 @@
 'use strict';
 const CustomerService = require('../service/CustomerService');
-
-function handleErr(res, err) {
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
-}
+const handleErr = require('../utils/handleErr');
 
 module.exports = {
   async getAll(req, res) {

@@ -1,6 +1,6 @@
 'use strict';
 const { validateAndGetSubject } = require('./JwtService');
-const { User } = require('../model');
+const { User, UserRole } = require('../model');
 
 const PUBLIC_PATHS = [
   /^\/api\/auth\//,
@@ -28,6 +28,12 @@ async function jwtMiddleware(req, res, next) {
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
+
+    // Attach primary role & branchId so controllers can use req.user.branchId directly
+    const primaryRole = await UserRole.findOne({ where: { userId: user.id } });
+    user.branchId = primaryRole ? primaryRole.branchId : null;
+    user.role     = primaryRole ? primaryRole.role     : null;
+
     req.user = user;
     req.userEmail = email;
     next();

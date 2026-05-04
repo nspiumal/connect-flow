@@ -8,7 +8,7 @@ module.exports = {
     return TransactionProfitRepository.findAll();
   },
 
-  async getPaginated({ page = 0, size = 10, sortBy = 'profit_recorded_date', sortDir = 'desc' } = {}) {
+  async getPaginated({ page = 0, size = 10, sortBy = 'profitRecordedDate', sortDir = 'desc' } = {}) {
     const { count, rows } = await TransactionProfitRepository.findPaginated({ page, size, sortBy, sortDir });
     return {
       content: rows,
@@ -45,7 +45,7 @@ module.exports = {
       }],
       limit: size,
       offset: page * size,
-      order: [['profit_recorded_date', 'DESC']],
+      order: [['profitRecordedDate', 'DESC']],
       distinct: true,
     });
 

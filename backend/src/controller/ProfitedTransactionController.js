@@ -10,6 +10,13 @@ module.exports = {
     try { res.json(await TransactionProfitService.getAll()); } catch (e) { handleErr(res, e); }
   },
 
+  async getPaginated(req, res) {
+    try {
+      const { page = 0, size = 10, sortBy = 'profitRecordedDate', sortDir = 'desc' } = req.query;
+      res.json(await TransactionProfitService.getPaginated({ page: +page, size: +size, sortBy, sortDir }));
+    } catch (e) { handleErr(res, e); }
+  },
+
   async search(req, res) {
     try {
       const { pawnId, customerNic, page = 0, size = 10 } = req.query;

@@ -1,13 +1,16 @@
 'use strict';
 const BranchService = require('../service/BranchService');
-
-function handleErr(res, err) {
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
-}
+const handleErr = require('../utils/handleErr');
 
 module.exports = {
   async getAll(req, res) {
     try { res.json(await BranchService.getAll()); } catch (e) { handleErr(res, e); }
+  },
+  async getActive(req, res) {
+    try { res.json(await BranchService.getActive()); } catch (e) { handleErr(res, e); }
+  },
+  async getPaginated(req, res) {
+    try { res.json(await BranchService.getPaginated(req.query)); } catch (e) { handleErr(res, e); }
   },
   async getById(req, res) {
     try { res.json(await BranchService.getById(req.params.id)); } catch (e) { handleErr(res, e); }

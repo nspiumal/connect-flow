@@ -9,11 +9,11 @@ const InterestRate = sequelize.define('InterestRate', {
   firstMonthRatePercent: { type: DataTypes.DECIMAL(5, 2), field: 'first_month_rate_percent' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
   isDefault: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'is_default' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'created_at' },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'updated_at' },
 }, {
   tableName: 'interest_rates',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  timestamps: false,
 });
 
 module.exports = InterestRate;

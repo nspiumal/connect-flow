@@ -11,11 +11,11 @@ const Customer = sequelize.define('Customer', {
   gender: { type: DataTypes.STRING(20) },
   customerType: { type: DataTypes.STRING(50), field: 'customer_type' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'created_at' },
+  updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'updated_at' },
 }, {
   tableName: 'customers',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  timestamps: false,
 });
 
 module.exports = Customer;

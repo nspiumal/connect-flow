@@ -38,6 +38,14 @@ export interface NumberInputProps {
   required?: boolean;
 }
 
+const formatWithCommas = (val: string | number) => {
+  if (val === "" || val === null || val === undefined) return "";
+  const str = val.toString();
+  const parts = str.split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.join(".");
+};
+
 const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
   (
     {
@@ -56,7 +64,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     ref
   ) => {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Allow: backspace, delete, tab, escape, enter, decimal point
+      // Allow: backspace, delete, tab, escape, enter, decimal point, comma
       if (
         e.key === "Backspace" ||
         e.key === "Delete" ||
@@ -92,30 +100,34 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
+      const rawValue = inputValue.replace(/,/g, "");
 
       // Allow empty value
-      if (inputValue === "" || inputValue === "-") {
-        onChange(inputValue);
+      if (rawValue === "" || rawValue === "-") {
+        onChange(rawValue);
         return;
       }
 
       // Validate that the input is a valid number
       // Allow numbers with decimals and negative numbers
       const regex = /^-?\d*\.?\d*$/;
-      if (regex.test(inputValue)) {
-        onChange(inputValue);
+      if (regex.test(rawValue)) {
+        onChange(rawValue);
       }
     };
+
+    const displayValue = React.useMemo(() => formatWithCommas(value), [value]);
 
     return (
       <Input
         ref={ref}
         id={id}
-        type="number"
+        type="text"
+        inputMode="decimal"
         step={step}
         min={min}
         max={max}
-        value={value}
+        value={displayValue}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}

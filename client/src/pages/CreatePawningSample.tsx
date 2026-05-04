@@ -176,14 +176,8 @@ export default function CreatePawningSample() {
       console.log("📊 Number of item types:", data?.length || 0);
       setItemTypes(data || []);
 
-      if (data && data.length > 0) {
-        toast({
-          title: "Item Types Loaded",
-          description: `${data.length} item types loaded from database`,
-        });
-      }
     } catch (error: unknown) {
-      console.error("❌ Failed to fetch item types:", error);
+      console.error("Failed to fetch item types:", error);
       console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
       toast({
         title: "Warning",
@@ -595,11 +589,6 @@ export default function CreatePawningSample() {
       return;
     }
 
-    if (!identityVerified) {
-      toast({ title: "Validation Error", description: "Please verify identity first", variant: "destructive" });
-      return;
-    }
-
     if (blockedReason) {
       toast({ title: "Blocked Customer", description: blockedReason, variant: "destructive" });
       return;
@@ -899,7 +888,7 @@ export default function CreatePawningSample() {
                       </div>
 
                       <div className="space-y-1">
-                        <Label className="text-xs">Appraised (LKR) *</Label>
+                        <Label className="text-xs">Loan Amount (LKR) *</Label>
                         <NumberInput value={itemDraft.appraisedValue} onChange={(value) => updateDraft({ appraisedValue: value })} onKeyDown={handleItemKeyDown} />
                       </div>
 

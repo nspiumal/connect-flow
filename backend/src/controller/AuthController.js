@@ -4,6 +4,7 @@ const UserService = require('../service/UserService');
 module.exports = {
   async login(req, res) {
     try {
+      console.log("login cre  {}" , req.body.toString())
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
       const result = await UserService.login(email, password);

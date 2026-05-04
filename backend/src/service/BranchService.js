@@ -7,6 +7,22 @@ module.exports = {
     return BranchRepository.findAll();
   },
 
+  async getActive() {
+    return BranchRepository.findActive();
+  },
+
+  async getPaginated({ page = 0, size = 10, sortBy = 'createdAt', sortDir = 'desc' }) {
+    const { count, rows } = await BranchRepository.findPaginated({ page, size, sortBy, sortDir });
+    return {
+      content: rows,
+      pageNumber: page,
+      pageSize: size,
+      totalElements: count,
+      totalPages: Math.ceil(count / size),
+      last: (page + 1) * size >= count,
+    };
+  },
+
   async getById(id) {
     const branch = await BranchRepository.findById(id);
     if (!branch) throw { status: 404, message: 'Branch not found' };

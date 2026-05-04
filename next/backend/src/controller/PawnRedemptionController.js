@@ -1,9 +1,6 @@
 'use strict';
 const PawnRedemptionService = require('../service/PawnRedemptionService');
-
-function handleErr(res, err) {
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
-}
+const handleErr = require('../utils/handleErr');
 
 module.exports = {
   async getOutstandingBalance(req, res) {
@@ -20,6 +17,10 @@ module.exports = {
   },
 
   async getHistory(req, res) {
+    try { res.json(await PawnRedemptionService.getRedemptionHistory(req.params.transactionId)); } catch (e) { handleErr(res, e); }
+  },
+
+  async getByTransaction(req, res) {
     try { res.json(await PawnRedemptionService.getRedemptionHistory(req.params.transactionId)); } catch (e) { handleErr(res, e); }
   },
 };

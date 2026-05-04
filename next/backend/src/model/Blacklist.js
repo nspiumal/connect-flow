@@ -12,11 +12,10 @@ const Blacklist = sequelize.define('Blacklist', {
   branchId: { type: DataTypes.CHAR(36), field: 'branch_id' },
   addedBy: { type: DataTypes.CHAR(36), field: 'added_by' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
+  createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'created_at' },
 }, {
   tableName: 'blacklist',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: false,
+  timestamps: false,
 });
 
 module.exports = Blacklist;

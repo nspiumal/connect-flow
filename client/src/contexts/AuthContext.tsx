@@ -73,15 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const userData = response.user;
       const token = response.token;
-
       if (!token) {
         throw new Error("No token received from server");
       }
 
       const userToStore: UserProfile = {
-        id: userData.id || email,
+        id: userData.id,
         fullName: userData.fullName,
-        email: userData.email || email,
+        email: userData.email,
         phone: userData.phone,
         role: userData.role,
         branchId: userData.branchId,

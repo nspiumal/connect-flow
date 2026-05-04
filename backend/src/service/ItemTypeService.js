@@ -6,6 +6,21 @@ module.exports = {
   async getAll() {
     return ItemTypeRepository.findAll();
   },
+  async getActive() {
+    return ItemTypeRepository.findActive();
+  },
+  async search({ page = 0, size = 10, name, isActive, sortBy = 'name', sortDir = 'asc' }) {
+    const ia = isActive !== undefined ? (isActive === 'true' || isActive === true) : undefined;
+    const { count, rows } = await ItemTypeRepository.findPaginated({ page, size, name, isActive: ia, sortBy, sortDir });
+    return {
+      content: rows,
+      pageNumber: page,
+      pageSize: size,
+      totalElements: count,
+      totalPages: Math.ceil(count / size),
+      last: (page + 1) * size >= count,
+    };
+  },
   async getById(id) {
     const t = await ItemTypeRepository.findById(id);
     if (!t) throw { status: 404, message: 'Item type not found' };
@@ -20,6 +35,12 @@ module.exports = {
     const t = await ItemTypeRepository.findById(id);
     if (!t) throw { status: 404, message: 'Item type not found' };
     await ItemTypeRepository.update(id, data);
+    return ItemTypeRepository.findById(id);
+  },
+  async toggleActive(id) {
+    const t = await ItemTypeRepository.findById(id);
+    if (!t) throw { status: 404, message: 'Item type not found' };
+    await ItemTypeRepository.update(id, { isActive: !t.isActive });
     return ItemTypeRepository.findById(id);
   },
   async delete(id) {

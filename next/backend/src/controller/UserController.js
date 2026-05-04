@@ -1,9 +1,6 @@
 'use strict';
 const UserService = require('../service/UserService');
-
-function handleErr(res, err) {
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
-}
+const handleErr = require('../utils/handleErr');
 
 module.exports = {
   async getAll(req, res) {
@@ -58,5 +55,13 @@ module.exports = {
 
   async verifyPin(req, res) {
     try { res.json(await UserService.verifyPin(req.params.id, req.body.pin)); } catch (e) { handleErr(res, e); }
+  },
+
+  async verifyManagerPin(req, res) {
+    try {
+      const { email, pin } = req.body;
+      if (!email || !pin) return res.status(400).json({ message: 'email and pin are required' });
+      res.json(await UserService.verifyManagerPin(email, pin));
+    } catch (e) { handleErr(res, e); }
   },
 };

@@ -1,52 +1,65 @@
 /**
  * API Service for Backend Communication
- * Handles all HTTP requests to the Spring Boot backend
+ * Handles all HTTP requests to the Node.js backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 
 const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const method = ((init.method as string) || 'GET').toUpperCase();
+  const url =
+    typeof input === 'string'
+      ? input
+      : input instanceof URL
+      ? input.href
+      : '[Request]';
+
   const headers = new Headers(init.headers || {});
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem('token');
 
-  // Log the request URL for debugging
-  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : 'Request object';
-  console.log(`🔐 Auth request to: ${url}`);
-
-  if (token && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${token}`);
-    console.log(`✅ Bearer token added (${token.substring(0, 20)}...)`);
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
   } else if (!token) {
-    console.warn("⚠️ No token found in localStorage - request may fail");
+    console.warn(`[API] No auth token — ${method} ${url}`);
   }
 
+  // ── Execute request ──────────────────────────────────────────────────────
+  let response: Response;
   try {
-    const response = await fetch(input, { ...init, headers });
+    response = await fetch(input, { ...init, headers });
+  } catch (networkErr) {
+    console.error(`[API] Network error — ${method} ${url}:`, networkErr);
+    throw new Error('Network error — unable to reach the server. Please check your connection.');
+  }
 
-    // Handle 401 Unauthorized - redirect to login only if not already on login page
-    if (response.status === 401) {
-      console.error("❌ 401 Unauthorized - Token may be invalid or expired");
-      // Only redirect if not already on login page
-      // if (!window.location.pathname.includes("/login")) {
-      //   console.log("🔄 Redirecting to login page");
-      //   localStorage.removeItem("token");
-      //   localStorage.removeItem("user");
-      //   window.location.href = "/login";
-      // }
-      throw new Error("Unauthorized");
+  // ── 401 Unauthorised ─────────────────────────────────────────────────────
+  if (response.status === 401) {
+    console.warn(`[API] 401 Unauthorised — ${method} ${url}`);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    if (!window.location.pathname.includes('/login')) {
+      window.location.href = '/login';
     }
+    throw new Error('Session expired. Please log in again.');
+  }
 
-    if (response.ok) {
-      console.log(`✅ Request successful: ${response.status} ${response.statusText}`);
-    } else {
-      console.error(`❌ Request failed: ${response.status} ${response.statusText}`);
+  // ── Other non-OK responses ───────────────────────────────────────────────
+  if (!response.ok) {
+    let message = `Request failed (HTTP ${response.status})`;
+    try {
+      const body = await response.clone().json();
+      if (body?.message) message = body.message;
+      else if (typeof body === 'string' && body) message = body;
+    } catch {
+      // Non-JSON error body — keep the default message
     }
-
-    return response;
-  } catch (error) {
-    console.error("❌ Fetch error:", error);
+    console.error(`[API] ${response.status} ${response.statusText} — ${method} ${url} — ${message}`);
+    const error = new Error(message) as Error & { status: number };
+    error.status = response.status;
     throw error;
   }
+
+  return response;
 };
 
 export const apiClient = {
@@ -60,7 +73,16 @@ export const apiClient = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!response.ok) throw new Error('Invalid credentials');
+      if (!response.ok) {
+        let message = 'Invalid credentials';
+        try {
+          const body = await response.json();
+          if (body?.message) message = body.message;
+        } catch { /* non-JSON body */ }
+        const error = new Error(message) as Error & { status: number };
+        error.status = response.status;
+        throw error;
+      }
       return response.json();
     },
   },
@@ -212,7 +234,7 @@ export const apiClient = {
     },
     update: async (id: string, data: any) => {
       const response = await authFetch(`${API_BASE_URL}/branches/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -257,7 +279,7 @@ export const apiClient = {
     },
     update: async (id: string, data: any) => {
       const response = await authFetch(`${API_BASE_URL}/interest-rates/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -333,7 +355,7 @@ export const apiClient = {
     },
     update: async (id: string, data: { name: string; description?: string | null }) => {
       const response = await authFetch(`${API_BASE_URL}/item-types/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -404,7 +426,7 @@ export const apiClient = {
     },
     update: async (id: string, data: any) => {
       const response = await authFetch(`${API_BASE_URL}/blacklist/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
