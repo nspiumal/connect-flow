@@ -29,7 +29,8 @@ function activityLogMiddleware(req, res, next) {
           endpoint: req.originalUrl.substring(0, 500),
           ipAddress: req.ip,
           status: res.statusCode >= 400 ? 'FAILURE' : 'SUCCESS',
-          errorMessage: res.statusCode >= 400 ? (body && body.message ? String(body.message).substring(0, 1000) : null) : null
+          errorMessage: res.statusCode >= 400 ? (body && body.message ? String(body.message).substring(0, 1000) : null) : null,
+          createdAt: new Date()
         }).catch(() => {/* swallow logging errors */});
       } catch (_) {/* swallow */}
     });

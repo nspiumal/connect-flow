@@ -14,7 +14,7 @@ module.exports = {
         where,
         limit: +size,
         offset: +page * +size,
-        order: [['created_at', 'DESC']],
+        order: [['createdAt', 'DESC']],
       });
       
       res.json({

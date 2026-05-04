@@ -44,11 +44,13 @@ const ActivityLogEntry = sequelize.define('ActivityLogEntry', {
     type: DataTypes.STRING(1000), 
     field: 'error_message' 
   },
+  createdAt: {
+    type: DataTypes.DATE,
+    field: 'created_at'
+  }
 }, {
   tableName: 'activity_log',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: false,
+  timestamps: false, // We'll manage createdAt manually as a field since we don't have updatedAt
 });
 
 module.exports = ActivityLogEntry;
