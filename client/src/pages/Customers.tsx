@@ -26,6 +26,11 @@ export default function Customers() {
   const [filterNic, setFilterNic] = useState("");
   const [filterPhone, setFilterPhone] = useState("");
   const [filterStatus, setFilterStatus] = useState<string | string[]>("all");
+  const [appliedFilters, setAppliedFilters] = useState({
+    nic: "",
+    phone: "",
+    status: "all" as string | string[],
+  });
 
   // UI state
   const [results, setResults] = useState<Customer[]>([]);
@@ -38,20 +43,20 @@ export default function Customers() {
 
   const { toast } = useToast();
 
-  // Load all customers on mount and when page changes
+  // Load all customers on mount and when page or filters change
   useEffect(() => {
     fetchAllCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, appliedFilters]);
 
   const fetchAllCustomers = async () => {
     try {
       setLoading(true);
       // Use filter API with all filter parameters
       const response = await apiClient.customers.filter(
-        filterNic || undefined,
-        filterPhone || undefined,
-        filterStatus,
+        appliedFilters.nic || undefined,
+        appliedFilters.phone || undefined,
+        appliedFilters.status,
         currentPage,
         pageSize,
         "fullName",
@@ -95,8 +100,14 @@ export default function Customers() {
     setFilterNic(nic || "");
     setFilterPhone(phone || "");
     setFilterStatus(status);
+    
+    setAppliedFilters({
+      nic: nic || "",
+      phone: phone || "",
+      status: status,
+    });
+    
     setCurrentPage(0);
-    fetchAllCustomers();
   };
 
 

@@ -50,7 +50,16 @@ module.exports = {
   async filter(req, res) {
     try {
       const { nic, policeReport, status } = req.query;
-      const isActive = status !== undefined ? (status === 'true' || status === 'active') : undefined;
+      let isActive;
+      if (Array.isArray(status)) {
+        const hasActive = status.includes('active');
+        const hasInactive = status.includes('inactive');
+        if (hasActive && hasInactive) isActive = undefined;
+        else if (hasActive) isActive = true;
+        else if (hasInactive) isActive = false;
+      } else if (status !== undefined) {
+        isActive = status === 'true' || status === 'active';
+      }
       res.json(await BlacklistService.getPaginated({ nic, policeReport, isActive, page: 0, size: 100 }));
     } catch (e) { handleErr(res, e); }
   },

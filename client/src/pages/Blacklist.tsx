@@ -36,19 +36,33 @@ export default function Blacklist() {
   const [filterNic, setFilterNic] = useState("");
   const [filterPoliceReport, setFilterPoliceReport] = useState("");
   const [filterStatus, setFilterStatus] = useState<string | string[]>("all");
+  const [appliedFilters, setAppliedFilters] = useState({
+    nic: "",
+    policeReport: "",
+    status: "all" as string | string[],
+  });
 
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const fetchBlacklist = async (nic?: string | null, policeReport?: string | null, status?: string | string[] | null) => {
+  const fetchBlacklist = async () => {
     try {
       setLoading(true);
+      const { nic, policeReport, status } = appliedFilters;
 
       // Use filter API if any filters are provided, otherwise use paginated API
-      const hasFilters = nic || policeReport || status;
+      const hasFilters = nic || policeReport || status !== "all";
 
       const data = hasFilters
-        ? await apiClient.blacklist.filter(nic || undefined, policeReport || undefined, status || undefined, currentPage, pageSize, 'createdAt', 'desc')
+        ? await apiClient.blacklist.filter(
+          appliedFilters.nic || undefined,
+          appliedFilters.policeReport || undefined,
+          appliedFilters.status !== "all" ? appliedFilters.status : undefined,
+          currentPage,
+          pageSize,
+          'createdAt',
+          'desc'
+        )
         : await apiClient.blacklist.getPaginated(currentPage, pageSize, 'createdAt', 'desc');
 
       setBlacklist(data.content || []);
@@ -69,7 +83,7 @@ export default function Blacklist() {
   useEffect(() => {
     fetchBlacklist();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, appliedFilters]);
 
   const handleSearch = (filters: Record<string, FilterValue>) => {
     const nic = typeof filters.nic === 'string' ? filters.nic : undefined;
@@ -89,9 +103,15 @@ export default function Blacklist() {
 
     setFilterNic(nic || "");
     setFilterPoliceReport(policeReport || "");
-    setFilterStatus(status || "all");
+    setFilterStatus(status);
+
+    setAppliedFilters({
+      nic: nic || "",
+      policeReport: policeReport || "",
+      status: status,
+    });
+
     setCurrentPage(0); // Reset to first page when filtering
-    fetchBlacklist(nic, policeReport, status);
   };
 
   const hasActiveFilters = filterNic !== "" || filterPoliceReport !== "" || filterStatus !== "all";

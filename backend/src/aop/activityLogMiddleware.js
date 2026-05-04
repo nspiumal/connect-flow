@@ -13,6 +13,9 @@ const EXCLUDED_LOG_PATHS = [
   { method: 'GET', path: /^\/api\/pawn-redemptions\/outstanding-balance/ },
   { method: 'GET', path: /^\/api\/customers\/filter/ },
   { method: 'GET', path: /^\/api\/pawn-transactions\/search\/advanced/ },
+  { method: 'GET', path: /^\/api\/blacklist\/filter/ },
+  { method: 'GET', path: /^\/api\/blacklist\/paginated/ },
+  { method: 'GET', path: /^\/api\/interest-rates/ },
 ];
 
 function activityLogMiddleware(req, res, next) {

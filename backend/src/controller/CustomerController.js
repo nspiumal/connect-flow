@@ -20,7 +20,16 @@ module.exports = {
   async searchAdvanced(req, res) {
     try {
       const { nic, phone, name, customerType, status, page = 0, size = 10 } = req.query;
-      const isActive = status ? (status === 'active' ? true : status === 'inactive' ? false : undefined) : undefined;
+      let isActive;
+      if (Array.isArray(status)) {
+        const hasActive = status.includes('active');
+        const hasInactive = status.includes('inactive');
+        if (hasActive && hasInactive) isActive = undefined;
+        else if (hasActive) isActive = true;
+        else if (hasInactive) isActive = false;
+      } else if (status) {
+        isActive = status === 'active' ? true : status === 'inactive' ? false : undefined;
+      }
       res.json(await CustomerService.getPaginated({ nic, phone, name, customerType, isActive, page: +page, size: +size }));
     } catch (e) { handleErr(res, e); }
   },
@@ -28,7 +37,16 @@ module.exports = {
   async filter(req, res) {
     try {
       const { nic, phone, status } = req.query;
-      const isActive = status !== undefined ? (status === 'true' || status === 'active') : undefined;
+      let isActive;
+      if (Array.isArray(status)) {
+        const hasActive = status.includes('active');
+        const hasInactive = status.includes('inactive');
+        if (hasActive && hasInactive) isActive = undefined;
+        else if (hasActive) isActive = true;
+        else if (hasInactive) isActive = false;
+      } else if (status !== undefined) {
+        isActive = status === 'true' || status === 'active';
+      }
       res.json(await CustomerService.getPaginated({ nic, phone, isActive, page: 0, size: 100 }));
     } catch (e) { handleErr(res, e); }
   },
