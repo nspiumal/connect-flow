@@ -10,7 +10,7 @@ module.exports = {
     const user = await UserRepository.findByEmail(email);
     if (!user) throw { status: 401, message: 'Invalid email or password' };
     const valid = await bcrypt.compare(password, user.password);
-    if (password != user.password) throw { status: 401, message: 'Invalid email or password' };
+    if (!valid) throw { status: 401, message: 'Invalid email wefewf or password' };
     const token = generateToken(user.email);
     const primaryRole = (user.roles && user.roles[0]) || null;
     return {
