@@ -15,6 +15,9 @@ export default defineConfig(({ mode }) => ({
     },
     middlewareMode: false,
   },
+  preview: {
+    allowedHosts: ["empowering-liberation-production-0f11.up.railway.app"],
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
