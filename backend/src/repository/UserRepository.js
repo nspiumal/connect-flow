@@ -7,7 +7,12 @@ const include = [{ model: UserRole, as: 'roles', include: [{ model: Branch, as: 
 module.exports = {
   findAll: () => User.findAll({ include }),
   findById: (id) => User.findByPk(id, { include }),
-  findByEmail: (email) => User.findOne({ where: { email }, include }),
+  findByEmail: (email) => User.findOne({ 
+    where: { 
+      email: { [Op.iLike]: email } 
+    }, 
+    include 
+  }),
   findByRole: (role) => User.findAll({ include: [{ model: UserRole, as: 'roles', where: { role }, include: [{ model: Branch, as: 'branch' }] }] }),
   findByBranch: (branchId) => User.findAll({ include: [{ model: UserRole, as: 'roles', where: { branchId }, include: [{ model: Branch, as: 'branch' }] }] }),
   create: (data) => User.create(data),

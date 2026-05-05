@@ -69,9 +69,9 @@ async function seedData() {
   // Default superadmin
   let admin = await User.findOne({ where: { email: 'admin@connectflow.com' } });
   if (!admin) {
-    const hash = await bcrypt.hash('admin123', 12);
+    const hash = await bcrypt.hash('Admin@123', 12);
     admin = await User.create({ id: uuidv4(), fullName: 'System Administrator', email: 'admin@connectflow.com', phone: '0000000000', password: hash });
-    await UserRole.create({ id: uuidv4(), userId: admin.id, role: 'SUPERADMIN', branchId: branch.id });
+    await UserRole.create({ id: uuidv4(), userId: admin.id, role: 'ADMIN', branchId: branch.id });
     console.log('[Seed] Created default admin: admin@connectflow.com / admin123');
   }
 

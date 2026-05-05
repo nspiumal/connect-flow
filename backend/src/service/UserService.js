@@ -15,7 +15,8 @@ const UserService = {
       logger.warn(`⚠️ [AUTH] Login failed - user not found: ${email}`);
       throw { status: 401, message: 'Invalid email or password' };
     }
-    if (password !== user.password) {
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
       logger.warn(`⚠️ [AUTH] Login failed - invalid password for: ${email}`);
       throw { status: 401, message: 'Invalid email or password' };
     }
