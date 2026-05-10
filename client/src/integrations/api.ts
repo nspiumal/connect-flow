@@ -757,10 +757,11 @@ export const apiClient = {
       return response.json();
     },
 
-    filter: async (nic?: string, phone?: string, status?: string | string[], page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc') => {
+    filter: async (nic?: string, phone?: string, status?: string | string[], page: number = 0, size: number = 10, sortBy: string = 'fullName', sortDir: string = 'asc', name?: string) => {
       const params = new URLSearchParams();
       if (nic) params.append('nic', nic);
       if (phone) params.append('phone', phone);
+      if (name) params.append('name', name);
       if (status && status !== 'all') {
         if (Array.isArray(status)) {
           status.forEach(s => params.append('status', s));

@@ -11,8 +11,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Image as ImageIcon, Upload, X, Plus, AlertCircle, CheckCircle2, ChevronRight } from "lucide-react";
+import { Image as ImageIcon, Upload, X, Plus, AlertCircle, CheckCircle2, ChevronRight, PlusCircle } from "lucide-react";
+import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatWeight } from "@/lib/utils";
+import NumberInput from "@/components/ui/number-input";
 
 export default function CreatePawning() {
   const { toast } = useToast();
@@ -76,6 +79,7 @@ export default function CreatePawning() {
   const [pinVerifying, setPinVerifying] = useState(false);
   const [managerUserId, setManagerUserId] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
+  const [showAddItemTypeDialog, setShowAddItemTypeDialog] = useState(false);
 
   // Hidden feature: T-N-D key sequence for revealing period field
   const [showPeriodField, setShowPeriodField] = useState(false);
@@ -796,7 +800,18 @@ export default function CreatePawning() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="itemContent">Item Type</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="itemContent">Item Type</Label>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 px-2 text-xs text-primary gap-1"
+                      onClick={() => setShowAddItemTypeDialog(true)}
+                    >
+                      <PlusCircle className="h-3 w-3" /> Quick Add
+                    </Button>
+                  </div>
                   <Select value={itemContent} onValueChange={setItemContent}>
                     <SelectTrigger id="itemContent">
                       <SelectValue placeholder="Select item type" />
@@ -850,13 +865,12 @@ export default function CreatePawning() {
                   <Label htmlFor="itemWeight">
                     Weight (grams) <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <NumberInput
                     id="itemWeight"
-                    type="number"
-                    step="0.01"
                     value={itemWeight}
-                    onChange={(e) => setItemWeight(e.target.value)}
-                    onKeyPress={handleItemFieldKeyPress}
+                    onChange={setItemWeight}
+                    onKeyDown={handleItemFieldKeyPress}
+                    precision={3}
                     placeholder="Enter weight"
                     className={errors.itemWeight ? 'border-red-500' : ''}
                   />
@@ -1228,7 +1242,7 @@ export default function CreatePawning() {
                       Item {index + 1}: {item.description || "Item"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {item.content || "N/A"} | {item.condition} | {item.weightGrams}g | {item.karat} |
+                      {item.content || "N/A"} | {item.condition} | {formatWeight(item.weightGrams)}g | {item.karat} |
                       Appraised: LKR {item.appraisedValue.toLocaleString()} |
                       Market: LKR {item.marketValue.toLocaleString()}
                     </p>
@@ -1255,6 +1269,14 @@ export default function CreatePawning() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AddItemTypeDialog
+        open={showAddItemTypeDialog}
+        onOpenChange={setShowAddItemTypeDialog}
+        onSuccess={(newItemType) => {
+          fetchItemTypes();
+          setItemContent(newItemType.name);
+        }}
+      />
     </>
   );
 }

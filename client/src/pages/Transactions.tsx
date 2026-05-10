@@ -25,13 +25,13 @@ export default function Transactions() {
   const [filterNic, setFilterNic] = useState("");
   const [filterMinAmount, setFilterMinAmount] = useState("");
   const [filterMaxAmount, setFilterMaxAmount] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<string | string[]>("all");
   const [appliedFilters, setAppliedFilters] = useState({
     pawnId: "",
     customerNic: "",
     minAmount: "",
     maxAmount: "",
-    status: "all",
+    status: "all" as string | string[],
   });
   const [rates, setRates] = useState<any[]>([]);
   const [outstandingBalances, setOutstandingBalances] = useState<{ [key: string]: any }>({});
@@ -821,7 +821,14 @@ export default function Transactions() {
                   Add specific details about this item
                 </p>
               </div>
-              <div><Label>Weight (grams) *</Label><Input type="number" step="0.01" value={itemWeight} onChange={(e) => setItemWeight(e.target.value)} required /></div>
+              <div><Label>Weight (grams) *</Label>
+                <NumberInput 
+                  value={itemWeight} 
+                  onChange={setItemWeight} 
+                  precision={3}
+                  required 
+                />
+              </div>
               <div><Label>Karat *</Label>
                 <Select value={itemKarat} onValueChange={setItemKarat}>
                   <SelectTrigger><SelectValue /></SelectTrigger>

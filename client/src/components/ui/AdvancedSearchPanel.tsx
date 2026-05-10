@@ -122,6 +122,11 @@ export function AdvancedSearchPanel({
                     placeholder={field.placeholder}
                     value={inputValues[field.name] || ""}
                     onChange={(e) => handleInputChange(field.name, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSearch();
+                      }
+                    }}
                     disabled={isLoading}
                     className="w-full bg-white"
                   />

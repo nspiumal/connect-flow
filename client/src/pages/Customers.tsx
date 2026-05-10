@@ -25,10 +25,12 @@ export default function Customers() {
   // Filter state
   const [filterNic, setFilterNic] = useState("");
   const [filterPhone, setFilterPhone] = useState("");
+  const [filterName, setFilterName] = useState("");
   const [filterStatus, setFilterStatus] = useState<string | string[]>("all");
   const [appliedFilters, setAppliedFilters] = useState({
     nic: "",
     phone: "",
+    name: "",
     status: "all" as string | string[],
   });
 
@@ -60,7 +62,8 @@ export default function Customers() {
         currentPage,
         pageSize,
         "fullName",
-        "asc"
+        "asc",
+        appliedFilters.name || undefined
       );
       console.log("Customers response:", response);
 
@@ -84,6 +87,7 @@ export default function Customers() {
   const handleSearch = (filters: Record<string, FilterValue>) => {
     const nic = typeof filters.nic === 'string' ? filters.nic : undefined;
     const phone = typeof filters.phone === 'string' ? filters.phone : undefined;
+    const name = typeof filters.name === 'string' ? filters.name : undefined;
 
     // Handle status - allow arrays for multiple selection
     let status: string | string[] = "all";
@@ -99,11 +103,13 @@ export default function Customers() {
 
     setFilterNic(nic || "");
     setFilterPhone(phone || "");
+    setFilterName(name || "");
     setFilterStatus(status);
     
     setAppliedFilters({
       nic: nic || "",
       phone: phone || "",
+      name: name || "",
       status: status,
     });
     
@@ -111,7 +117,7 @@ export default function Customers() {
   };
 
 
-  const hasActiveFilters = filterNic || filterPhone || filterStatus !== "all";
+  const hasActiveFilters = filterNic || filterPhone || filterName || filterStatus !== "all";
 
   return (
     <div className="space-y-6">
@@ -127,6 +133,11 @@ export default function Customers() {
           title="Customer Search"
           subtitle="Search customers by NIC, phone number, or status"
           inputFields={[
+            {
+              name: "name",
+              label: "Customer Name",
+              placeholder: "Enter customer name",
+            },
             {
               name: "nic",
               label: "NIC",

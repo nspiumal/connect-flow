@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatWeight } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Image as ImageIcon, Upload, X } from "lucide-react";
+import { Image as ImageIcon, Upload, X, PlusCircle } from "lucide-react";
+import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
 
 
 type IdType = "NIC" | "Passport" | "DrivingLicense";
@@ -119,6 +121,7 @@ export default function CreatePawningSample() {
 
   // Confirmation dialog state
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showAddItemTypeDialog, setShowAddItemTypeDialog] = useState(false);
 
   // Customer search dropdown state
   const [customerSearchResults, setCustomerSearchResults] = useState<Customer[]>([]);
@@ -825,7 +828,18 @@ export default function CreatePawningSample() {
                     <h3 className="font-semibold text-sm border-b pb-1">Item Editor (Press Enter to Add)</h3>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-xs">Type</Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Type</Label>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-5 px-1.5 text-[10px] text-primary gap-1"
+                            onClick={() => setShowAddItemTypeDialog(true)}
+                          >
+                            <PlusCircle className="h-2.5 w-2.5" /> Quick Add
+                          </Button>
+                        </div>
                         <Select value={itemDraft.content} onValueChange={(v) => updateDraft({ content: v })}>
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select type" /></SelectTrigger>
                           <SelectContent>
@@ -869,7 +883,7 @@ export default function CreatePawningSample() {
 
                       <div className="space-y-1">
                         <Label className="text-xs">Weight (g) *</Label>
-                        <NumberInput value={itemDraft.weight} onChange={(value) => updateDraft({ weight: value })} onKeyDown={handleItemKeyDown} />
+                        <NumberInput value={itemDraft.weight} onChange={(value) => updateDraft({ weight: value })} onKeyDown={handleItemKeyDown} precision={3} />
                       </div>
 
                       <div className="space-y-1">
@@ -972,7 +986,7 @@ export default function CreatePawningSample() {
                                 <p className="text-xs font-medium text-gray-900">Item {index + 1}</p>
                                 <p className="text-xs text-gray-600 truncate">{item.description}</p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  Weight: <span className="font-medium">{item.weightGrams}g</span> | Karat: <span className="font-medium">{item.karat}</span>
+                                  Weight: <span className="font-medium">{formatWeight(item.weightGrams)}g</span> | Karat: <span className="font-medium">{item.karat}</span>
                                 </p>
                                 {item.images && item.images.length > 1 && (
                                   <p className="text-[10px] text-muted-foreground mt-0.5">+{item.images.length - 1} more image(s)</p>
@@ -1108,7 +1122,7 @@ export default function CreatePawningSample() {
                 {items.map((item, index) => (
                   <div key={index} className="p-2 bg-gray-50 rounded border text-sm">
                     <p className="font-medium">Item {index + 1}: {item.description || "Gold Item"}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Type: {item.content} | Condition: {item.condition} | Weight: {item.weightGrams}g | Karat: {item.karat}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Type: {item.content} | Condition: {item.condition} | Weight: {formatWeight(item.weightGrams)}g | Karat: {item.karat}</p>
                   </div>
                 ))}
               </div>
@@ -1118,7 +1132,7 @@ export default function CreatePawningSample() {
               <h4 className="font-semibold text-sm border-b pb-1">Transaction Summary</h4>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-muted/50 p-3 rounded">
                 <div><span className="text-muted-foreground">Total Items:</span><span className="ml-2 font-medium">{items.length}</span></div>
-                <div><span className="text-muted-foreground">Total Weight:</span><span className="ml-2 font-medium">{totals.weight.toFixed(2)} g</span></div>
+                <div><span className="text-muted-foreground">Total Weight:</span><span className="ml-2 font-medium">{formatWeight(totals.weight)} g</span></div>
                 <div><span className="text-muted-foreground">Total Appraised:</span><span className="ml-2 font-medium">LKR {totals.appraised.toLocaleString()}</span></div>
                 <div><span className="text-muted-foreground">Total Market:</span><span className="ml-2 font-medium">LKR {totals.market.toLocaleString()}</span></div>
                 <div><span className="text-muted-foreground">Loan Amount:</span><span className="ml-2 font-semibold text-primary">LKR {Number(loanAmount || 0).toLocaleString()}</span></div>
@@ -1188,6 +1202,14 @@ export default function CreatePawningSample() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AddItemTypeDialog
+        open={showAddItemTypeDialog}
+        onOpenChange={setShowAddItemTypeDialog}
+        onSuccess={(newItemType) => {
+          fetchItemTypes();
+          updateDraft({ content: newItemType.name });
+        }}
+      />
     </>
   );
 }

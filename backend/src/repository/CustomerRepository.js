@@ -15,14 +15,14 @@ module.exports = {
     const where = {};
     if (isActive !== undefined && isActive !== null) where.isActive = isActive;
     if (customerType) where.customerType = customerType;
-    if (nic) where.nic = { [Op.like]: `%${nic}%` };
-    if (phone) where.phone = { [Op.like]: `%${phone}%` };
-    if (name) where.fullName = { [Op.like]: `%${name}%` };
+    if (nic) where.nic = { [Op.iLike]: `%${nic}%` };
+    if (phone) where.phone = { [Op.iLike]: `%${phone}%` };
+    if (name) where.fullName = { [Op.iLike]: `%${name}%` };
     if (query) {
       where[Op.or] = [
-        { fullName: { [Op.like]: `%${query}%` } },
-        { nic: { [Op.like]: `%${query}%` } },
-        { phone: { [Op.like]: `%${query}%` } },
+        { fullName: { [Op.iLike]: `%${query}%` } },
+        { nic: { [Op.iLike]: `%${query}%` } },
+        { phone: { [Op.iLike]: `%${query}%` } },
       ];
     }
     return Customer.findAndCountAll({

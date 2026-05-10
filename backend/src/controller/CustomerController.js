@@ -36,7 +36,7 @@ module.exports = {
 
   async filter(req, res) {
     try {
-      const { nic, phone, status } = req.query;
+      const { nic, phone, status, name, page = 0, size = 10 } = req.query;
       let isActive;
       if (Array.isArray(status)) {
         const hasActive = status.includes('active');
@@ -47,7 +47,7 @@ module.exports = {
       } else if (status !== undefined) {
         isActive = status === 'true' || status === 'active';
       }
-      res.json(await CustomerService.getPaginated({ nic, phone, isActive, page: 0, size: 100 }));
+      res.json(await CustomerService.getPaginated({ nic, phone, name, isActive, page: +page, size: +size }));
     } catch (e) { handleErr(res, e); }
   },
 

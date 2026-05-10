@@ -74,6 +74,11 @@ export function CommonSearch({
                     placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
                     value={values[field.name] || ""}
                     onChange={(e) => handleInputChange(field.name, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSearch();
+                      }
+                    }}
                     disabled={isLoading}
                     className="pl-9"
                   />
@@ -85,6 +90,11 @@ export function CommonSearch({
                   placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
                   value={values[field.name] || ""}
                   onChange={(e) => handleInputChange(field.name, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearch();
+                    }
+                  }}
                   disabled={isLoading}
                   className="mt-1"
                 />
@@ -94,6 +104,11 @@ export function CommonSearch({
                   type="date"
                   value={values[field.name] || ""}
                   onChange={(e) => handleInputChange(field.name, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearch();
+                    }
+                  }}
                   disabled={isLoading}
                   className="mt-1"
                 />

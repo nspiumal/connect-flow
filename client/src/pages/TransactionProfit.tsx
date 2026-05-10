@@ -10,6 +10,7 @@ import { ArrowLeft } from "lucide-react";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatWeight } from "@/lib/utils";
 
 interface ItemDetail {
   description: string;
@@ -202,7 +203,7 @@ export default function TransactionProfit() {
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Weight</Label>
-                      <p className="font-medium">{item.weightGrams}g</p>
+                      <p className="font-medium">{formatWeight(item.weightGrams)}g</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Karat</Label>

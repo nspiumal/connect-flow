@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { Image as ImageIcon, ArrowLeft } from "lucide-react";
+import { formatWeight } from "@/lib/utils";
 
 export default function TransactionEdit() {
   const { id } = useParams<{ id: string }>();
@@ -429,7 +430,7 @@ export default function TransactionEdit() {
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Weight</Label>
-                            <p className="font-medium">{item.weightGrams}g</p>
+                            <p className="font-medium">{formatWeight(item.weightGrams)}g</p>
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Karat</Label>
