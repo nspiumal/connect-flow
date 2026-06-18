@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Image as ImageIcon, Upload, X, Plus, AlertCircle, CheckCircle2, ChevronRight, PlusCircle } from "lucide-react";
+import { Image as ImageIcon, Upload, X, Plus, AlertCircle, CheckCircle2, ChevronRight, PlusCircle, ArrowLeft } from "lucide-react";
 import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatWeight } from "@/lib/utils";
@@ -602,8 +602,20 @@ export default function CreatePawning() {
       {loading && <LoadingOverlay isLoading={loading} />}
       <div className="container mx-auto py-6 px-4 max-w-5xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Create New Pawning Transaction</h1>
-          <p className="text-gray-500 mt-1">Complete the 3-step wizard to create a transaction</p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/transactions")}
+              className="h-9 w-9"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Create New Pawning Transaction</h1>
+              <p className="text-gray-500 mt-1">Complete the 3-step wizard to create a transaction</p>
+            </div>
+          </div>
         </div>
 
         {/* Progress Indicator */}

@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Image as ImageIcon, Upload, X, PlusCircle } from "lucide-react";
+import { Image as ImageIcon, Upload, X, PlusCircle, ArrowLeft } from "lucide-react";
 import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
 
 
@@ -727,6 +727,14 @@ export default function CreatePawningSample() {
       {loading && <LoadingOverlay isLoading={loading} />}
       <div className="h-[calc(100vh-4rem)] overflow-hidden p-4">
         <div className="flex items-center gap-2 mb-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/transactions")}
+            className="h-9 w-9"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <h1 className="text-2xl font-bold">Create Pawning Transaction</h1>
           {patternUnlocked && (
             <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">SPECIAL MODE</span>
@@ -923,7 +931,7 @@ export default function CreatePawningSample() {
                       />
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1" onKeyDown={handleItemKeyDown}>
                       <Label className="text-xs flex items-center gap-1"><ImageIcon className="h-3 w-3" />Current Item Images</Label>
                       <div className="flex items-center gap-2">
                         <Button

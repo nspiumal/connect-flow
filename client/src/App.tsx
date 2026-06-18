@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { AppLayout, AppLayoutNoSidebar } from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Branches from "./pages/Branches";
@@ -47,8 +47,6 @@ const App = () => (
             <Route path="/users" element={<UsersPage />} />
             <Route path="/item-types" element={<ItemTypes />} />
             <Route path="/transactions" element={<Transactions />} />
-            <Route path="/transactions/create-new" element={<CreatePawning />} />
-            <Route path="/transactions/create" element={<CreatePawningSample />} />
             <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
             <Route path="/transactions/info/:id" element={<TransactionInfo />} />
             <Route path="/transactions/redeem/:id" element={<TransactionRedeem />} />
@@ -60,6 +58,10 @@ const App = () => (
             <Route path="/reports" element={<Reports />} />
             <Route path="/audit-logs" element={<AuditLogs />} />
             <Route path="/activity-logs" element={<ActivityLogs />} />
+            </Route>
+            <Route element={<AppLayoutNoSidebar />}>
+            <Route path="/transactions/create-new" element={<CreatePawning />} />
+            <Route path="/transactions/create" element={<CreatePawningSample />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

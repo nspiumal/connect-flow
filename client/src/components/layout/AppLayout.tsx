@@ -23,3 +23,23 @@ export function AppLayout() {
     </div>
   );
 }
+
+export function AppLayoutNoSidebar() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingOverlay isLoading={true} message="Loading..." />;
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  return (
+    <div className="flex min-h-screen w-full bg-background">
+      <main className="flex-1 overflow-auto">
+        <div className="px-8 py-4 space-y-4">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+}
