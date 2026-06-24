@@ -10,6 +10,7 @@ import { apiClient } from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
+import { t } from "@/lib/lang";
 
 interface Customer {
   id: string;
@@ -75,7 +76,7 @@ export default function Customers() {
     } catch (error) {
       console.error("Failed to fetch customers:", error);
       toast({
-        title: "Error",
+        title: t("ERROR"),
         description: "Failed to load customers",
         variant: "destructive",
       });
@@ -121,43 +122,47 @@ export default function Customers() {
 
   return (
     <div className="space-y-6">
-      <LoadingOverlay isLoading={loading} message="Loading customers..." />
+      <LoadingOverlay isLoading={loading} message={t("LOADING_CUSTOMERS")} />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Customer Management</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">{t("CUSTOMER_MANAGEMENT")}</h1>
       </div>
 
       {/* Filter Panel using AdvancedSearchPanel */}
       {showFilters && (
         <AdvancedSearchPanel
-          title="Customer Search"
-          subtitle="Search customers by NIC, phone number, or status"
+          title={t("CUSTOMER_SEARCH")}
+          subtitle={t("SEARCH_CUSTOMERS_BY_NIC")}
           inputFields={[
             {
               name: "name",
-              label: "Customer Name",
-              placeholder: "Enter customer name",
+              label: t("CUSTOMER_NAME"),
+              placeholder: t("ENTER_CUSTOMER_NAME"),
+              inline: true,
             },
             {
               name: "nic",
-              label: "NIC",
-              placeholder: "Enter NIC number",
+              label: t("NIC"),
+              placeholder: t("ENTER_NIC_NUMBER"),
+              inline: true,
             },
             {
               name: "phone",
-              label: "Phone Number",
-              placeholder: "Enter phone number",
+              label: t("PHONE_NUMBER"),
+              placeholder: t("ENTER_PHONE_NUMBER"),
+              inline: true,
             },
           ]}
           checkboxGroups={[
             {
               name: "status",
-              label: "Status",
+              label: t("STATUS"),
               options: [
-                { label: "Active", value: "active" },
-                { label: "Inactive", value: "inactive" },
+                { label: t("ACTIVE"), value: "active" },
+                { label: t("INACTIVE"), value: "inactive" },
               ],
               defaultChecked: true,
+              inline: true,
             },
           ]}
           onSearch={handleSearch}
@@ -172,12 +177,12 @@ export default function Customers() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>NIC</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Customer Type</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("NAME")}</TableHead>
+                  <TableHead>{t("NIC")}</TableHead>
+                  <TableHead>{t("PHONE")}</TableHead>
+                  <TableHead>{t("ADDRESS")}</TableHead>
+                  <TableHead>{t("CUSTOMER_TYPE")}</TableHead>
+                  <TableHead>{t("STATUS")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -193,7 +198,7 @@ export default function Customers() {
                       </TableCell>
                       <TableCell>
                         <Badge variant={customer.isActive ? "default" : "secondary"}>
-                          {customer.isActive ? "Active" : "Inactive"}
+                          {customer.isActive ? t("ACTIVE") : t("INACTIVE")}
                         </Badge>
                       </TableCell>
                     </TableRow>
@@ -201,7 +206,7 @@ export default function Customers() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                      {loading ? "Loading customers..." : "No customers found"}
+                      {loading ? t("LOADING_CUSTOMERS") : t("NO_CUSTOMERS_FOUND")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -210,10 +215,10 @@ export default function Customers() {
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between border-t px-6 py-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 sm:px-6 py-3 sm:py-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2">
-                <Label className="text-sm">Rows per page:</Label>
+                <Label className="text-sm whitespace-nowrap">{t("ROWS_PER_PAGE")}</Label>
                 <Select
                   value={String(pageSize)}
                   onValueChange={(value) => {
@@ -222,7 +227,7 @@ export default function Customers() {
                   }}
                   disabled={loading}
                 >
-                  <SelectTrigger className="w-20">
+                  <SelectTrigger className="w-16 sm:w-20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -233,12 +238,12 @@ export default function Customers() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 Showing {results.length > 0 ? currentPage * pageSize + 1 : 0} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} customers
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -246,10 +251,10 @@ export default function Customers() {
                 disabled={currentPage === 0 || loading}
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous
+                <span className="hidden sm:inline">{t("PREVIOUS")}</span>
               </Button>
-              <span className="text-sm px-2">
-                Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages}
+              <span className="text-xs sm:text-sm px-1 sm:px-2">
+                {t("PAGE")} {totalElements > 0 ? currentPage + 1 : 0} {t("OF")} {totalPages}
               </span>
               <Button
                 variant="outline"
@@ -257,7 +262,7 @@ export default function Customers() {
                 onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                 disabled={currentPage >= totalPages - 1 || loading || totalPages === 0}
               >
-                Next
+                <span className="hidden sm:inline">{t("NEXT")}</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

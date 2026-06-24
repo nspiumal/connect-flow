@@ -11,6 +11,7 @@ export interface SearchInputField {
   label: string;
   placeholder: string;
   type?: "text" | "number" | "date";
+  inline?: boolean;
 }
 
 export interface CheckboxGroupField {
@@ -18,6 +19,7 @@ export interface CheckboxGroupField {
   label: string;
   options: { label: string; value: string }[];
   defaultChecked?: boolean;
+  inline?: boolean;
 }
 
 export type FilterValue = string | string[] | number | boolean;
@@ -100,89 +102,74 @@ export function AdvancedSearchPanel({
 
   return (
     <Card className={`${backgroundColor} rounded-lg shadow-sm border border-gray-200 mb-6`}>
-      <div className="p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-          <p className="text-sm text-gray-500">{subtitle}</p>
-        </div>
-
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Side - Input Fields */}
-          <div className="lg:col-span-7 space-y-4">
+      <div className="p-3 sm:p-4 lg:p-6">
+        {/* Search Fields Row — inputs, checkboxes, and Search button all in one row */}
+        <div className="flex flex-wrap items-start sm:items-center gap-3 sm:gap-4">
+          {/* Input Fields + Checkbox Groups — grouped together so they sit side by side */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 min-w-0">
             {inputFields.map((field) => (
-              <div key={field.name} className="grid grid-cols-12 gap-4 items-center">
-                <Label className="col-span-3 text-sm font-medium text-gray-700 text-right">
+              <div key={field.name} className={field.inline ? "flex items-center gap-1 sm:gap-2 min-w-0" : "min-w-0 w-full sm:w-auto"}>
+                <Label className={`text-xs sm:text-sm font-medium text-gray-700 ${field.inline ? "whitespace-nowrap shrink-0" : "mb-1 block"}`}>
                   {field.label}
                 </Label>
-                <div className="col-span-9">
-                  <Input
-                    type={field.type || "text"}
-                    placeholder={field.placeholder}
-                    value={inputValues[field.name] || ""}
-                    onChange={(e) => handleInputChange(field.name, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSearch();
-                      }
-                    }}
-                    disabled={isLoading}
-                    className="w-full bg-white"
-                  />
+                <Input
+                  type={field.type || "text"}
+                  placeholder={field.placeholder}
+                  value={inputValues[field.name] || ""}
+                  onChange={(e) => handleInputChange(field.name, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearch();
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="bg-white min-w-0 w-32 sm:w-40"
+                />
+              </div>
+            ))}
+
+            {/* Checkbox Groups — sit directly after input fields */}
+            {checkboxGroups.map((group) => (
+              <div key={group.name} className={group.inline ? "flex items-center gap-1 sm:gap-2" : undefined}>
+                <Label className={`text-xs sm:text-sm font-medium text-gray-700 ${group.inline ? "whitespace-nowrap shrink-0" : "mb-2 block"}`}>
+                  {group.label}:
+                </Label>
+                <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-2">
+                  {group.options.map((option) => (
+                    <div key={option.value} className="flex items-center space-x-1.5 sm:space-x-2">
+                      <Checkbox
+                        id={`${group.name}-${option.value}`}
+                        checked={checkboxValues[group.name]?.includes(option.value) || false}
+                        onCheckedChange={(checked) =>
+                          handleCheckboxChange(group.name, option.value, checked as boolean)
+                        }
+                        disabled={isLoading}
+                      />
+                      <label
+                        htmlFor={`${group.name}-${option.value}`}
+                        className="text-xs sm:text-sm font-medium text-gray-700 cursor-pointer whitespace-nowrap"
+                      >
+                        {option.label}
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Right Side - Checkbox Groups */}
-          {checkboxGroups.length > 0 && (
-            <div className="lg:col-span-5 space-y-4">
-              {checkboxGroups.map((group) => (
-                <div key={group.name}>
-                  <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                    {group.label} :
-                  </Label>
-                  <div className="space-y-2">
-                    {group.options.map((option) => (
-                      <div key={option.value} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`${group.name}-${option.value}`}
-                          checked={checkboxValues[group.name]?.includes(option.value) || false}
-                          onCheckedChange={(checked) =>
-                            handleCheckboxChange(group.name, option.value, checked as boolean)
-                          }
-                          disabled={isLoading}
-                        />
-                        <label
-                          htmlFor={`${group.name}-${option.value}`}
-                          className="text-sm font-medium text-gray-700 cursor-pointer"
-                        >
-                          {option.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Search Button */}
-        <div className="flex justify-end mt-6">
+          {/* Search Button — pushed to the far right */}
           <Button
             onClick={handleSearch}
             disabled={isLoading}
-            className="px-6"
+            className="px-4 sm:px-6 shrink-0 ml-auto"
             size="default"
           >
-            <Search className="h-4 w-4 mr-2" />
-            Search
+            <Search className="h-4 w-4 mr-1 sm:mr-2" />
+            <span>Search</span>
           </Button>
         </div>
       </div>
     </Card>
   );
 }
-

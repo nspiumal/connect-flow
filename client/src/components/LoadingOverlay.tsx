@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from "@/lib/lang";
 
 interface LoadingOverlayProps {
   isLoading: boolean;
@@ -20,33 +21,13 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
         {/* Animated Ball Loader - Bouncing Dots */}
         <div className="flex justify-center items-end mb-6 h-16">
           <div className="flex gap-2 items-end">
-            <div
-              className="w-4 h-4 bg-blue-600 rounded-full animate-bounce"
-              style={{
-                animationDelay: '0s',
-                animationDuration: '0.7s'
-              }}
-            />
-            <div
-              className="w-4 h-4 bg-blue-600 rounded-full animate-bounce"
-              style={{
-                animationDelay: '0.15s',
-                animationDuration: '0.7s'
-              }}
-            />
-            <div
-              className="w-4 h-4 bg-blue-600 rounded-full animate-bounce"
-              style={{
-                animationDelay: '0.3s',
-                animationDuration: '0.7s'
-              }}
-            />
+            <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '0.7s' }} />
+            <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.15s', animationDuration: '0.7s' }} />
+            <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.3s', animationDuration: '0.7s' }} />
           </div>
         </div>
-
-        {/* Loading Message */}
         <p className="text-gray-800 font-semibold text-xl">{message}</p>
-        <p className="text-gray-500 text-sm mt-2">Please wait...</p>
+        <p className="text-gray-500 text-sm mt-2">{t("PLEASE_WAIT")}</p>
       </div>
     </div>
   );

@@ -533,8 +533,8 @@ export default function Transactions() {
     <div className="space-y-6">
       <LoadingOverlay isLoading={loading} message="Loading transactions..." />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Pawn Transactions</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Pawn Transactions</h1>
         <div className="flex gap-2">
           {(role !== "STAFF" || role === "STAFF") && branchId && (
             <Button onClick={() => navigate("/transactions/create")} variant="default">
@@ -554,23 +554,27 @@ export default function Transactions() {
               name: "pawnId",
               label: "Receipt No",
               placeholder: "Enter Receipt No",
+              inline: true,
             },
             {
               name: "customerNic",
               label: "Customer NIC",
               placeholder: "Enter NIC number",
+              inline: true,
             },
             {
               name: "minAmount",
               label: "Min Amount",
               placeholder: "Min loan amount",
               type: "number",
+              inline: true,
             },
             {
               name: "maxAmount",
               label: "Max Amount",
               placeholder: "Max loan amount",
               type: "number",
+              inline: true,
             },
           ]}
           checkboxGroups={[
@@ -585,6 +589,7 @@ export default function Transactions() {
                 { label: "Blocked", value: "Blocked" },
               ],
               defaultChecked: true,
+              inline: true,
             },
           ]}
           onSearch={handleSearch}
@@ -715,10 +720,10 @@ export default function Transactions() {
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between border-t px-6 py-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 sm:px-6 py-3 sm:py-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2">
-                <Label className="text-sm">Rows per page:</Label>
+                <Label className="text-sm whitespace-nowrap">Rows per page:</Label>
                 <Select
                   value={String(pageSize)}
                   onValueChange={(value) => {
@@ -726,7 +731,7 @@ export default function Transactions() {
                     setCurrentPage(0);
                   }}
                 >
-                  <SelectTrigger className="w-20">
+                  <SelectTrigger className="w-16 sm:w-20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -737,12 +742,12 @@ export default function Transactions() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 Showing {transactions.length > 0 ? currentPage * pageSize + 1 : 0} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} transactions
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -750,9 +755,9 @@ export default function Transactions() {
                 disabled={currentPage === 0}
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous
+                <span className="hidden sm:inline">Previous</span>
               </Button>
-              <span className="text-sm px-2">
+              <span className="text-xs sm:text-sm px-1 sm:px-2">
                 Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages}
               </span>
               <Button
@@ -761,7 +766,7 @@ export default function Transactions() {
                 onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                 disabled={currentPage >= totalPages - 1 || totalPages === 0}
               >
-                Next
+                <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -770,17 +775,17 @@ export default function Transactions() {
       </Card>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[calc(100vw-2rem)] sm:w-auto">
           <DialogHeader><DialogTitle>New Pawn Transaction</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>Customer Name</Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} required /></div>
               <div><Label>NIC</Label><Input value={customerNic} onChange={(e) => setCustomerNic(e.target.value)} required /></div>
               <div><Label>Address</Label><Input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} required /></div>
               <div><Label>Phone</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} /></div>
             </div>
             <hr />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Item Type *</Label>
                 <Select value={selectedItemTypeId} onValueChange={setSelectedItemTypeId} required>
@@ -838,7 +843,7 @@ export default function Transactions() {
               <div><Label>Appraised Value *</Label><Input type="number" step="0.01" value={appraisedValue} onChange={(e) => setAppraisedValue(e.target.value)} required /></div>
             </div>
             <hr />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>Loan Amount</Label><Input type="number" step="0.01" value={loanAmount} onChange={(e) => setLoanAmount(e.target.value)} required /></div>
               <div><Label>Interest Rate</Label>
                 <Select value={selectedRateId} onValueChange={setSelectedRateId}>

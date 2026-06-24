@@ -17,8 +17,8 @@ export function StaffDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-foreground">Staff Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Today's overview and quick actions</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Staff Dashboard</h1>
+        <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">Today's overview and quick actions</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="border-0 bg-card">

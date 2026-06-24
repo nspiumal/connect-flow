@@ -23,8 +23,8 @@ export function ManagerDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-foreground">Manager Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Branch overview and performance metrics</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Manager Dashboard</h1>
+        <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">Branch overview and performance metrics</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {widgets.map((w) => (

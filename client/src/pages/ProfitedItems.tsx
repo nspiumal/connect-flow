@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
+import { t } from "@/lib/lang";
 
 export default function ProfitedItems() {
   const navigate = useNavigate();
@@ -40,8 +41,8 @@ export default function ProfitedItems() {
   useEffect(() => {
     if (role !== "ADMIN" && role !== "SUPERADMIN" && role !== "MANAGER") {
       toast({
-        title: "Access Denied",
-        description: "Only Admin and Branch Manager can access profited items",
+        title: t("ACCESS_DENIED"),
+        description: t("ONLY_ADMIN_CAN_ACCESS_PROFITED"),
         variant: "destructive",
       });
       navigate("/dashboard");
@@ -125,8 +126,8 @@ export default function ProfitedItems() {
     <div className="space-y-6">
       <LoadingOverlay isLoading={loading} message="Loading profited items..." />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Profited Items</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Profited Items</h1>
       </div>
 
       {/* Advanced Search Panel */}
@@ -203,10 +204,10 @@ export default function ProfitedItems() {
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between border-t px-6 py-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 sm:px-6 py-3 sm:py-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2">
-                <Label className="text-sm">Rows per page:</Label>
+                <Label className="text-sm whitespace-nowrap">Rows per page:</Label>
                 <Select
                   value={String(pageSize)}
                   onValueChange={(value) => {
@@ -214,7 +215,7 @@ export default function ProfitedItems() {
                     setCurrentPage(0);
                   }}
                 >
-                  <SelectTrigger className="w-20">
+                  <SelectTrigger className="w-16 sm:w-20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -225,13 +226,13 @@ export default function ProfitedItems() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 Showing {profitedItems.length > 0 ? currentPage * pageSize + 1 : 0} to{" "}
                 {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} items
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -239,9 +240,9 @@ export default function ProfitedItems() {
                 disabled={currentPage === 0 || loading}
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous
+                <span className="hidden sm:inline">Previous</span>
               </Button>
-              <span className="text-sm px-2">
+              <span className="text-xs sm:text-sm px-1 sm:px-2">
                 Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages}
               </span>
               <Button
@@ -250,7 +251,7 @@ export default function ProfitedItems() {
                 onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
                 disabled={currentPage >= totalPages - 1 || loading || totalPages === 0}
               >
-                Next
+                <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

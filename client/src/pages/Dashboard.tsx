@@ -3,6 +3,7 @@ import { SuperAdminDashboard } from "@/components/dashboards/SuperAdminDashboard
 import { AdminDashboard } from "@/components/dashboards/AdminDashboard";
 import { ManagerDashboard } from "@/components/dashboards/ManagerDashboard";
 import { StaffDashboard } from "@/components/dashboards/StaffDashboard";
+import { t } from "@/lib/lang";
 
 export default function Dashboard() {
   const { role } = useAuth();
@@ -15,7 +16,7 @@ export default function Dashboard() {
     default:
       return (
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading dashboard...</p>
+          <p className="text-muted-foreground">{t("LOADING_DASHBOARD")}</p>
         </div>
       );
   }

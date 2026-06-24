@@ -29,6 +29,7 @@ export default function TransactionRedeem() {
   const [transaction, setTransaction] = useState<Record<string, unknown> | null>(null);
   const [outstandingBalance, setOutstandingBalance] = useState<Record<string, unknown> | null>(null);
   const [redemptionAmount, setRedemptionAmount] = useState("");
+  const [redemptionAmountEdited, setRedemptionAmountEdited] = useState(false);
   const [redemptionNotes, setRedemptionNotes] = useState("");
   const [documentationAmount, setDocumentationAmount] = useState("0");
   const [items, setItems] = useState<ItemDetail[]>([]);
@@ -48,11 +49,19 @@ export default function TransactionRedeem() {
   );
 
   useEffect(() => {
+    if (!redemptionAmountEdited && computedOutstandingTotal > 0) {
+      setRedemptionAmount(String(computedOutstandingTotal));
+    }
+  }, [computedOutstandingTotal, redemptionAmountEdited]);
+
+  useEffect(() => {
     if (!id) return;
 
     const loadData = async () => {
       try {
         setLoadingData(true);
+        setRedemptionAmountEdited(false);
+        setRedemptionAmount("");
         const [tx, balance] = await Promise.all([
           apiClient.pawnTransactions.getById(id),
           apiClient.pawnRedemptions.getOutstandingBalance(id),
@@ -299,7 +308,10 @@ export default function TransactionRedeem() {
                     type="number"
                     step="0.01"
                     value={redemptionAmount}
-                    onChange={(e) => setRedemptionAmount(e.target.value)}
+                    onChange={(e) => {
+                      setRedemptionAmountEdited(true);
+                      setRedemptionAmount(e.target.value);
+                    }}
                     placeholder="Enter amount to pay"
                     className="mt-1"
                     required

@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
+import { t } from "@/lib/lang";
 
 // ─── local types ───────────────────────────────────────────────────────────
 
@@ -225,9 +226,9 @@ export default function Reports() {
       <LoadingOverlay isLoading={loading} />
 
       {/* Header + Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Reports</h1>
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">{t("REPORTS")}</h1>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <input
             type="month"
             value={selectedMonth}
@@ -240,7 +241,7 @@ export default function Reports() {
                 <SelectValue placeholder="All Branches" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Branches</SelectItem>
+                <SelectItem value="all">{t("ALL_BRANCHES")}</SelectItem>
                 {branches.map((b: Branch) => (
                   <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                 ))}
@@ -253,9 +254,9 @@ export default function Reports() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { title: "Total Transactions",    value: totalTx.toLocaleString() },
-          { title: "Total Loan Amount",     value: formatCurrency(totalLoan) },
-          { title: "Total Appraised Value", value: formatCurrency(totalAppraised) },
+          { title: t("TOTAL_TRANSACTIONS"),    value: totalTx.toLocaleString() },
+          { title: t("TOTAL_LOAN_AMOUNT"),     value: formatCurrency(totalLoan) },
+          { title: t("TOTAL_APPRAISED_VALUE"), value: formatCurrency(totalAppraised) },
         ].map(({ title, value }) => (
           <Card key={title}>
             <CardHeader className="pb-2">
@@ -277,7 +278,7 @@ export default function Reports() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>
-                {selectedView === "daily" ? "Daily" : "Monthly"} Loan Volume
+                {selectedView === "daily" ? t("DAILY") : t("MONTHLY")} {t("LOAN_VOLUME")}
               </CardTitle>
               <div className="flex gap-1">
                 {(["daily", "monthly"] as const).map((v) => (
@@ -285,10 +286,10 @@ export default function Reports() {
                     key={v}
                     size="sm"
                     variant={selectedView === v ? "default" : "outline"}
-                    className="capitalize h-7 text-xs px-3"
-                    onClick={() => setSelectedView(v)}
-                  >
-                    {v}
+                  className="capitalize h-7 text-xs px-3"
+                  onClick={() => setSelectedView(v)}
+                >
+                  {v === "daily" ? t("DAILY") : t("MONTHLY")}
                   </Button>
                 ))}
               </div>
@@ -315,7 +316,7 @@ export default function Reports() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Profit Overview</CardTitle>
+              <CardTitle>{t("PROFIT_OVERVIEW")}</CardTitle>
               <div className="text-right">
                 <p className="text-base font-bold text-green-600">
                   {loading ? "—" : formatCurrency(totalProfit)}

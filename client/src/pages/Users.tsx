@@ -12,6 +12,7 @@ import { PinManagementDialog } from "@/components/users/PinManagementDialog";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 import { UserPlus, ChevronLeft, ChevronRight, Lock, Filter, Edit } from "lucide-react";
 import { EditUserDialog } from "@/components/users/EditUserDialog";
+import { t } from "@/lib/lang";
 
 interface User {
   id: string;
@@ -105,11 +106,11 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">User Management</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">{t("USER_MANAGEMENT")}</h1>
         <div className="flex gap-2">
           {(role === "SUPERADMIN" || role === "ADMIN") && (
-            <Button onClick={() => setShowCreate(true)}><UserPlus className="mr-2 h-4 w-4" /> Create User</Button>
+            <Button onClick={() => setShowCreate(true)}><UserPlus className="mr-2 h-4 w-4" /> {t("CREATE_USER")}</Button>
           )}
         </div>
       </div>
@@ -117,23 +118,26 @@ export default function UsersPage() {
       {/* Filter Panel using AdvancedSearchPanel */}
       {showFilters && (
         <AdvancedSearchPanel
-          title="User Filters"
-          subtitle="Search users by name, email, role, or branch"
+          title={t("USER_FILTERS")}
+          subtitle={t("SEARCH_USERS_BY_NAME_EMAIL_ROLE_BRANCH")}
           inputFields={[
             {
               name: "name",
-              label: "Name",
-              placeholder: "Enter name...",
+              label: t("NAME"),
+              placeholder: t("ENTER_USER_NAME"),
+              inline: true,
             },
             {
               name: "email",
-              label: "Email",
-              placeholder: "Enter email...",
+              label: t("EMAIL"),
+              placeholder: t("ENTER_EMAIL"),
+              inline: true,
             },
             {
               name: "branch",
-              label: "Branch",
-              placeholder: "Enter branch name...",
+              label: t("BRANCH"),
+              placeholder: t("ENTER_BRANCH_NAME"),
+              inline: true,
             },
           ]}
           checkboxGroups={[
@@ -141,11 +145,12 @@ export default function UsersPage() {
               name: "role",
               label: "Role",
               options: [
-                { label: "Superadmin", value: "SUPERADMIN" },
-                { label: "Admin", value: "ADMIN" },
-                { label: "Manager", value: "MANAGER" },
-                { label: "Staff", value: "STAFF" },
+                { label: t("SUPERADMIN_LABEL"), value: "SUPERADMIN" },
+                { label: t("ADMIN_LABEL"), value: "ADMIN" },
+                { label: t("MANAGER_LABEL"), value: "MANAGER" },
+                { label: t("STAFF_LABEL"), value: "STAFF" },
               ],
+              inline: true,
             },
           ]}
           onSearch={handleSearch}
@@ -159,11 +164,11 @@ export default function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("NAME")}</TableHead>
+                <TableHead>{t("EMAIL")}</TableHead>
+                <TableHead>{t("ROLE")}</TableHead>
+                <TableHead>{t("BRANCH")}</TableHead>
+                <TableHead className="text-right">{t("ACTIONS")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -196,7 +201,7 @@ export default function UsersPage() {
                           className="gap-2"
                         >
                           <Edit className="h-4 w-4" />
-                          Edit
+                          {t("EDIT")}
                         </Button>
                         {u.roles.includes("MANAGER") && (
                           <Button
@@ -209,7 +214,7 @@ export default function UsersPage() {
                             className="gap-2"
                           >
                             <Lock className="h-4 w-4" />
-                            PIN
+                            {t("PIN")}
                           </Button>
                         )}
                       </>
@@ -218,7 +223,7 @@ export default function UsersPage() {
                 </TableRow>
               ))}
               {users.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t("NO_USERS_FOUND")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -226,17 +231,17 @@ export default function UsersPage() {
       </Card>
 
       {/* Pagination Controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs sm:text-sm text-muted-foreground">
             Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} users
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Rows per page:</Label>
+            <Label className="text-sm whitespace-nowrap">{t("ROWS_PER_PAGE")}</Label>
             <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(0); }}>
-              <SelectTrigger className="w-20">
+              <SelectTrigger className="w-16 sm:w-20">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -247,7 +252,7 @@ export default function UsersPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -256,8 +261,8 @@ export default function UsersPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm">
-              Page {currentPage + 1} of {totalPages || 1}
+            <span className="text-xs sm:text-sm">
+              {t("PAGE")} {currentPage + 1} {t("OF")} {totalPages || 1}
             </span>
             <Button
               variant="outline"

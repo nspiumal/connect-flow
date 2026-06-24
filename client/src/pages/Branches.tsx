@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Edit, Power, ChevronLeft, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { t } from "@/lib/lang";
 
 export default function Branches() {
   const [branches, setBranches] = useState<any[]>([]);
@@ -97,11 +98,11 @@ export default function Branches() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Branch Management</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">{t("BRANCH_MANAGEMENT")}</h1>
         {(role === "SUPERADMIN" || role === "ADMIN") && (
           <Button onClick={() => { setEditing(null); setName(""); setAddress(""); setPhone(""); setManagerId(""); setShowDialog(true); }}>
-            <Plus className="mr-2 h-4 w-4" /> Add Branch
+            <Plus className="mr-2 h-4 w-4" /> {t("ADD_BRANCH")}
           </Button>
         )}
       </div>
@@ -110,11 +111,11 @@ export default function Branches() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t("NAME")}</TableHead>
+                <TableHead>{t("ADDRESS")}</TableHead>
+                <TableHead>{t("PHONE")}</TableHead>
+                <TableHead>{t("STATUS")}</TableHead>
+                <TableHead>{t("ACTIONS")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,7 +125,7 @@ export default function Branches() {
                   <TableCell>{b.address}</TableCell>
                   <TableCell>{b.phone}</TableCell>
                   <TableCell>
-                    <Badge variant={b.is_active ? "default" : "secondary"}>{b.is_active ? "Active" : "Inactive"}</Badge>
+                    <Badge variant={b.is_active ? "default" : "secondary"}>{b.is_active ? t("ACTIVE") : t("INACTIVE")}</Badge>
                   </TableCell>
                   <TableCell className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => openEdit(b)}><Edit className="h-3 w-3" /></Button>
@@ -133,7 +134,7 @@ export default function Branches() {
                 </TableRow>
               ))}
               {branches.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No branches found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t("NO_BRANCHES_FOUND")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -141,17 +142,17 @@ export default function Branches() {
       </Card>
 
       {/* Pagination Controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs sm:text-sm text-muted-foreground">
             Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} branches
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Rows per page:</Label>
+            <Label className="text-sm whitespace-nowrap">{t("ROWS_PER_PAGE")}</Label>
             <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(0); }}>
-              <SelectTrigger className="w-20">
+              <SelectTrigger className="w-16 sm:w-20">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -162,7 +163,7 @@ export default function Branches() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -171,8 +172,8 @@ export default function Branches() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm">
-              Page {currentPage + 1} of {totalPages || 1}
+            <span className="text-xs sm:text-sm">
+              {t("PAGE")} {currentPage + 1} {t("OF")} {totalPages || 1}
             </span>
             <Button
               variant="outline"
@@ -188,22 +189,22 @@ export default function Branches() {
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? "Edit Branch" : "Create Branch"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? t("EDIT_BRANCH") : t("CREATE_BRANCH")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Branch Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
-            <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
-            <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+            <div><Label>{t("BRANCH_NAME")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+            <div><Label>{t("ADDRESS")}</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+            <div><Label>{t("PHONE")}</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
             <div>
-              <Label>Assign Manager</Label>
+              <Label>{t("ASSIGN_MANAGER")}</Label>
               <Select value={managerId} onValueChange={setManagerId}>
-                <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("SELECT_MANAGER")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{t("NONE")}</SelectItem>
                   {managers.map((m) => <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleSave} className="w-full">{editing ? "Update" : "Create"}</Button>
+            <Button onClick={handleSave} className="w-full">{editing ? t("UPDATE") : t("CREATE")}</Button>
           </div>
         </DialogContent>
       </Dialog>

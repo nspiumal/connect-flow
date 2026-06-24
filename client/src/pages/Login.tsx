@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Gem } from "lucide-react";
+import { t } from "@/lib/lang";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -24,8 +25,8 @@ export default function Login() {
       navigate("/dashboard");
     } catch (error: any) {
       toast({
-        title: "Login Failed",
-        description: error.message || "Invalid credentials",
+        title: t("LOGIN_FAILED"),
+        description: error.message || t("INVALID_CREDENTIALS"),
         variant: "destructive",
       });
     } finally {
@@ -34,29 +35,29 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
       {/* Decorative background elements */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-slate-600 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
+      <div className="absolute top-0 left-0 w-64 sm:w-96 h-64 sm:h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+      <div className="absolute bottom-0 right-0 w-64 sm:w-96 h-64 sm:h-96 bg-slate-600 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
 
-      <Card className="w-full max-w-md shadow-2xl border-slate-700 bg-slate-800 relative z-10">
+      <Card className="w-full max-w-sm sm:max-w-md shadow-2xl border-slate-700 bg-slate-800 relative z-10">
         <CardHeader className="text-center space-y-4 pb-6">
           <div className="mx-auto w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
             <Gem className="w-7 h-7 text-white" />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-3xl font-bold tracking-tight text-white">Connect Flow</CardTitle>
-            <CardDescription className="text-slate-400">Gold Pawn Management System</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight text-white">{t("CONNECT_FLOW")}</CardTitle>
+            <CardDescription className="text-slate-400">{t("GOLD_PAWN_MANAGEMENT_SYSTEM")}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-200">Email Address</Label>
+              <Label htmlFor="email" className="text-slate-200">{t("EMAIL_ADDRESS")}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t("YOU_AT_EXAMPLE_DOT_COM")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -64,7 +65,7 @@ export default function Login() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-200">Password</Label>
+              <Label htmlFor="password" className="text-slate-200">{t("PASSWORD")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -80,11 +81,11 @@ export default function Login() {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 mt-2"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? t("SIGNING_IN") : t("SIGN_IN")}
             </Button>
           </form>
           <p className="text-center text-slate-400 text-xs mt-4">
-            © 2026 Connect Flow. All rights reserved.
+            {t("COPYRIGHT_CONNECT_FLOW")}
           </p>
         </CardContent>
       </Card>

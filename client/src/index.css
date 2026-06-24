@@ -103,3 +103,46 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* ─── Responsive Utilities ─────────────────────────────────────────────────── */
+@layer utilities {
+  /* Hide scrollbar on horizontal overflow containers */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ─── Global Responsive Table Styles ──────────────────────────────────────── */
+@layer components {
+  /* Ensure tables have min-width and scroll on small screens */
+  .overflow-x-auto table {
+    min-width: 500px;
+  }
+
+  /* Responsive dialog max-widths */
+  @media (max-width: 640px) {
+    [role="dialog"] > div {
+      max-width: calc(100vw - 2rem) !important;
+      margin: 1rem;
+    }
+  }
+}
+
+/* ─── Mobile/Tablet Specific Fixes ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Reduce excessive padding on cards for mobile */
+  .card-content-padded {
+    padding: 0.75rem;
+  }
+
+  /* Make action buttons wrap on small screens */
+  .action-buttons {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+}
+

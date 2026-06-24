@@ -36,6 +36,7 @@ export interface NumberInputProps {
   min?: string;
   max?: string;
   required?: boolean;
+  precision?: number;
 }
 
 const formatWithCommas = (val: string | number) => {
@@ -60,6 +61,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       min,
       max,
       required = false,
+      precision,
     },
     ref
   ) => {
@@ -116,6 +118,19 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       }
     };
 
+    const handleBlur = () => {
+      if (precision !== undefined && value !== "") {
+        const str = value.toString().replace(/,/g, "");
+        const num = parseFloat(str);
+        if (!isNaN(num)) {
+          const parts = str.split(".");
+          if (parts.length === 1 || parts[1].length !== precision) {
+            onChange(num.toFixed(precision));
+          }
+        }
+      }
+    };
+
     const displayValue = React.useMemo(() => formatWithCommas(value), [value]);
 
     return (
@@ -130,6 +145,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
         value={displayValue}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
         placeholder={placeholder}
         disabled={disabled}
         required={required}

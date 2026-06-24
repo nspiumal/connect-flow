@@ -41,27 +41,25 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/branches" element={<Branches />} />
-            <Route path="/branch-requests" element={<BranchRequests />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/item-types" element={<ItemTypes />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
-            <Route path="/transactions/info/:id" element={<TransactionInfo />} />
-            <Route path="/transactions/redeem/:id" element={<TransactionRedeem />} />
-            <Route path="/transactions/profit/:id" element={<TransactionProfit />} />
-            <Route path="/profited-items" element={<ProfitedItems />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/blacklist" element={<Blacklist />} />
-            <Route path="/interest-rates" element={<InterestRates />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/audit-logs" element={<AuditLogs />} />
-            <Route path="/activity-logs" element={<ActivityLogs />} />
-            </Route>
-            <Route element={<AppLayoutNoSidebar />}>
-            <Route path="/transactions/create-new" element={<CreatePawning />} />
-            <Route path="/transactions/create" element={<CreatePawningSample />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/branches" element={<Branches />} />
+              <Route path="/branch-requests" element={<BranchRequests />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/item-types" element={<ItemTypes />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/transactions/edit/:id" element={<TransactionEdit />} />
+              <Route path="/transactions/info/:id" element={<TransactionInfo />} />
+              <Route path="/transactions/redeem/:id" element={<TransactionRedeem />} />
+              <Route path="/transactions/profit/:id" element={<TransactionProfit />} />
+              <Route path="/profited-items" element={<ProfitedItems />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/blacklist" element={<Blacklist />} />
+              <Route path="/interest-rates" element={<InterestRates />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/audit-logs" element={<AuditLogs />} />
+              <Route path="/activity-logs" element={<ActivityLogs />} />
+              <Route path="/transactions/create-new" element={<CreatePawning />} />
+              <Route path="/transactions/create" element={<CreatePawningSample />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -125,7 +125,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
         const num = parseFloat(str);
         if (!isNaN(num)) {
           const parts = str.split(".");
-          if (parts.length === 1 || parts[1].length < precision) {
+          if (parts.length === 1 || parts[1].length !== precision) {
             onChange(num.toFixed(precision));
           }
         }

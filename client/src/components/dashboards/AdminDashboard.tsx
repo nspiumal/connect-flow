@@ -35,8 +35,8 @@ export function AdminDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Manage staff, rates, and branch operations</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Admin Dashboard</h1>
+        <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">Manage staff, rates, and branch operations</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {widgets.map((w) => (

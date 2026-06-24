@@ -20,6 +20,7 @@ import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { Plus, Edit, Trash2, Eye, EyeOff, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
+import { t } from "@/lib/lang";
 
 interface ItemType {
   id: string;
@@ -101,8 +102,8 @@ export default function ItemTypes() {
         setTotalElements(response.totalElements || 0);
       } catch (error: unknown) {
         toast({
-          title: "Error",
-          description: "Failed to load item types",
+          title: t("ERROR"),
+          description: t("FAILED_TO_LOAD_ITEM_TYPES"),
           variant: "destructive",
         });
       } finally {
@@ -139,8 +140,8 @@ export default function ItemTypes() {
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
       toast({
-        title: "Validation Error",
-        description: "Item type name is required",
+        title: t("VALIDATION_ERROR"),
+        description: t("ITEM_TYPE_NAME_IS_REQUIRED"),
         variant: "destructive",
       });
       return;
@@ -153,15 +154,8 @@ export default function ItemTypes() {
         // Update existing
         await apiClient.itemTypes.update(editingId, formData);
         toast({
-          title: "Success",
-          description: "Item type updated successfully",
-        });
-      } else {
-        // Create new
-        await apiClient.itemTypes.create(formData);
-        toast({
-          title: "Success",
-          description: "Item type created successfully",
+          title: t("SUCCESS"),
+          description: t(editingId ? "ITEM_TYPE_UPDATED_SUCCESSFULLY" : "ITEM_TYPE_CREATED_SUCCESSFULLY"),
         });
       }
 
@@ -170,7 +164,7 @@ export default function ItemTypes() {
       await fetchItemTypes(currentPage, filters);
     } catch (error: unknown) {
       toast({
-        title: "Error",
+        title: t("ERROR"),
         description: "Failed to save item type",
         variant: "destructive",
       });
@@ -184,14 +178,14 @@ export default function ItemTypes() {
       setLoading(true);
       await apiClient.itemTypes.toggleActive(id);
       toast({
-        title: "Success",
-        description: "Item type status updated",
+        title: t("SUCCESS"),
+        description: t("ITEM_TYPE_STATUS_UPDATED"),
       });
       // Refresh current page with current filters
       await fetchItemTypes(currentPage, filters);
     } catch (error: unknown) {
       toast({
-        title: "Error",
+        title: t("ERROR"),
         description: "Failed to update item type status",
         variant: "destructive",
       });
@@ -201,7 +195,7 @@ export default function ItemTypes() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this item type?")) {
+    if (!confirm(t("ARE_YOU_SURE_DELETE_ITEM_TYPE"))) {
       return;
     }
 
@@ -209,14 +203,14 @@ export default function ItemTypes() {
       setLoading(true);
       await apiClient.itemTypes.delete(id);
       toast({
-        title: "Success",
-        description: "Item type deleted successfully",
+        title: t("SUCCESS"),
+        description: t("ITEM_TYPE_DELETED_SUCCESSFULLY"),
       });
       // Refresh current page with current filters
       await fetchItemTypes(currentPage, filters);
     } catch (error: unknown) {
       toast({
-        title: "Error",
+        title: t("ERROR"),
         description: "Failed to delete item type",
         variant: "destructive",
       });
@@ -234,35 +228,37 @@ export default function ItemTypes() {
     <div className="space-y-6">
       {loading && <LoadingOverlay isLoading={loading} />}
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Item Types Management</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">{t("ITEM_TYPES_MANAGEMENT")}</h1>
         <div className="flex gap-2">
           <Button onClick={() => handleOpenDialog()} disabled={loading}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Item Type
+            {t("ADD_ITEM_TYPE")}
           </Button>
         </div>
       </div>
 
       {showFilters && (
         <AdvancedSearchPanel
-          title="Search & Filter"
-          subtitle="Filter item types by name, status, and sort options"
+          title={t("SEARCH_AND_FILTER")}
+          subtitle={t("FILTER_ITEM_TYPES")}
           inputFields={[
             {
               name: "name",
-              label: "Item Type Name",
-              placeholder: "Search by name...",
+              label: t("ITEM_TYPE_NAME"),
+              placeholder: t("SEARCH_BY_NAME"),
+              inline: true,
             },
           ]}
           checkboxGroups={[
             {
               name: "status",
-              label: "Status",
+              label: t("STATUS"),
               options: [
-                { label: "Active", value: "active" },
-                { label: "Inactive", value: "inactive" },
+                { label: t("ACTIVE"), value: "active" },
+                { label: t("INACTIVE"), value: "inactive" },
               ],
+              inline: true,
             },
           ]}
           onSearch={handleSearch}
@@ -276,10 +272,10 @@ export default function ItemTypes() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("NAME")}</TableHead>
+                <TableHead>{t("DESCRIPTION")}</TableHead>
+                <TableHead className="text-center">{t("STATUS")}</TableHead>
+                <TableHead className="text-right">{t("ACTIONS")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -288,9 +284,9 @@ export default function ItemTypes() {
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="max-w-xs truncate">{item.description || "—"}</TableCell>
                   <TableCell className="text-center">
-                    <Badge variant={item.isActive ? "default" : "secondary"}>
-                      {item.isActive ? "Active" : "Inactive"}
-                    </Badge>
+                      <Badge variant={item.isActive ? "default" : "secondary"}>
+                        {item.isActive ? t("ACTIVE") : t("INACTIVE")}
+                      </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
@@ -326,7 +322,7 @@ export default function ItemTypes() {
                 </TableRow>
               ))}
               {itemTypes.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No item types found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">{t("NO_ITEM_TYPES_FOUND")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -334,17 +330,17 @@ export default function ItemTypes() {
       </Card>
 
       {/* Pagination Controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs sm:text-sm text-muted-foreground">
             Showing {itemTypes.length > 0 ? currentPage * pageSize + 1 : 0} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} items
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-2">
-            <Label className="text-sm">Rows per page:</Label>
+            <Label className="text-sm whitespace-nowrap">{t("ROWS_PER_PAGE")}</Label>
             <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(0); }}>
-              <SelectTrigger className="w-20">
+              <SelectTrigger className="w-16 sm:w-20">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -355,7 +351,7 @@ export default function ItemTypes() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -364,8 +360,8 @@ export default function ItemTypes() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm">
-              Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages || 1}
+            <span className="text-xs sm:text-sm">
+              {t("PAGE")} {totalElements > 0 ? currentPage + 1 : 0} {t("OF")} {totalPages || 1}
             </span>
             <Button
               variant="outline"
@@ -383,32 +379,32 @@ export default function ItemTypes() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Item Type" : "Add New Item Type"}</DialogTitle>
+            <DialogTitle>{editingId ? t("EDIT_ITEM_TYPE") : t("ADD_NEW_ITEM_TYPE")}</DialogTitle>
             <DialogDescription>
               {editingId
-                ? "Update the item type details"
-                : "Create a new item type for pawn transactions"}
+                ? t("UPDATE_ITEM_TYPE_DETAILS")
+                : t("CREATE_NEW_ITEM_TYPE_FOR_PAWN")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">{t("NAME_REQUIRED")}</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Gold Ring"
+                placeholder={t("E_G_GOLD_RING")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t("DESCRIPTION")}</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe this item type"
+                placeholder={t("DESCRIBE_THIS_ITEM_TYPE")}
                 rows={3}
               />
             </div>
@@ -416,10 +412,10 @@ export default function ItemTypes() {
 
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseDialog}>
-              Cancel
+              {t("CANCEL")}
             </Button>
             <Button onClick={handleSubmit}>
-              {editingId ? "Update" : "Create"}
+              {editingId ? t("UPDATE") : t("CREATE")}
             </Button>
           </DialogFooter>
         </DialogContent>

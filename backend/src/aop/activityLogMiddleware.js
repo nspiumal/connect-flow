@@ -3,28 +3,12 @@ const { ActivityLogEntry } = require('../model');
 const { v4: uuidv4 } = require('uuid');
 
 /**
- * Express middleware that logs an activity entry after each non-public request.
+ * Express middleware that logs an activity entry after each POST request.
  * Runs asynchronously so it never delays the response.
  */
-const EXCLUDED_LOG_PATHS = [
-  { method: 'GET', path: /^\/api\/activity-logs/ },
-  { method: 'GET', path: /^\/api\/interest-rates\/active/ },
-  { method: 'GET', path: /^\/api\/item-types/ },
-  { method: 'GET', path: /^\/api\/pawn-redemptions\/outstanding-balance/ },
-  { method: 'GET', path: /^\/api\/customers\/filter/ },
-  { method: 'GET', path: /^\/api\/pawn-transactions\/search\/advanced/ },
-  { method: 'GET', path: /^\/api\/blacklist\/filter/ },
-  { method: 'GET', path: /^\/api\/blacklist\/paginated/ },
-  { method: 'GET', path: /^\/api\/interest-rates/ },
-];
-
 function activityLogMiddleware(req, res, next) {
-  // Skip logging for excluded paths
-  const isExcluded = EXCLUDED_LOG_PATHS.some(
-    (e) => e.method === req.method && (e.path.test(req.originalUrl) || e.path.test(req.path))
-  );
-
-  if (isExcluded) {
+  // Only log POST requests (mutating actions); skip GET and all others
+  if (req.method !== 'POST') {
     return next();
   }
 

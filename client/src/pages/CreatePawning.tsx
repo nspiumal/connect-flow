@@ -14,7 +14,7 @@ import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { Image as ImageIcon, Upload, X, Plus, AlertCircle, CheckCircle2, ChevronRight, PlusCircle, ArrowLeft } from "lucide-react";
 import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { formatWeight } from "@/lib/utils";
+import { formatAmount, formatWeight } from "@/lib/utils";
 import NumberInput from "@/components/ui/number-input";
 
 export default function CreatePawning() {
@@ -600,20 +600,20 @@ export default function CreatePawning() {
   return (
     <>
       {loading && <LoadingOverlay isLoading={loading} />}
-      <div className="container mx-auto py-6 px-4 max-w-5xl">
-        <div className="mb-6">
+      <div className="container mx-auto py-4 sm:py-6 px-3 sm:px-4 max-w-5xl">
+        <div className="mb-4 sm:mb-6">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate("/transactions")}
-              className="h-9 w-9"
+              className="h-9 w-9 shrink-0"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Create New Pawning Transaction</h1>
-              <p className="text-gray-500 mt-1">Complete the 3-step wizard to create a transaction</p>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Create New Pawning Transaction</h1>
+              <p className="text-gray-500 mt-1 text-sm">Complete the 3-step wizard to create a transaction</p>
             </div>
           </div>
         </div>
@@ -1004,7 +1004,7 @@ export default function CreatePawning() {
                   <div className="flex items-center justify-between">
                     <Label>Added Items ({items.length})</Label>
                     <div className="text-xs text-muted-foreground">
-                      Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
+                      Total: LKR {formatAmount(items.reduce((s, i) => s + i.appraisedValue, 0))}
                     </div>
                   </div>
 
@@ -1020,7 +1020,7 @@ export default function CreatePawning() {
                             <span>{item.condition}</span>
                             <span>{item.weightGrams}g</span>
                             <span>{item.karat}</span>
-                            <span>LKR {item.appraisedValue.toLocaleString()}</span>
+                            <span>LKR {formatAmount(item.appraisedValue)}</span>
                             <span className="flex items-center gap-1">
                               <ImageIcon className="h-3 w-3" />
                               {item.images.length}
@@ -1072,7 +1072,7 @@ export default function CreatePawning() {
                   <p className="text-xs text-muted-foreground">Items</p>
                   <p className="font-medium">{items.length} item(s)</p>
                   <p className="text-sm text-muted-foreground">
-                    Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
+                    Total: LKR {formatAmount(items.reduce((s, i) => s + i.appraisedValue, 0))}
                   </p>
                 </div>
               </div>
@@ -1230,7 +1230,7 @@ export default function CreatePawning() {
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Loan Amount</p>
-                <p className="font-medium">LKR {Number(loanAmount || 0).toLocaleString()}</p>
+                <p className="font-medium">LKR {formatAmount(loanAmount || 0)}</p>
                 <p className="text-xs text-muted-foreground">Interest Rate</p>
                 <p className="text-sm">
                   {manualRateEnabled ? "Manual" : (selectedRate?.name || "-")} - {effectiveRatePercent}% per annum
@@ -1244,7 +1244,7 @@ export default function CreatePawning() {
               <div className="flex items-center justify-between mb-2">
                 <p className="font-medium">Items ({items.length})</p>
                 <p className="text-xs text-muted-foreground">
-                  Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
+                  Total: LKR {formatAmount(items.reduce((s, i) => s + i.appraisedValue, 0))}
                 </p>
               </div>
               <div className="space-y-2">
@@ -1255,8 +1255,8 @@ export default function CreatePawning() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {item.content || "N/A"} | {item.condition} | {formatWeight(item.weightGrams)}g | {item.karat} |
-                      Appraised: LKR {item.appraisedValue.toLocaleString()} |
-                      Market: LKR {item.marketValue.toLocaleString()}
+                      Appraised: LKR {formatAmount(item.appraisedValue)} |
+                      Market: LKR {formatAmount(item.marketValue)}
                     </p>
                   </div>
                 ))}

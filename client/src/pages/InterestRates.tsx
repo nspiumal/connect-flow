@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Power, Star } from "lucide-react";
 import apiClient from "@/integrations/api";
+import { t } from "@/lib/lang";
 
 type InterestRate = {
   id: string;
@@ -48,7 +49,7 @@ export default function InterestRates() {
     } catch (error: any) {
       console.error("Failed to fetch interest rates:", error);
       toast({
-        title: "Error",
+        title: t("ERROR"),
         description: "Failed to fetch interest rates",
         variant: "destructive",
       });
@@ -64,8 +65,8 @@ export default function InterestRates() {
 
     if (!name || !ratePercent) {
       toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
+        title: t("VALIDATION_ERROR"),
+        description: t("PLEASE_FILL_IN_ALL_REQUIRED_FIELDS"),
         variant: "destructive",
       });
       return;
@@ -82,10 +83,10 @@ export default function InterestRates() {
       });
 
       toast({
-        title: "Success",
+        title: t("SUCCESS"),
         description: shouldBeDefault
-          ? "Interest rate created as default"
-          : "Interest rate created successfully",
+          ? t("INTEREST_RATE_CREATED_AS_DEFAULT")
+          : t("INTEREST_RATE_CREATED_SUCCESSFULLY"),
       });
 
       setShowDialog(false);
@@ -108,11 +109,11 @@ export default function InterestRates() {
     try {
       if (rate.isActive && rate.isDefault) {
         if (replacementCandidates.length === 0) {
-          toast({
-            title: "Cannot Deactivate",
-            description: "Create or activate another rate before deactivating the current default rate.",
-            variant: "destructive",
-          });
+        toast({
+          title: t("CANNOT_DEACTIVATE"),
+          description: t("CREATE_OR_ACTIVATE_ANOTHER_RATE"),
+          variant: "destructive",
+        });
           return;
         }
         setTargetDeactivateRate(rate);
@@ -139,8 +140,8 @@ export default function InterestRates() {
   const setAsDefault = async (rate: InterestRate) => {
     if (!rate.isActive) {
       toast({
-        title: "Cannot Set Default",
-        description: "Only active rates can be set as default",
+        title: t("CANNOT_SET_DEFAULT"),
+        description: t("ONLY_ACTIVE_RATES_CAN_BE_SET_AS_DEFAULT"),
         variant: "destructive",
       });
       return;
@@ -148,8 +149,8 @@ export default function InterestRates() {
 
     if (rate.isDefault) {
       toast({
-        title: "Already Default",
-        description: "This rate is already set as default",
+        title: t("ALREADY_DEFAULT"),
+        description: t("THIS_RATE_IS_ALREADY_DEFAULT"),
       });
       return;
     }
@@ -180,7 +181,7 @@ export default function InterestRates() {
   const confirmDeactivateDefault = async () => {
     if (!targetDeactivateRate || !replacementDefaultRateId) {
       toast({
-        title: "Validation Error",
+        title: t("VALIDATION_ERROR"),
         description: "Please select another active rate as default",
         variant: "destructive",
       });
@@ -190,8 +191,8 @@ export default function InterestRates() {
     try {
       await apiClient.interestRates.toggleActive(targetDeactivateRate.id, replacementDefaultRateId);
       toast({
-        title: "Success",
-        description: "Default rate changed and previous default deactivated successfully",
+        title: t("SUCCESS"),
+        description: t("DEFAULT_RATE_CHANGED"),
       });
       setShowReplaceDialog(false);
       setTargetDeactivateRate(null);
@@ -208,9 +209,9 @@ export default function InterestRates() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Interest Rate Management</h1>
-        <Button onClick={() => setShowDialog(true)}><Plus className="mr-2 h-4 w-4" /> Add Rate</Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">{t("INTEREST_RATE_MANAGEMENT")}</h1>
+        <Button onClick={() => setShowDialog(true)}><Plus className="mr-2 h-4 w-4" /> {t("ADD_RATE")}</Button>
       </div>
 
       <Card>
@@ -218,12 +219,12 @@ export default function InterestRates() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Rate %</TableHead>
-                <TableHead>First Month %</TableHead>
-                <TableHead>Default</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t("NAME")}</TableHead>
+                <TableHead>{t("RATE_PERCENT")}</TableHead>
+                <TableHead>{t("FIRST_MONTH_PERCENT")}</TableHead>
+                <TableHead>{t("DEFAULT")}</TableHead>
+                <TableHead>{t("STATUS")}</TableHead>
+                <TableHead>{t("ACTIONS")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -233,10 +234,10 @@ export default function InterestRates() {
                   <TableCell>{r.ratePercent}%</TableCell>
                   <TableCell>{(r.firstMonthRatePercent ?? r.ratePercent / 12).toFixed(2)}%</TableCell>
                   <TableCell>
-                    {r.isDefault && r.isActive ? <Badge>Default</Badge> : <Badge variant="outline">No</Badge>}
+                    {r.isDefault && r.isActive ? <Badge>{t("DEFAULT")}</Badge> : <Badge variant="outline">{t("NA")}</Badge>}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? "Active" : "Inactive"}</Badge>
+                    <Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? t("ACTIVE") : t("INACTIVE")}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -264,7 +265,7 @@ export default function InterestRates() {
               {rates.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    No interest rates found
+                    {t("NO_INTEREST_RATES_FOUND")}
                   </TableCell>
                 </TableRow>
               )}
@@ -276,7 +277,7 @@ export default function InterestRates() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Interest Rate</DialogTitle>
+            <DialogTitle>{t("CREATE_INTEREST_RATE")}</DialogTitle>
             <DialogDescription>
               {activeRates.length === 0
                 ? "This will be set as default automatically because this is the first active rate."
@@ -285,33 +286,33 @@ export default function InterestRates() {
           </DialogHeader>
           <form onSubmit={handleAdd} className="space-y-4">
             <div>
-              <Label>Rate Name</Label>
+              <Label>{t("RATE_NAME")}</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Standard Rate" />
             </div>
             <div>
-              <Label>Rate (%)</Label>
+              <Label>{t("RATE_PERCENT_LABEL")}</Label>
               <Input type="number" step="0.01" value={ratePercent} onChange={(e) => setRatePercent(e.target.value)} required />
             </div>
             <div>
-              <Label>First Month Rate (%)</Label>
+              <Label>{t("FIRST_MONTH_RATE_PERCENT")}</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={firstMonthRatePercent}
                 onChange={(e) => setFirstMonthRatePercent(e.target.value)}
-                placeholder="Defaults to Rate / 12"
+                placeholder={t("DEFAULTS_TO_RATE_DIVIDED_12")}
               />
             </div>
 
             {activeRates.length > 0 && (
               <div className="flex items-center space-x-2">
                 <Checkbox id="set-default" checked={isDefault} onCheckedChange={(v) => setIsDefault(!!v)} />
-                <Label htmlFor="set-default">Set as default active rate</Label>
+                <Label htmlFor="set-default">{t("SET_AS_DEFAULT_ACTIVE_RATE")}</Label>
               </div>
             )}
 
             <Button type="submit" className="w-full">
-              Create Rate
+              {t("CREATE_RATE")}
             </Button>
           </form>
         </DialogContent>
@@ -320,18 +321,18 @@ export default function InterestRates() {
       <Dialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Select Replacement Default</DialogTitle>
+            <DialogTitle>{t("SELECT_REPLACEMENT_DEFAULT")}</DialogTitle>
             <DialogDescription>
-              You are deactivating the current default rate. Select another active rate as the new default.
+              {t("DEACTIVATING_DEFAULT_RATE_MSG")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <Label>New Default Rate</Label>
+              <Label>{t("NEW_DEFAULT_RATE")}</Label>
               <Select value={replacementDefaultRateId} onValueChange={setReplacementDefaultRateId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select replacement default rate" />
+                  <SelectValue placeholder={t("SELECT_REPLACEMENT_DEFAULT_RATE")} />
                 </SelectTrigger>
                 <SelectContent>
                   {replacementCandidates.map((r) => (
@@ -352,9 +353,9 @@ export default function InterestRates() {
                   setReplacementDefaultRateId("");
                 }}
               >
-                Cancel
+                {t("CANCEL")}
               </Button>
-              <Button onClick={confirmDeactivateDefault}>Confirm</Button>
+              <Button onClick={confirmDeactivateDefault}>{t("CONFIRM")}</Button>
             </div>
           </div>
         </DialogContent>

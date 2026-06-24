@@ -8,6 +8,7 @@ import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedS
 import { Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiClient } from "@/integrations/api";
 import { format } from "date-fns";
+import { t } from "@/lib/lang";
 
 interface ActivityLogEntry {
   id: string;
@@ -72,21 +73,21 @@ export default function ActivityLogs() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Activity Logs</h1>
-          <p className="text-sm text-muted-foreground">Track all user actions across the system</p>
+          <h1 className="text-xl sm:text-2xl font-bold">{t("ACTIVITY_LOGS")}</h1>
+          <p className="text-sm text-muted-foreground">{t("TRACK_ALL_USER_ACTIONS")}</p>
         </div>
       </div>
 
       {/* Advanced Search Panel */}
       {showFilters && (
         <AdvancedSearchPanel
-          title="Activity Log Filters"
-          subtitle="Search by user name or action"
+          title={t("ACTIVITY_LOG_FILTERS")}
+          subtitle={t("SEARCH_BY_USER_NAME_OR_ACTION")}
           inputFields={[
-            { name: "userName", label: "User Name", placeholder: "Enter user name..." },
-            { name: "action",   label: "Action",    placeholder: "e.g. CREATE_PAWN_TRANSACTION" },
+            { name: "userName", label: t("USER_NAME"), placeholder: t("ENTER_USER_NAME"), inline: true },
+            { name: "action",   label: t("ACTION"),    placeholder: t("E_G_CREATE_PAWN_TRANSACTION"), inline: true },
           ]}
           onSearch={handleSearch}
           isLoading={loading}
@@ -99,27 +100,27 @@ export default function ActivityLogs() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Timestamp</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Endpoint</TableHead>
-                <TableHead>IP Address</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("TIMESTAMP")}</TableHead>
+                <TableHead>{t("USER")}</TableHead>
+                <TableHead>{t("ACTION")}</TableHead>
+                <TableHead>{t("DESCRIPTION")}</TableHead>
+                <TableHead>{t("METHOD")}</TableHead>
+                <TableHead>{t("ENDPOINT")}</TableHead>
+                <TableHead>{t("IP_ADDRESS")}</TableHead>
+                <TableHead>{t("STATUS")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    Loading...
+                    {t("LOADING")}
                   </TableCell>
                 </TableRow>
               ) : logs.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    No activity logs found
+                    {t("NO_ACTIVITY_LOGS_FOUND")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -169,14 +170,14 @@ export default function ActivityLogs() {
 
       {/* Pagination */}
       {totalPages > 0 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+          <span className="text-xs sm:text-sm">
             Showing {logs.length > 0 ? currentPage * pageSize + 1 : 0} to{" "}
             {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} logs
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <div className="flex items-center gap-1">
-              <span>Rows:</span>
+              <span>{t("ROWS")}</span>
               <Select
                 value={String(pageSize)}
                 onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(0); }}
@@ -191,7 +192,7 @@ export default function ActivityLogs() {
                 </SelectContent>
               </Select>
             </div>
-            <span>Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages}</span>
+            <span className="hidden sm:inline">{t("PAGE")} {totalElements > 0 ? currentPage + 1 : 0} {t("OF")} {totalPages}</span>
             <div className="flex gap-1">
               <Button
                 variant="outline"

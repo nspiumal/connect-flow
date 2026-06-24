@@ -200,12 +200,12 @@ export default function TransactionInfo() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
         <Button variant="outline" size="icon" onClick={() => navigate("/transactions")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Transaction Info</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Transaction Info</h1>
           <p className="text-sm text-muted-foreground">
             Receipt No: {transaction?.pawnId || transaction?.pawn_id}
           </p>
@@ -213,7 +213,7 @@ export default function TransactionInfo() {
       </div>
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* ── Left Column ── */}
         <div className="space-y-4">
@@ -224,7 +224,7 @@ export default function TransactionInfo() {
               <CardTitle className="text-base">Customer Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div>
                   <Label className="text-xs text-muted-foreground">Customer Name</Label>
                   <p className="font-medium">{transaction?.customerName || transaction?.customer_name || transaction?.customer?.fullName || "N/A"}</p>
@@ -324,7 +324,7 @@ export default function TransactionInfo() {
               <CardTitle className="text-base">Transaction Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div>
                   <Label className="text-xs text-muted-foreground">Loan Amount</Label>
                   <p className="font-medium">Rs. {Number(transaction?.loanAmount || transaction?.loan_amount || 0).toLocaleString()}</p>
@@ -451,4 +451,3 @@ export default function TransactionInfo() {
     </div>
   );
 }
-

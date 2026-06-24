@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Check, X } from "lucide-react";
+import { t } from "@/lib/lang";
 
 export default function BranchRequests() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -15,15 +16,15 @@ export default function BranchRequests() {
   useEffect(() => {
     setRequests([]);
     toast({
-      title: "Branch requests",
-      description: "Backend endpoint not connected yet.",
+      title: t("BRANCH_REQUESTS"),
+      description: t("BACKEND_ENDPOINT_NOT_CONNECTED"),
     });
   }, [toast]);
 
   const handleAction = async () => {
     toast({
-      title: "Not available",
-      description: "Approve/Reject needs backend endpoint.",
+      title: t("NOT_AVAILABLE"),
+      description: t("APPROVE_REJECT_NEEDS_BACKEND"),
       variant: "destructive",
     });
   };
@@ -36,17 +37,17 @@ export default function BranchRequests() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Branch Requests</h1>
+      <h1 className="text-xl sm:text-2xl font-bold">{t("BRANCH_REQUESTS")}</h1>
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Branch Name</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t("BRANCH_NAME")}</TableHead>
+                <TableHead>{t("ADDRESS")}</TableHead>
+                <TableHead>{t("PHONE")}</TableHead>
+                <TableHead>{t("STATUS")}</TableHead>
+                <TableHead>{t("ACTIONS")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -67,7 +68,7 @@ export default function BranchRequests() {
                 </TableRow>
               ))}
               {requests.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No requests</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t("NO_REQUESTS")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

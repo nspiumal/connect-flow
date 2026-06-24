@@ -500,9 +500,9 @@ export const apiClient = {
       return response.json();
     },
     searchAdvanced: async (params: {
-      pawnId?: string;
+      itemTypeName?: string;
       customerNic?: string;
-      status?: string;
+      status?: string | string[];
       minAmount?: number;
       maxAmount?: number;
       patternMode?: string;
@@ -515,7 +515,7 @@ export const apiClient = {
       sortDir?: string;
     }) => {
       const queryParams = new URLSearchParams();
-      if (params.pawnId) queryParams.append('pawnId', params.pawnId);
+      if (params.itemTypeName) queryParams.append('itemTypeName', params.itemTypeName);
       if (params.customerNic) queryParams.append('customerNic', params.customerNic);
       if (params.status) {
         if (Array.isArray(params.status)) {
@@ -585,7 +585,7 @@ export const apiClient = {
       return response.json();
     },
     getHistory: async (id: string, limit: number = 10) => {
-      const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/history?limit=${limit}`);
+      const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/edit-history?limit=${limit}`);
       if (!response.ok) throw new Error('Failed to fetch transaction history');
       return response.json();
     },

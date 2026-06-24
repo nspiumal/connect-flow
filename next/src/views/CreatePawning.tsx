@@ -13,6 +13,7 @@ import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { Image as ImageIcon, Upload, X, Plus, AlertCircle, CheckCircle2, ChevronRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatAmount, formatWeight } from "@/lib/utils";
 
 export default function CreatePawning() {
   const { toast } = useToast();
@@ -981,7 +982,7 @@ export default function CreatePawning() {
                   <div className="flex items-center justify-between">
                     <Label>Added Items ({items.length})</Label>
                     <div className="text-xs text-muted-foreground">
-                      Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
+                      Total: LKR {formatAmount(items.reduce((s, i) => s + i.appraisedValue, 0))}
                     </div>
                   </div>
 
@@ -995,9 +996,9 @@ export default function CreatePawning() {
                           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                             <span>{item.content || 'N/A'}</span>
                             <span>{item.condition}</span>
-                            <span>{item.weightGrams}g</span>
+                            <span>{formatWeight(item.weightGrams)}g</span>
                             <span>{item.karat}</span>
-                            <span>LKR {item.appraisedValue.toLocaleString()}</span>
+                            <span>LKR {formatAmount(item.appraisedValue)}</span>
                             <span className="flex items-center gap-1">
                               <ImageIcon className="h-3 w-3" />
                               {item.images.length}
@@ -1049,7 +1050,7 @@ export default function CreatePawning() {
                   <p className="text-xs text-muted-foreground">Items</p>
                   <p className="font-medium">{items.length} item(s)</p>
                   <p className="text-sm text-muted-foreground">
-                    Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
+                    Total: LKR {formatAmount(items.reduce((s, i) => s + i.appraisedValue, 0))}
                   </p>
                 </div>
               </div>
@@ -1207,7 +1208,7 @@ export default function CreatePawning() {
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Loan Amount</p>
-                <p className="font-medium">LKR {Number(loanAmount || 0).toLocaleString()}</p>
+                <p className="font-medium">LKR {formatAmount(loanAmount || 0)}</p>
                 <p className="text-xs text-muted-foreground">Interest Rate</p>
                 <p className="text-sm">
                   {manualRateEnabled ? "Manual" : (selectedRate?.name || "-")} - {effectiveRatePercent}% per annum
@@ -1221,7 +1222,7 @@ export default function CreatePawning() {
               <div className="flex items-center justify-between mb-2">
                 <p className="font-medium">Items ({items.length})</p>
                 <p className="text-xs text-muted-foreground">
-                  Total: LKR {items.reduce((s, i) => s + i.appraisedValue, 0).toLocaleString()}
+                  Total: LKR {formatAmount(items.reduce((s, i) => s + i.appraisedValue, 0))}
                 </p>
               </div>
               <div className="space-y-2">
@@ -1231,9 +1232,9 @@ export default function CreatePawning() {
                       Item {index + 1}: {item.description || "Item"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {item.content || "N/A"} | {item.condition} | {item.weightGrams}g | {item.karat} |
-                      Appraised: LKR {item.appraisedValue.toLocaleString()} |
-                      Market: LKR {item.marketValue.toLocaleString()}
+                      {item.content || "N/A"} | {item.condition} | {formatWeight(item.weightGrams)}g | {item.karat} |
+                      Appraised: LKR {formatAmount(item.appraisedValue)} |
+                      Market: LKR {formatAmount(item.marketValue)}
                     </p>
                   </div>
                 ))}

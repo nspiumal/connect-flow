@@ -13,6 +13,7 @@ import { Plus, ShieldOff, ShieldCheck, ChevronLeft, ChevronRight, Filter } from 
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
+import { t } from "@/lib/lang";
 
 export default function Blacklist() {
   const [blacklist, setBlacklist] = useState<any[]>([]);
@@ -71,8 +72,8 @@ export default function Blacklist() {
     } catch (error: any) {
       console.error('Failed to fetch blacklist:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch blacklist",
+        title: t("ERROR"),
+        description: t("FAILED_TO_FETCH_BLACKLIST"),
         variant: "destructive",
       });
     } finally {
@@ -131,8 +132,8 @@ export default function Blacklist() {
         isActive: true,
       });
       toast({
-        title: "Success",
-        description: "Customer added to blacklist successfully",
+        title: t("SUCCESS"),
+        description: t("CUSTOMER_ADDED_TO_BLACKLIST"),
       });
       setShowDialog(false);
       setCustomerName("");
@@ -157,13 +158,13 @@ export default function Blacklist() {
       setLoading(true);
       await apiClient.blacklist.toggleActive(id);
       toast({
-        title: "Success",
+        title: t("SUCCESS"),
         description: `Blacklist entry ${currentStatus ? 'deactivated' : 'activated'} successfully`,
       });
       await fetchBlacklist();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: t("ERROR"),
         description: "Failed to update blacklist status",
         variant: "destructive",
       });
@@ -174,16 +175,16 @@ export default function Blacklist() {
 
   return (
     <div className="space-y-6">
-      <LoadingOverlay isLoading={loading} message="Loading blacklist..." />
+      <LoadingOverlay isLoading={loading} message={t("LOADING")} />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Blacklist Management</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">{t("BLACKLIST_MANAGEMENT")}</h1>
         <div className="flex gap-2">
           <Button
             onClick={() => setShowDialog(true)}
             disabled={loading}
           >
-            {loading ? "Loading..." : "Add to Blacklist"}
+            {loading ? t("LOADING") : t("ADD_TO_BLACKLIST")}
           </Button>
         </div>
       </div>
@@ -191,29 +192,32 @@ export default function Blacklist() {
       {/* Filter Panel using AdvancedSearchPanel */}
       {showFilters && (
         <AdvancedSearchPanel
-          title="Blacklist Search"
-          subtitle="Search blacklisted entries by NIC, police report, or status"
+          title={t("BLACKLIST_SEARCH")}
+          subtitle={t("SEARCH_BLACKLISTED_ENTRIES")}
           inputFields={[
             {
               name: "nic",
-              label: "NIC",
-              placeholder: "Enter NIC number",
+              label: t("NIC"),
+              placeholder: t("ENTER_NIC_NUMBER"),
+              inline: true,
             },
             {
               name: "policeReport",
-              label: "Police Report",
-              placeholder: "Enter report number",
+              label: t("POLICE_REPORT"),
+              placeholder: t("ENTER_REPORT_NUMBER"),
+              inline: true,
             },
           ]}
           checkboxGroups={[
             {
               name: "status",
-              label: "Status",
+              label: t("STATUS"),
               options: [
-                { label: "Active", value: "active" },
-                { label: "Removed", value: "inactive" },
+                { label: t("ACTIVE"), value: "active" },
+                { label: t("REMOVED"), value: "inactive" },
               ],
               defaultChecked: true,
+              inline: true,
             },
           ]}
           onSearch={handleSearch}
@@ -228,12 +232,12 @@ export default function Blacklist() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>NIC</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Police Report</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("NAME")}</TableHead>
+                  <TableHead>{t("NIC")}</TableHead>
+                  <TableHead>{t("REASON")}</TableHead>
+                  <TableHead>{t("POLICE_REPORT")}</TableHead>
+                  <TableHead>{t("STATUS")}</TableHead>
+                  <TableHead>{t("ACTIONS")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -267,17 +271,17 @@ export default function Blacklist() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{loading ? "Loading entries..." : "No blacklist entries found"}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{loading ? t("LOADING_ENTRIES") : t("NO_BLACKLIST_ENTRIES_FOUND")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between border-t px-6 py-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 sm:px-6 py-3 sm:py-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2">
-                <Label className="text-sm">Rows per page:</Label>
+                <Label className="text-sm whitespace-nowrap">{t("ROWS_PER_PAGE")}</Label>
                 <Select
                   value={String(pageSize)}
                   onValueChange={(value) => {
@@ -286,7 +290,7 @@ export default function Blacklist() {
                   }}
                   disabled={loading}
                 >
-                  <SelectTrigger className="w-20">
+                  <SelectTrigger className="w-16 sm:w-20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -297,12 +301,12 @@ export default function Blacklist() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 Showing {blacklist.length > 0 ? currentPage * pageSize + 1 : 0} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} entries
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -310,10 +314,10 @@ export default function Blacklist() {
                 disabled={currentPage === 0 || loading}
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous
+                <span className="hidden sm:inline">{t("PREVIOUS")}</span>
               </Button>
-              <span className="text-sm px-2">
-                Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages}
+              <span className="text-xs sm:text-sm px-1 sm:px-2">
+                {t("PAGE")} {totalElements > 0 ? currentPage + 1 : 0} {t("OF")} {totalPages}
               </span>
               <Button
                 variant="outline"
@@ -321,7 +325,7 @@ export default function Blacklist() {
                 onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                 disabled={currentPage >= totalPages - 1 || totalPages === 0 || loading}
               >
-                Next
+                <span className="hidden sm:inline">{t("NEXT")}</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -330,15 +334,15 @@ export default function Blacklist() {
       </Card>
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add to Blacklist</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("ADD_TO_BLACKLIST")}</DialogTitle></DialogHeader>
           <form onSubmit={handleAdd} className="space-y-4">
-            <div><Label>Customer Name</Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} required placeholder="e.g. John Doe" disabled={submitting} /></div>
-            <div><Label>NIC</Label><Input value={customerNic} onChange={(e) => setCustomerNic(e.target.value)} required placeholder="e.g. 123456789V" disabled={submitting} /></div>
-            <div><Label>Reason</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} required placeholder="Describe the reason for blacklisting" disabled={submitting} /></div>
-            <div><Label>Police Report Number (Optional)</Label><Input value={policeReportNumber} onChange={(e) => setPoliceReportNumber(e.target.value)} placeholder="e.g. PR-2026-001" disabled={submitting} /></div>
-            <div><Label>Police Report Date (Optional)</Label><Input type="date" value={policeReportDate} onChange={(e) => setPoliceReportDate(e.target.value)} disabled={submitting} /></div>
+            <div><Label>{t("CUSTOMER_NAME")}</Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} required placeholder="e.g. John Doe" disabled={submitting} /></div>
+            <div><Label>{t("NIC")}</Label><Input value={customerNic} onChange={(e) => setCustomerNic(e.target.value)} required placeholder="e.g. 123456789V" disabled={submitting} /></div>
+            <div><Label>{t("REASON")}</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} required placeholder={t("DESCRIBE_REASON_FOR_BLACKLISTING")} disabled={submitting} /></div>
+            <div><Label>{t("POLICE_REPORT_NUMBER_OPTIONAL")}</Label><Input value={policeReportNumber} onChange={(e) => setPoliceReportNumber(e.target.value)} placeholder="e.g. PR-2026-001" disabled={submitting} /></div>
+            <div><Label>{t("POLICE_REPORT_DATE_OPTIONAL")}</Label><Input type="date" value={policeReportDate} onChange={(e) => setPoliceReportDate(e.target.value)} disabled={submitting} /></div>
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Adding to Blacklist..." : "Add to Blacklist"}
+              {submitting ? t("ADDING_TO_BLACKLIST") : t("ADD_TO_BLACKLIST")}
             </Button>
           </form>
         </DialogContent>

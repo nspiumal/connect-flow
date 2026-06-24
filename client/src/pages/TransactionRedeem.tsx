@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import NumberInput from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +30,7 @@ export default function TransactionRedeem() {
   const [transaction, setTransaction] = useState<Record<string, unknown> | null>(null);
   const [outstandingBalance, setOutstandingBalance] = useState<Record<string, unknown> | null>(null);
   const [redemptionAmount, setRedemptionAmount] = useState("");
+  const [redemptionAmountEdited, setRedemptionAmountEdited] = useState(false);
   const [redemptionNotes, setRedemptionNotes] = useState("");
   const [documentationAmount, setDocumentationAmount] = useState("0");
   const [items, setItems] = useState<ItemDetail[]>([]);
@@ -50,11 +50,19 @@ export default function TransactionRedeem() {
   );
 
   useEffect(() => {
+    if (!redemptionAmountEdited && computedOutstandingTotal > 0) {
+      setRedemptionAmount(String(computedOutstandingTotal));
+    }
+  }, [computedOutstandingTotal, redemptionAmountEdited]);
+
+  useEffect(() => {
     if (!id) return;
 
     const loadData = async () => {
       try {
         setLoadingData(true);
+        setRedemptionAmountEdited(false);
+        setRedemptionAmount("");
         const [tx, balance] = await Promise.all([
           apiClient.pawnTransactions.getById(id),
           apiClient.pawnRedemptions.getOutstandingBalance(id),
@@ -161,12 +169,12 @@ export default function TransactionRedeem() {
       <LoadingOverlay isLoading={redemptionLoading} />
 
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
         <Button variant="outline" size="icon" onClick={() => navigate("/transactions")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Process Gold Redemption</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Process Gold Redemption</h1>
           <p className="text-sm text-muted-foreground">
             Receipt No: {String(transaction?.pawnId || transaction?.pawn_id || "")}
           </p>
@@ -174,7 +182,7 @@ export default function TransactionRedeem() {
       </div>
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Left Column */}
         <div className="space-y-4">
           {/* Customer Information */}
@@ -183,7 +191,7 @@ export default function TransactionRedeem() {
               <CardTitle className="text-base">Customer Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div>
                   <Label className="text-xs text-muted-foreground">Customer Name</Label>
                   <p className="font-medium">{String(transaction?.customerName || transaction?.customer_name || "N/A")}</p>
@@ -297,7 +305,10 @@ export default function TransactionRedeem() {
                   <NumberInput
                     id="redemptionAmount"
                     value={redemptionAmount}
-                    onChange={setRedemptionAmount}
+                    onChange={(value) => {
+                      setRedemptionAmountEdited(true);
+                      setRedemptionAmount(value);
+                    }}
                     placeholder="Enter amount to pay"
                     className="mt-1"
                     required

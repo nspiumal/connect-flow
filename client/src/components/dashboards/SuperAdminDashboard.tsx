@@ -42,12 +42,12 @@ export function SuperAdminDashboard() {
   return (
     <div className="space-y-8">
       {/* Header Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-4xl font-bold text-foreground">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-2">System overview, management, and analytics</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Super Admin Dashboard</h1>
+          <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">System overview, management, and analytics</p>
         </div>
-        <Button onClick={() => setShowCreateUser(true)} className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg">
+        <Button onClick={() => setShowCreateUser(true)} className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg shrink-0">
           <UserPlus className="mr-2 h-4 w-4" /> Create User
         </Button>
       </div>
