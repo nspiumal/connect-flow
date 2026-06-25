@@ -446,6 +446,7 @@ export default function Transactions() {
       const redemptionData = {
         redemptionAmount: parseFloat(redemptionAmount),
         notes: redemptionNotes,
+        charges: effectiveCharges,
       };
 
       const result = await apiClient.pawnRedemptions.processRedemption(selectedTransactionId, redemptionData);
@@ -632,7 +633,7 @@ export default function Transactions() {
                       ) : t.status === "Completed" ? (
                         <span className="text-green-600 font-semibold">Settled</span>
                       ) : t.status === "Profited" ? (
-                        <span className="text-purple-600 font-semibold">Profited</span>
+                        <span className="text-purple-600 font-semibold">Forfeited</span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
@@ -657,11 +658,11 @@ export default function Transactions() {
                         return (
                           <Badge variant={
                             t.status === "Active" ? "default" :
-                            t.status === "Completed" ? "secondary" :
-                            t.status === "Profited" ? "outline" :
-                            "destructive"
+                              t.status === "Completed" ? "secondary" :
+                                t.status === "Profited" ? "outline" :
+                                  "destructive"
                           } className={t.status === "Profited" ? "border-purple-500 text-purple-600 bg-purple-50" : ""}>
-                            {t.status}
+                            {t.status === "Profited" ? "Forfeited" : t.status}
                           </Badge>
                         );
                       })()}
@@ -704,7 +705,7 @@ export default function Transactions() {
                               onClick={() => navigate(`/transactions/profit/${t.id}`)}
                               disabled={loading}
                             >
-                              Profit
+                              Forfeited
                             </Button>
                           )}
                         </div>
@@ -827,17 +828,17 @@ export default function Transactions() {
                 </p>
               </div>
               <div><Label>Weight (grams) *</Label>
-                <NumberInput 
-                  value={itemWeight} 
-                  onChange={setItemWeight} 
+                <NumberInput
+                  value={itemWeight}
+                  onChange={setItemWeight}
                   precision={3}
-                  required 
+                  required
                 />
               </div>
               <div><Label>Karat *</Label>
                 <Select value={itemKarat} onValueChange={setItemKarat}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{[24,22,21,18,14].map((k) => <SelectItem key={k} value={String(k)}>{k}K</SelectItem>)}</SelectContent>
+                  <SelectContent>{[24, 22, 21, 18, 14].map((k) => <SelectItem key={k} value={String(k)}>{k}K</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div><Label>Appraised Value *</Label><Input type="number" step="0.01" value={appraisedValue} onChange={(e) => setAppraisedValue(e.target.value)} required /></div>
@@ -856,7 +857,7 @@ export default function Transactions() {
               <div><Label>Period (months)</Label>
                 <Select value={periodMonths} onValueChange={setPeriodMonths}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{[3,6,9,12,18,24].map((m) => <SelectItem key={m} value={String(m)}>{m} months</SelectItem>)}</SelectContent>
+                  <SelectContent>{[3, 6, 9, 12, 18, 24].map((m) => <SelectItem key={m} value={String(m)}>{m} months</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

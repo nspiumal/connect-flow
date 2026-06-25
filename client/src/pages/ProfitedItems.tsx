@@ -80,7 +80,7 @@ export default function ProfitedItems() {
       console.error("Failed to fetch profited items:", error);
       toast({
         title: "Error",
-        description: "Failed to load profited items",
+        description: "Failed to load forfeited items",
         variant: "destructive",
       });
     } finally {
@@ -124,17 +124,17 @@ export default function ProfitedItems() {
 
   return (
     <div className="space-y-6">
-      <LoadingOverlay isLoading={loading} message="Loading profited items..." />
+      <LoadingOverlay isLoading={loading} message="Loading forfeited items..." />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold">Profited Items</h1>
+        <h1 className="text-xl sm:text-2xl font-bold">Forfeited Items</h1>
       </div>
 
       {/* Advanced Search Panel */}
       {showFilters && (
         <AdvancedSearchPanel
-          title="Profited Items Search"
-          subtitle="Search profited transactions by Receipt No or Customer NIC"
+          title="Forfeited Items Search"
+          subtitle="Search forfeited transactions by Receipt No or Customer NIC"
           inputFields={[
             {
               name: "pawnId",
@@ -161,8 +161,8 @@ export default function ProfitedItems() {
                 <TableRow>
                   <TableHead>Receipt No</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Profit Amount</TableHead>
-                  <TableHead>Profit Date</TableHead>
+                  <TableHead>Forfeit Amount</TableHead>
+                  <TableHead>Forfeit Date</TableHead>
                   <TableHead>Recorded By</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -195,7 +195,7 @@ export default function ProfitedItems() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                      No profited items found
+                      No forfeited items found
                     </TableCell>
                   </TableRow>
                 )}

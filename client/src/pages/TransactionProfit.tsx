@@ -103,7 +103,7 @@ export default function TransactionProfit() {
     if (!profitAmount || parseFloat(profitAmount) <= 0) {
       toast({
         title: "Validation Error",
-        description: "Please enter a valid profit amount",
+        description: "Please enter a valid forfeit amount",
         variant: "destructive",
       });
       return;
@@ -118,14 +118,14 @@ export default function TransactionProfit() {
       });
 
       toast({
-        title: "✓ Profit Recorded!",
-        description: `Transaction marked as profited. Amount: Rs. ${parseFloat(profitAmount).toLocaleString()}`,
+        title: "✓ Forfeit Recorded!",
+        description: `Transaction marked as forfeited. Amount: Rs. ${parseFloat(profitAmount).toLocaleString()}`,
       });
 
       navigate("/transactions");
     } catch (error: unknown) {
       console.error("Failed to record profit:", error);
-      const message = error instanceof Error ? error.message : "Failed to record profit";
+      const message = error instanceof Error ? error.message : "Failed to record forfeit";
       toast({
         title: "Error",
         description: message,
@@ -150,7 +150,7 @@ export default function TransactionProfit() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Set Transaction as Profited</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Set Transaction as Forfeited</h1>
           <p className="text-sm text-muted-foreground">
             Receipt No: {String(transaction?.pawnId || transaction?.pawn_id || "")}
           </p>
@@ -257,24 +257,24 @@ export default function TransactionProfit() {
           {/* Set Profit Form */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Set Profit</CardTitle>
+              <CardTitle className="text-base">Set Forfeit</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSetProfit} className="space-y-4">
                 <div>
-                  <Label htmlFor="profitAmount" className="text-sm">Profit Amount (LKR) *</Label>
+                  <Label htmlFor="profitAmount" className="text-sm">Forfeit Amount (LKR) *</Label>
                   <Input
                     id="profitAmount"
                     type="number"
                     step="0.01"
                     value={profitAmount}
                     onChange={(e) => setProfitAmount(e.target.value)}
-                    placeholder="Enter profit amount"
+                    placeholder="Enter forfeit amount"
                     className="mt-1"
                     required
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Enter the profit amount for this transaction
+                    Enter the forfeit amount for this transaction
                   </p>
                 </div>
 
@@ -282,7 +282,7 @@ export default function TransactionProfit() {
                   <div className="p-3 rounded border bg-gray-50">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-blue-700" />
-                      <p className="text-sm font-semibold text-blue-700">Profit Amount: Rs. {parseFloat(profitAmount).toLocaleString()}</p>
+                      <p className="text-sm font-semibold text-blue-700">Forfeit Amount: Rs. {parseFloat(profitAmount).toLocaleString()}</p>
                     </div>
                   </div>
                 )}
@@ -293,7 +293,7 @@ export default function TransactionProfit() {
                     id="profitNotes"
                     value={profitNotes}
                     onChange={(e) => setProfitNotes(e.target.value)}
-                    placeholder="Add any notes about this profit"
+                    placeholder="Add any notes about this forfeit"
                     rows={4}
                     className="mt-1 text-sm"
                   />
@@ -313,7 +313,7 @@ export default function TransactionProfit() {
                     disabled={profitLoading || !profitAmount}
                     className="flex-1"
                   >
-                    {profitLoading ? "Processing..." : "Set Profit"}
+                    {profitLoading ? "Processing..." : "Set Forfeit"}
                   </Button>
                 </div>
               </form>

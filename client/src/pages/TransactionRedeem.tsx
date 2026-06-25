@@ -132,6 +132,7 @@ export default function TransactionRedeem() {
       const result = await apiClient.pawnRedemptions.processRedemption(id, {
         redemptionAmount: parseFloat(redemptionAmount),
         notes: notesWithDoc,
+        charges: effectiveCharges,
       });
 
       if (result.isFullRedemption) {

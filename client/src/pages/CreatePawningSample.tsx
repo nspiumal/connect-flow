@@ -72,7 +72,7 @@ const emptyItemDraft: ItemDraft = {
   content: "",
   condition: "Good",
   weight: "",
-  karat: "N/A",
+  karat: "22K",
   appraisedValue: "",
   marketValue: "",
   images: [],
@@ -103,6 +103,7 @@ export default function CreatePawningSample() {
   const [patternUnlocked, setPatternUnlocked] = useState(false);
   const [patternBuffer, setPatternBuffer] = useState("");
   const [lastKeyTime, setLastKeyTime] = useState(0);
+  const [secretKeyInput, setSecretKeyInput] = useState("");
 
   // Item draft + list
   const [itemDraft, setItemDraft] = useState<ItemDraft>(emptyItemDraft);
@@ -357,6 +358,13 @@ export default function CreatePawningSample() {
       setSpecialPattern("TND");
     }
   };
+
+  useEffect(() => {
+    if (secretKeyInput.trim() && secretKeyInput.trim().toUpperCase() === specialPattern.toUpperCase()) {
+      setPatternUnlocked(true);
+      toast({ title: "Special Mode Enabled", description: "Period selection unlocked" });
+    }
+  }, [secretKeyInput, specialPattern, toast]);
 
   const updateDraft = (patch: Partial<ItemDraft>) => {
     setItemDraft((prev) => ({ ...prev, ...patch }));
@@ -690,6 +698,7 @@ export default function CreatePawningSample() {
       setBlockedReason(null);
       setPatternUnlocked(false);
       setPatternBuffer("");
+      setSecretKeyInput("");
       setPeriodMonths("12");
       setItemDraft(emptyItemDraft);
       setItems([]);
@@ -816,6 +825,7 @@ export default function CreatePawningSample() {
                         )}
                         {blockedReason && <p className="text-[10px] text-red-600 mt-0.5">{blockedReason}</p>}
                         {identityVerifying && <p className="text-[10px] text-blue-600 mt-0.5">Searching...</p>}
+
                       </div>
                     </div>
 
@@ -891,38 +901,42 @@ export default function CreatePawningSample() {
               <div className="bg-blue-700 text-white rounded p-3 mb-3">
                 <p className="text-[11px] font-bold mb-2">Duration Type</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                  {[
-                    { value: "12", label: "One Year (A)" },
-                    { value: "12B", label: "One Year (B)" },
-                    { value: "1", label: "1 Month" },
-                    { value: "3", label: "3 Months" },
-                  ].map((opt) => {
-                    const isLocked = !patternUnlocked && (opt.value === "1" || opt.value === "3" || opt.value === "12B");
-                    return (
-                      <label
-                        key={opt.value}
-                        className={`flex items-center gap-1 ${isLocked ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
-                      >
-                        <input
-                          type="radio"
-                          name="durationRadio"
-                          value={opt.value}
-                          checked={
-                            opt.value === "12B"
-                              ? periodMonths === "12" && patternUnlocked
-                              : periodMonths === opt.value
-                          }
-                          onChange={() => {
-                            if (!isLocked) setPeriodMonths(opt.value === "12B" ? "12" : opt.value);
-                          }}
-                          disabled={isLocked}
-                          className="w-3 h-3 accent-white"
-                        />
-                        <span className="text-[11px]">{opt.label}</span>
-                      </label>
-                    );
-                  })}
+                  {(patternUnlocked
+                    ? [
+                        { value: "12", label: "One Year (A)" },
+                        { value: "12B", label: "One Year (B)" },
+                        { value: "1", label: "1 Month" },
+                        { value: "3", label: "3 Months" },
+                      ]
+                    : [{ value: "12", label: "1 Year" }]
+                  ).map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="durationRadio"
+                        value={opt.value}
+                        checked={
+                          opt.value === "12B"
+                            ? periodMonths === "12" && patternUnlocked
+                            : periodMonths === opt.value
+                        }
+                        onChange={() => setPeriodMonths(opt.value === "12B" ? "12" : opt.value)}
+                        className="w-3 h-3 accent-white"
+                      />
+                      <span className="text-[11px]">{opt.label}</span>
+                    </label>
+                  ))}
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 mb-2">
+                <Label className="text-xs w-16 shrink-0 font-semibold">Secret Key</Label>
+                <Input
+                  value={secretKeyInput}
+                  onChange={(e) => setSecretKeyInput(e.target.value)}
+                  placeholder="Enter code"
+                  className="h-7 text-xs flex-1"
+                />
               </div>
 
               <div className="mt-2 flex items-center gap-2">
@@ -973,7 +987,7 @@ export default function CreatePawningSample() {
                         </Button>
                       </div>
                       <Select value={itemDraft.content} onValueChange={(v) => updateDraft({ content: v })}>
-                        <SelectTrigger className="h-6 text-xs flex-1 bg-green-500 border-green-600 text-white">
+                        <SelectTrigger className="h-6 text-xs flex-1">
                           <SelectValue placeholder="Select item type..." />
                         </SelectTrigger>
                         <SelectContent>

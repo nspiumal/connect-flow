@@ -322,7 +322,7 @@ export default function Reports() {
                   {loading ? "—" : formatCurrency(totalProfit)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {monthProfits.length} profited · {label}
+                  {monthProfits.length} forfeited · {label}
                 </p>
               </div>
             </div>

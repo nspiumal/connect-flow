@@ -351,7 +351,7 @@ export default function TransactionInfo() {
                     variant={statusBadgeVariant(status) as any}
                     className={status === "Profited" ? "border-purple-500 text-purple-600 bg-purple-50" : ""}
                   >
-                    {status}
+                    {status === "Profited" ? "Forfeited" : status}
                   </Badge>
                 </div>
                 {transaction?.remarks && (
