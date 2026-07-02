@@ -26,6 +26,11 @@ const authFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
     // Handle 401 Unauthorized - redirect to login only if not already on login page
     if (response.status === 401) {
       console.error("🚫 [API_ERR] 401 Unauthorized - Token invalid or expired");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
       throw new Error("Unauthorized");
     }
 
@@ -653,25 +658,10 @@ export const apiClient = {
       formData.append('file', file);
       formData.append('transactionId', transactionId);
 
-      const token = localStorage.getItem("token");
-      const headers = new Headers();
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-
-      const response = await fetch(`${API_BASE_URL}/images/upload`, {
+      const response = await authFetch(`${API_BASE_URL}/images/upload`, {
         method: 'POST',
-        headers,
         body: formData,
       });
-
-      if (response.status === 401) {
-        console.error("401 Unauthorized - redirecting to login");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-        throw new Error('Unauthorized');
-      }
 
       if (!response.ok) throw new Error('Failed to upload image');
       return response.json();
@@ -684,25 +674,10 @@ export const apiClient = {
       });
       formData.append('transactionId', transactionId);
 
-      const token = localStorage.getItem("token");
-      const headers = new Headers();
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-
-      const response = await fetch(`${API_BASE_URL}/images/upload-multiple`, {
+      const response = await authFetch(`${API_BASE_URL}/images/upload-multiple`, {
         method: 'POST',
-        headers,
         body: formData,
       });
-
-      if (response.status === 401) {
-        console.error("401 Unauthorized - redirecting to login");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-        throw new Error('Unauthorized');
-      }
 
       if (!response.ok) throw new Error('Failed to upload images');
       return response.json();
@@ -839,7 +814,7 @@ export const apiClient = {
     search: async (userName?: string, action?: string, page: number = 0, size: number = 20) => {
       const params = new URLSearchParams();
       if (userName) params.append('userName', userName);
-      if (action)   params.append('action',   action);
+      if (action) params.append('action', action);
       params.append('page', String(page));
       params.append('size', String(size));
       const response = await authFetch(`${API_BASE_URL}/activity-logs?${params.toString()}`);

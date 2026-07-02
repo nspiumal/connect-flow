@@ -80,6 +80,13 @@ function round2(val) {
   return Math.round(val * 100) / 100;
 }
 
+/** Redemption amounts are always rounded up to the nearest 10, so the outstanding
+ * balance used for validation/display must match or a rounded-up payment would
+ * incorrectly be rejected as exceeding the (unrounded) outstanding balance. */
+function roundUpToNearest10(val) {
+  return Math.ceil(val / 10) * 10;
+}
+
 module.exports = {
   async getOutstandingBalance(transactionId) {
     const tx = await PawnTransactionRepository.findById(transactionId);
@@ -88,7 +95,7 @@ module.exports = {
     const principal = parseFloat(tx.remainingBalance != null ? tx.remainingBalance : tx.loanAmount) || 0;
     const breakdown = calculateAccrualInterest(tx);
     const charges = 0;
-    const total = round2(principal + breakdown.totalInterest + charges);
+    const total = roundUpToNearest10(principal + breakdown.totalInterest + charges);
 
     return {
       principal,
@@ -105,16 +112,18 @@ module.exports = {
     };
   },
 
-  async processRedemption(transactionId, { redemptionAmount, notes }, paidBy, paidByName) {
+  async processRedemption(transactionId, { redemptionAmount, notes, charges }, paidBy, paidByName) {
     const tx = await PawnTransactionRepository.findById(transactionId);
     if (!tx) throw { status: 404, message: 'Transaction not found' };
 
     const outstanding = await this.getOutstandingBalance(transactionId);
     const amount = parseFloat(redemptionAmount);
+    const chargesDue = round2(parseFloat(charges) || 0);
+    const totalOutstanding = roundUpToNearest10(outstanding.principal + outstanding.accrualInterest + chargesDue);
 
     if (!amount || amount <= 0) throw { status: 400, message: 'Redemption amount must be positive' };
-    if (amount > outstanding.total) {
-      throw { status: 400, message: `Redemption amount exceeds outstanding balance. Outstanding: ${outstanding.total}` };
+    if (amount > totalOutstanding) {
+      throw { status: 400, message: `Redemption amount exceeds outstanding balance. Outstanding: ${totalOutstanding}` };
     }
 
     // Allocation: Interest → Charges → Principal
@@ -127,8 +136,8 @@ module.exports = {
       interestPaid = Math.min(remaining, outstanding.accrualInterest);
       remaining = round2(remaining - interestPaid);
     }
-    if (remaining > 0 && outstanding.charges > 0) {
-      chargesPaid = Math.min(remaining, outstanding.charges);
+    if (remaining > 0 && chargesDue > 0) {
+      chargesPaid = Math.min(remaining, chargesDue);
       remaining = round2(remaining - chargesPaid);
     }
     if (remaining > 0) {
