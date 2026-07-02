@@ -78,4 +78,8 @@ module.exports = {
     await PawnTransactionRepository.update(transactionId, { status: 'Profited' });
     return profit;
   },
+
+  async getByTransactionId(transactionId) {
+    return TransactionProfitRepository.findByTransactionId(transactionId);
+  },
 };

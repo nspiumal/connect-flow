@@ -31,4 +31,20 @@ module.exports = {
       res.status(201).json(await TransactionProfitService.setProfit(transactionId, { profitAmount, notes }, userId));
     } catch (e) { handleErr(res, e); }
   },
+
+  async setProfitForTransaction(req, res) {
+    try {
+      const userId = req.user ? req.user.id : null;
+      const { profitAmount, notes } = req.body;
+      res.status(201).json(await TransactionProfitService.setProfit(req.params.id, { profitAmount, notes }, userId));
+    } catch (e) { handleErr(res, e); }
+  },
+
+  async getByTransactionId(req, res) {
+    try {
+      const profit = await TransactionProfitService.getByTransactionId(req.params.id);
+      if (!profit) return res.status(404).json({ message: 'Profit record not found' });
+      res.json(profit);
+    } catch (e) { handleErr(res, e); }
+  },
 };

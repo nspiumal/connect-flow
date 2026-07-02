@@ -132,10 +132,14 @@ router.get('/pawn-transactions/pawn-id/:pawnId', PawnTransactionController.getBy
 router.get('/pawn-transactions/branch/:branchId', PawnTransactionController.getByBranch);
 router.get('/pawn-transactions/:id/outstanding-balance', PawnTransactionController.getOutstandingBalance);
 router.get('/pawn-transactions/:id/edit-history', PawnTransactionController.getEditHistory);
+router.get('/pawn-transactions/:id/profit', ProfitedTransactionController.getByTransactionId);
+router.post('/pawn-transactions/:id/profit', ProfitedTransactionController.setProfitForTransaction);
 router.get('/pawn-transactions/:id', PawnTransactionController.getById);
 router.post('/pawn-transactions', PawnTransactionController.create);
 router.post('/pawn-transactions/:id', PawnTransactionController.update);
 router.patch('/pawn-transactions/:id/status', PawnTransactionController.changeStatus);
+router.patch('/pawn-transactions/:id/details', PawnTransactionController.updateDetails);
+router.patch('/pawn-transactions/:id/remarks', PawnTransactionController.updateRemarks);
 router.delete('/pawn-transactions/:id', PawnTransactionController.delete);
 
 // ── Pawn Redemptions ──────────────────────────────────────────────────────────

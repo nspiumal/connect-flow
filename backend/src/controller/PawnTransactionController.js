@@ -93,6 +93,22 @@ module.exports = {
     } catch (e) { handleErr(res, e); }
   },
 
+  async updateDetails(req, res) {
+    try {
+      const editedBy = req.user ? req.user.id : null;
+      const editedByName = req.user ? req.user.fullName : 'Unknown';
+      res.json(await PawnTransactionService.updateDetails(req.params.id, req.body, editedBy, editedByName));
+    } catch (e) { handleErr(res, e); }
+  },
+
+  async updateRemarks(req, res) {
+    try {
+      const editedBy = req.user ? req.user.id : null;
+      const editedByName = req.user ? req.user.fullName : 'Unknown';
+      res.json(await PawnTransactionService.updateRemarks(req.params.id, req.body.remarks, editedBy, editedByName));
+    } catch (e) { handleErr(res, e); }
+  },
+
   async changeStatus(req, res) {
     try {
       const editedBy = req.user ? req.user.id : null;

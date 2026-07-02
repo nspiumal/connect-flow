@@ -287,6 +287,96 @@ const PawnTransactionService = {
     return hydrateImages(updatedTx);
   },
 
+  async updateDetails(id, data, editedBy, editedByName) {
+    const tx = await PawnTransactionRepository.findById(id);
+    if (!tx) throw { status: 404, message: 'Transaction not found' };
+
+    const prevPhone = tx.customer ? tx.customer.phone : null;
+    const prevLoanAmount = tx.loanAmount;
+
+    if (tx.customer) {
+      const customerUpdate = {};
+      if (data.customerAddress != null) customerUpdate.address = data.customerAddress;
+      if (data.customerPhone != null) customerUpdate.phone = data.customerPhone;
+      if (Object.keys(customerUpdate).length > 0) {
+        await CustomerRepository.update(tx.customer.id, customerUpdate);
+      }
+    }
+
+    const updateData = {};
+    if (data.loanAmount != null) updateData.loanAmount = data.loanAmount;
+
+    if (data.interestRatePercent != null) {
+      const rates = await InterestRateRepository.findAll();
+      let rate = rates.find((r) => Number(r.ratePercent) === Number(data.interestRatePercent));
+      if (!rate) {
+        rate = await InterestRateRepository.create({
+          id: uuidv4(),
+          name: `Custom Rate - ${data.interestRatePercent}%`,
+          ratePercent: data.interestRatePercent,
+          isDefault: false,
+        });
+      }
+      updateData.interestRateId = rate.id;
+      updateData.interestRatePercent = rate.ratePercent;
+    }
+
+    if (data.periodMonths != null) updateData.periodMonths = data.periodMonths;
+    if (data.maturityDate != null) updateData.maturityDate = data.maturityDate;
+
+    await PawnTransactionRepository.update(id, updateData);
+
+    await TransactionEditHistoryRepository.create({
+      id: uuidv4(),
+      transactionId: id,
+      pawnId: tx.pawnId,
+      editedBy: editedBy || tx.createdBy,
+      editedByName,
+      editType: 'DETAILS',
+      previousPhone: prevPhone,
+      newPhone: data.customerPhone != null ? data.customerPhone : prevPhone,
+      previousLoanAmount: prevLoanAmount,
+      newLoanAmount: updateData.loanAmount !== undefined ? updateData.loanAmount : prevLoanAmount,
+    });
+
+    const updatedTx = await PawnTransactionRepository.findById(id);
+    return hydrateImages(updatedTx);
+  },
+
+  // Mirrors PawnTransactionService.java updateTransactionRemarks: merges the
+  // remarks change into the latest DETAILS history row when one exists,
+  // otherwise appends a new DETAILS row.
+  async updateRemarks(id, remarks, editedBy, editedByName) {
+    const tx = await PawnTransactionRepository.findById(id);
+    if (!tx) throw { status: 404, message: 'Transaction not found' };
+
+    const previousRemarks = tx.remarks;
+    await PawnTransactionRepository.update(id, { remarks });
+
+    const latest = await TransactionEditHistoryRepository.findLatestByTransactionId(id);
+    if (latest && String(latest.editType).toUpperCase() === 'DETAILS') {
+      if (latest.previousRemarks == null) latest.previousRemarks = previousRemarks;
+      latest.newRemarks = remarks;
+      if (editedBy && !latest.editedBy) latest.editedBy = editedBy;
+      if (editedByName && !latest.editedByName) latest.editedByName = editedByName;
+      await latest.save();
+    } else {
+      await TransactionEditHistoryRepository.create({
+        id: uuidv4(),
+        transactionId: id,
+        pawnId: tx.pawnId,
+        editedBy: editedBy || tx.createdBy,
+        editedByName,
+        editType: 'DETAILS',
+        previousRemarks,
+        newRemarks: remarks,
+      });
+    }
+
+    const updatedTx = await PawnTransactionRepository.findById(id);
+    return hydrateImages(updatedTx);
+  },
+
   async changeStatus(id, status, editedBy, editedByName, reason) {
     return this.update(id, { status, editType: 'STATUS_CHANGE', editReason: reason }, editedBy, editedByName);
   },
