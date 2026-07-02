@@ -23,7 +23,7 @@ export default function TransactionEdit() {
   const [loadingData, setLoadingData] = useState(true);
   const [ratesLoading, setRatesLoading] = useState(true);
   const [transactionLoading, setTransactionLoading] = useState(true);
-  const [rates, setRates] = useState<Array<{id: string; name: string; rate_percent: number; ratePercent?: number}>>([]);
+  const [rates, setRates] = useState<Array<{id: string; name: string; rate_percent: number; ratePercent?: number; isDefault?: boolean}>>([]);
 
   interface ItemDetail {
     description: string;
@@ -79,6 +79,18 @@ export default function TransactionEdit() {
     setLoadingData(ratesLoading || transactionLoading);
   }, [ratesLoading, transactionLoading]);
 
+  // If the transaction has no interest rate, pre-fill the default rate.
+  // originalRateId is set too, so an untouched default is not sent as an update.
+  useEffect(() => {
+    if (ratesLoading || transactionLoading || selectedRateId) return;
+    const defaultRate = rates.find((r) => r.isDefault) || rates[0];
+    const percent = defaultRate?.ratePercent ?? defaultRate?.rate_percent;
+    if (percent != null) {
+      setSelectedRateId(String(percent));
+      setOriginalRateId(String(percent));
+    }
+  }, [ratesLoading, transactionLoading, rates, selectedRateId]);
+
   const fetchRates = async () => {
     try {
       const data = await apiClient.interestRates.getActive();
@@ -111,8 +123,8 @@ export default function TransactionEdit() {
 
       setLoanAmount(response.loanAmount ? String(response.loanAmount) : "");
       setOriginalLoanAmount(response.loanAmount ? String(response.loanAmount) : "");
-      setSelectedRateId(response.interestRateId || "");
-      setOriginalRateId(response.interestRateId || "");
+      setSelectedRateId(response.interestRatePercent != null ? String(response.interestRatePercent) : "");
+      setOriginalRateId(response.interestRatePercent != null ? String(response.interestRatePercent) : "");
       setPeriodMonths(response.periodMonths ? String(response.periodMonths) : "6");
       setOriginalPeriodMonths(response.periodMonths ? String(response.periodMonths) : "6");
       setRemarks(response.remarks || "");
@@ -228,7 +240,10 @@ export default function TransactionEdit() {
     try {
       const users = await apiClient.users.getByBranch(staffBranchId);
       const manager = Array.isArray(users)
-        ? users.find((u) => String(u.role).toUpperCase() === "MANAGER")
+        ? users.find((u) =>
+            Array.isArray(u.roles) &&
+            u.roles.some((r: { role?: string }) => String(r.role).toUpperCase() === "MANAGER")
+          )
         : null;
       if (!manager?.id) {
         toast({
@@ -310,13 +325,14 @@ export default function TransactionEdit() {
 
 
       if (detailsChanged) {
+        // Send only changed fields — the backend leaves null fields untouched.
         await apiClient.pawnTransactions.updateDetails(id!, {
-          customerAddress,
-          customerPhone,
-          loanAmount: loanAmount ? Number(loanAmount) : null,
-          interestRatePercent: selectedRateId ? Number(selectedRateId) : null,
-          periodMonths: periodMonths ? Number(periodMonths) : null,
-          maturityDate: maturityDate || null,
+          customerAddress: customerAddress !== originalCustomerAddress ? customerAddress : null,
+          customerPhone: customerPhone !== originalCustomerPhone ? customerPhone : null,
+          loanAmount: loanAmount !== originalLoanAmount && loanAmount ? Number(loanAmount) : null,
+          interestRatePercent: selectedRateId !== originalRateId && selectedRateId ? Number(selectedRateId) : null,
+          periodMonths: periodMonths !== originalPeriodMonths && periodMonths ? Number(periodMonths) : null,
+          maturityDate: maturityDate !== originalMaturityDate && maturityDate ? maturityDate : null,
         });
       }
 

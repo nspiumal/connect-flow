@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info, DollarSign, TrendingUp, Filter } from "lucide-react";
+import { Plus, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info, DollarSign, TrendingUp, Filter, Download } from "lucide-react";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 
@@ -91,6 +91,7 @@ export default function Transactions() {
   const [documentationAmount, setDocumentationAmount] = useState("0");
   const [redemptionLoading, setRedemptionLoading] = useState(false);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
 
   const fetchTransactions = async () => {
     try {
@@ -522,6 +523,118 @@ export default function Transactions() {
 
   const hasActiveFilters = filterPawnId || filterNic || filterMinAmount || filterMaxAmount || statusFilter !== "all";
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getRowStatusText = (t: any) => {
+    const maturityDate = t.maturityDate || t.maturity_date;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maturity = maturityDate ? new Date(maturityDate) : null;
+    if (maturity) maturity.setHours(0, 0, 0, 0);
+
+    const isOverdue = t.status === "Active" && maturity && maturity < today;
+    if (isOverdue || t.status === "Overdue") return "Overdue";
+    return t.status === "Profited" ? "Forfeited" : t.status;
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getRowRemainingBalanceText = (t: any, balances: { [key: string]: any }) => {
+    if (t.status === "Active" && balances[t.id]) return balances[t.id].total ?? 0;
+    if (t.status === "Active" && t.remainingBalance) return Number(t.remainingBalance);
+    if (t.status === "Completed") return "Settled";
+    if (t.status === "Profited") return "Forfeited";
+    return "";
+  };
+
+  const escapeCsvValue = (value: unknown) => {
+    const str = String(value ?? "");
+    if (/[",\n]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const handleDownloadCsv = async () => {
+    try {
+      setDownloadingCsv(true);
+      const minAmount = appliedFilters.minAmount.trim() !== ""
+        ? Number(appliedFilters.minAmount)
+        : undefined;
+      const maxAmount = appliedFilters.maxAmount.trim() !== ""
+        ? Number(appliedFilters.maxAmount)
+        : undefined;
+
+      const response = await apiClient.pawnTransactions.searchAdvanced({
+        customerNic: appliedFilters.customerNic.trim() || undefined,
+        status: appliedFilters.status !== "all" ? appliedFilters.status : undefined,
+        minAmount: Number.isFinite(minAmount) ? minAmount : undefined,
+        maxAmount: Number.isFinite(maxAmount) ? maxAmount : undefined,
+        patternMode: categoryFilter === "A" ? "A" : undefined,
+        page: 0,
+        size: Math.max(totalElements, 1) || 100000,
+        sortBy: "pawnDate",
+        sortDir: "desc",
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allTransactions: any[] = response.content || [];
+
+      // Fetch outstanding balances (including accrued interest) for active transactions
+      const activeTransactions = allTransactions.filter((t) => t.status === "Active");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const balances: { [key: string]: any } = {};
+      for (const transaction of activeTransactions) {
+        try {
+          balances[transaction.id] = await apiClient.pawnRedemptions.getOutstandingBalance(transaction.id);
+        } catch (error) {
+          console.error(`Failed to fetch balance for transaction ${transaction.id}:`, error);
+          balances[transaction.id] = {
+            total: transaction.remainingBalance || transaction.loanAmount,
+          };
+        }
+      }
+
+      const headers = ["Receipt No", "Customer", "NIC", "Loan Amount", "Remaining Balance", "Rate %", "Maturity", "Status"];
+      const rows = allTransactions.map((t) => [
+        t.pawnId || t.pawn_id,
+        t.customerName || t.customer_name,
+        t.customerNic || t.customer_nic,
+        Number(t.loanAmount || t.loan_amount),
+        getRowRemainingBalanceText(t, balances),
+        t.interestRatePercent || t.interest_rate_percent,
+        t.maturityDate || t.maturity_date,
+        getRowStatusText(t),
+      ]);
+
+      const csvContent = [headers, ...rows]
+        .map((row) => row.map(escapeCsvValue).join(","))
+        .join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `transactions_${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: `Exported ${allTransactions.length} transaction(s) to CSV`,
+      });
+    } catch (error: any) {
+      console.error("Failed to export transactions:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export transactions to CSV",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingCsv(false);
+    }
+  };
+
   const fixedCharges = 50;
   const documentationValue = Number(documentationAmount) || 0;
   const effectiveCharges = fixedCharges + documentationValue;
@@ -537,6 +650,10 @@ export default function Transactions() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold">Pawn Transactions</h1>
         <div className="flex gap-2">
+          <Button onClick={handleDownloadCsv} variant="outline" disabled={downloadingCsv}>
+            <Download className="h-4 w-4 mr-2" />
+            {downloadingCsv ? "Exporting..." : "Download CSV"}
+          </Button>
           {(role !== "STAFF" || role === "STAFF") && branchId && (
             <Button onClick={() => navigate("/transactions/create")} variant="default">
               Create Pawning
@@ -583,11 +700,11 @@ export default function Transactions() {
               name: "status",
               label: "Status",
               options: [
-                { label: "Active", value: "Active" },
-                { label: "Overdue", value: "Overdue" },
-                { label: "Completed", value: "Completed" },
-                { label: "Defaulted", value: "Defaulted" },
-                { label: "Blocked", value: "Blocked" },
+                { label: "Current", value: "Active" },
+                { label: "Outstanding", value: "Overdue" },
+                { label: "Redemption", value: "Completed" },
+                { label: "Forfeited", value: "Defaulted" },
+                { label: "Black Listed", value: "Blocked" },
               ],
               defaultChecked: true,
               inline: true,
@@ -655,6 +772,32 @@ export default function Transactions() {
                           return <Badge variant="destructive">Overdue</Badge>;
                         }
 
+                        let displayStatus = t.status;
+                        switch (t.status) {
+                          case "Active":
+                            displayStatus = "Current";
+                            break;
+
+                          case "Overdue":
+                            displayStatus = "Outstanding";
+                            break;
+
+                          case "Completed":
+                            displayStatus = "Redemption";
+                            break;
+
+                          case "Profited":
+                            displayStatus = "Forfeited";
+                            break;
+
+                          case "Blocked":
+                            displayStatus = "Black Listed";
+                            break;
+
+                          default:
+                            displayStatus = t.status;
+                        }
+
                         return (
                           <Badge variant={
                             t.status === "Active" ? "default" :
@@ -662,7 +805,7 @@ export default function Transactions() {
                                 t.status === "Profited" ? "outline" :
                                   "destructive"
                           } className={t.status === "Profited" ? "border-purple-500 text-purple-600 bg-purple-50" : ""}>
-                            {t.status === "Profited" ? "Forfeited" : t.status}
+                            {displayStatus}
                           </Badge>
                         );
                       })()}

@@ -369,7 +369,10 @@ export default function CreatePawning() {
     try {
       const users = await apiClient.users.getByBranch(staffBranchId);
       const manager = Array.isArray(users)
-        ? users.find((u) => String(u.role).toUpperCase() === "MANAGER")
+        ? users.find((u) =>
+            Array.isArray(u.roles) &&
+            u.roles.some((r: { role?: string }) => String(r.role).toUpperCase() === "MANAGER")
+          )
         : null;
       if (!manager?.id) {
         toast({
