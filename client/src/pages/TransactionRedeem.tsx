@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import NumberInput from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { ArrowLeft } from "lucide-react";
@@ -34,6 +35,7 @@ export default function TransactionRedeem() {
   const [redemptionNotes, setRedemptionNotes] = useState("");
   const [documentationAmount, setDocumentationAmount] = useState("0");
   const [items, setItems] = useState<ItemDetail[]>([]);
+  const [calculationPeriod, setCalculationPeriod] = useState<"MONTHLY" | "TWO_WEEKS">("MONTHLY");
 
   const toNumber = (value: unknown) => Number(value) || 0;
 
@@ -65,7 +67,7 @@ export default function TransactionRedeem() {
         setRedemptionAmount("");
         const [tx, balance] = await Promise.all([
           apiClient.pawnTransactions.getById(id),
-          apiClient.pawnRedemptions.getOutstandingBalance(id),
+          apiClient.pawnRedemptions.getOutstandingBalance(id, calculationPeriod),
         ]);
 
         setTransaction(tx);
@@ -108,7 +110,33 @@ export default function TransactionRedeem() {
     };
 
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate, toast]);
+
+  const isFirstPeriodRender = useRef(true);
+  useEffect(() => {
+    if (isFirstPeriodRender.current) {
+      isFirstPeriodRender.current = false;
+      return;
+    }
+    if (!id) return;
+
+    const refreshBalance = async () => {
+      try {
+        const balance = await apiClient.pawnRedemptions.getOutstandingBalance(id, calculationPeriod);
+        setOutstandingBalance(balance);
+      } catch (error) {
+        console.error("Failed to refresh outstanding balance:", error);
+        toast({
+          title: "Error",
+          description: "Failed to refresh outstanding balance",
+          variant: "destructive",
+        });
+      }
+    };
+
+    refreshBalance();
+  }, [calculationPeriod, id, toast]);
 
   const handleRedeemTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +161,7 @@ export default function TransactionRedeem() {
         redemptionAmount: parseFloat(redemptionAmount),
         notes: notesWithDoc,
         charges: effectiveCharges,
+        calculationPeriod,
       });
 
       if (result.isFullRedemption) {
@@ -251,6 +280,29 @@ export default function TransactionRedeem() {
 
         {/* Right Column - Redemption Form */}
         <div className="space-y-4">
+          {/* Calculation Period */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Calculation Period</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={calculationPeriod}
+                onValueChange={(value) => setCalculationPeriod(value as "MONTHLY" | "TWO_WEEKS")}
+                className="grid grid-cols-2 gap-3"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="MONTHLY" id="period-monthly" />
+                  <Label htmlFor="period-monthly" className="text-sm font-normal cursor-pointer">Monthly</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="TWO_WEEKS" id="period-two-weeks" />
+                  <Label htmlFor="period-two-weeks" className="text-sm font-normal cursor-pointer">2 Weeks</Label>
+                </div>
+              </RadioGroup>
+            </CardContent>
+          </Card>
+
           {/* Outstanding Balance Breakdown */}
           <Card className="border-border bg-muted/40">
             <CardHeader className="pb-3">
@@ -262,7 +314,9 @@ export default function TransactionRedeem() {
                 <span className="font-medium">Rs. {toNumber(outstandingBalance?.principal).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Accrued Interest:</span>
+                <span className="text-muted-foreground">
+                  {calculationPeriod === "MONTHLY" ? "Accrued Interest (Monthly):" : "Accrued Interest (2 Weeks):"}
+                </span>
                 <span className="font-medium">Rs. {toNumber(outstandingBalance?.accrualInterest).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
@@ -385,4 +439,3 @@ export default function TransactionRedeem() {
     </div>
   );
 }
-

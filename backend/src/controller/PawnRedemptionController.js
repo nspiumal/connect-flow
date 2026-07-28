@@ -7,7 +7,7 @@ function handleErr(res, err) {
 
 module.exports = {
   async getOutstandingBalance(req, res) {
-    try { res.json(await PawnRedemptionService.getOutstandingBalance(req.params.transactionId)); } catch (e) { handleErr(res, e); }
+    try { res.json(await PawnRedemptionService.getOutstandingBalance(req.params.transactionId, req.query.calculationPeriod)); } catch (e) { handleErr(res, e); }
   },
 
   async redeem(req, res) {

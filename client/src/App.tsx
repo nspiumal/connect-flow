@@ -59,6 +59,8 @@ const App = () => (
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/activity-logs" element={<ActivityLogs />} />
               <Route path="/transactions/create-new" element={<CreatePawning />} />
+            </Route>
+            <Route element={<AppLayoutNoSidebar />}>
               <Route path="/transactions/create" element={<CreatePawningSample />} />
             </Route>
             <Route path="*" element={<NotFound />} />
