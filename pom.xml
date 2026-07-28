@@ -10,7 +10,7 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Connect Flow API</name>
+    <name>Kalyani House of Jewellers API</name>
     <description>Gold Pawn Management System - REST API</description>
 
     <parent>

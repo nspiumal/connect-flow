@@ -45,7 +45,7 @@ export default function Login() {
             <Gem className="w-7 h-7 text-white" />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-3xl font-bold tracking-tight text-white">Connect Flow</CardTitle>
+            <CardTitle className="text-3xl font-bold tracking-tight text-white">Kalyani House of Jewellers</CardTitle>
             <CardDescription className="text-slate-400">Gold Pawn Management System</CardDescription>
           </div>
         </CardHeader>
@@ -84,7 +84,7 @@ export default function Login() {
             </Button>
           </form>
           <p className="text-center text-slate-400 text-xs mt-4">
-            © 2026 Connect Flow. All rights reserved.
+            © 2026 Kalyani House of Jewellers. All rights reserved.
           </p>
         </CardContent>
       </Card>

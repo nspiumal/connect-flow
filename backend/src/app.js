@@ -109,7 +109,7 @@ async function bootstrap() {
     startOverdueScheduler();
 
     app.listen(PORT, () => {
-      console.log(`[Server] Connect Flow API running on http://localhost:${PORT}/api`);
+      console.log(`[Server] Kalyani House of Jewellers API running on http://localhost:${PORT}/api`);
       console.log(`[Swagger] API docs available at http://localhost:${PORT}/api-docs`);
     });
   } catch (err) {
