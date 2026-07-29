@@ -624,8 +624,9 @@ export const apiClient = {
       if (!response.ok) throw new Error('Failed to fetch redemptions');
       return response.json();
     },
-    getOutstandingBalance: async (transactionId: string) => {
-      const response = await authFetch(`${API_BASE_URL}/pawn-redemptions/outstanding-balance/${transactionId}`);
+    getOutstandingBalance: async (transactionId: string, calculationPeriod?: 'MONTHLY' | 'TWO_WEEKS') => {
+      const qs = calculationPeriod ? `?calculationPeriod=${calculationPeriod}` : '';
+      const response = await authFetch(`${API_BASE_URL}/pawn-redemptions/outstanding-balance/${transactionId}${qs}`);
       if (!response.ok) throw new Error('Failed to fetch outstanding balance');
       return response.json();
     },

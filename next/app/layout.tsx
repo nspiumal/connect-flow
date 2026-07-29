@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Connect Flow",
+  title: "Kalyani House of Jewellers",
   description: "Gold Pawn Management System",
 };
 

@@ -21,11 +21,18 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/integrations/api";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Upload, X, PlusCircle } from "lucide-react";
+import { Upload, X, PlusCircle, ArrowLeft } from "lucide-react";
 import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
 
 
-type IdType = "NIC" | "Passport" | "DrivingLicense";
+type IdType = "NIC" | "Passport" | "DrivingLicense" | "Other";
+
+const ID_TYPE_LABELS: Record<IdType, string> = {
+  NIC: "NIC",
+  Passport: "Passport",
+  DrivingLicense: "Driving License",
+  Other: "ID Number",
+};
 
 type Rate = {
   id: string;
@@ -146,7 +153,7 @@ export default function CreatePawningSample() {
     [items]
   );
 
-  const identityLabel = idType === "NIC" ? "NIC" : idType === "Passport" ? "Passport" : "Driving License";
+  const identityLabel = ID_TYPE_LABELS[idType];
 
   const fetchRatesCallback = async () => {
     try {
@@ -452,6 +459,11 @@ export default function CreatePawningSample() {
       return null;
     }
 
+    if (type === "Other") {
+      if (v.length < 4 || v.length > 30) return "ID number must be 4-30 characters";
+      return null;
+    }
+
     const licenseRegex = /^[A-Za-z0-9-]{6,15}$/;
     if (!licenseRegex.test(v)) return "Driving License must be 6-15 characters (letters, numbers, hyphen)";
     return null;
@@ -700,7 +712,7 @@ export default function CreatePawningSample() {
       setShowPinDialog(false);
       setManagerPin("");
 
-      navigate("/transactions/create");
+      navigate("/transactions");
     } catch (error: unknown) {
       toast({
         title: "Error",
@@ -733,8 +745,21 @@ export default function CreatePawningSample() {
     <>
       {loading && <LoadingOverlay isLoading={loading} />}
 
-      <div className="pawn-ticket-form overflow-auto p-4 min-h-[calc(100vh-4rem)] bg-gray-50">
+      <div className="pawn-ticket-form overflow-auto min-h-screen bg-gray-50">
         <div className="max-w-[1300px] mx-auto space-y-4">
+
+          {/* Page header: Back arrow + title (replaces the global nav on this route) */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate("/dashboard")}
+              aria-label="Back to Dashboard"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-lg font-bold">Create Ticket</h1>
+          </div>
 
           {/* Row 1: Customer Details | Duration */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -758,6 +783,7 @@ export default function CreatePawningSample() {
                         <SelectItem value="NIC">NIC</SelectItem>
                         <SelectItem value="Passport">Passport</SelectItem>
                         <SelectItem value="DrivingLicense">Driving License</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -2,6 +2,6 @@
 
 module.exports = {
   health(req, res) {
-    res.json({ status: 'UP', timestamp: new Date().toISOString(), service: 'Connect Flow API' });
+    res.json({ status: 'UP', timestamp: new Date().toISOString(), service: 'Kalyani House of Jewellers API' });
   },
 };

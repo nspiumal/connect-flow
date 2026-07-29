@@ -130,10 +130,10 @@ export function AppHeader() {
         {/* Logo and Brand */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-xs sm:text-sm">CF</span>
+            <span className="text-white font-bold text-xs sm:text-sm">KHJ</span>
           </div>
           <div className="hidden sm:block">
-            <span className="font-bold text-sm block leading-none">Connect Flow</span>
+            <span className="font-bold text-sm block leading-none">Kalyani House of Jewellers</span>
             <span className="text-[10px] text-sidebar-foreground/60">Gold Pawn</span>
           </div>
         </div>

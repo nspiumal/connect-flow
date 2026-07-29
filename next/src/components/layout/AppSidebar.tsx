@@ -60,10 +60,10 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-sm">CF</span>
+              <span className="text-white font-bold text-sm">KHJ</span>
             </div>
             <div>
-              <span className="font-bold text-sm block">Connect Flow</span>
+              <span className="font-bold text-sm block">Kalyani House of Jewellers</span>
               <span className="text-xs text-sidebar-foreground/60">Gold Pawn</span>
             </div>
           </div>

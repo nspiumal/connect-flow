@@ -35,7 +35,7 @@ async function start() {
   });
 
   server.listen(PORT, () => {
-    console.log(`\n[Server] Connect Flow running on http://localhost:${PORT}`);
+    console.log(`\n[Server] Kalyani House of Jewellers running on http://localhost:${PORT}`);
     console.log(`[Swagger] API docs at          http://localhost:${PORT}/api-docs\n`);
   });
 }
