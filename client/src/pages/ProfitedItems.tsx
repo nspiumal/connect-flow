@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ChevronRight, Filter, Info } from "lucide-react";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
 import { t } from "@/lib/lang";
@@ -17,7 +17,7 @@ import { t } from "@/lib/lang";
 export default function ProfitedItems() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { role } = useAuth();
+  const has = usePermission();
 
   const [profitedItems, setProfitedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ export default function ProfitedItems() {
 
   // Check access on mount
   useEffect(() => {
-    if (role !== "ADMIN" && role !== "SUPERADMIN" && role !== "MANAGER") {
+    if (!has("profit.view.list")) {
       toast({
         title: t("ACCESS_DENIED"),
         description: t("ONLY_ADMIN_CAN_ACCESS_PROFITED"),
@@ -47,7 +47,8 @@ export default function ProfitedItems() {
       });
       navigate("/dashboard");
     }
-  }, [role, navigate, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, toast]);
 
   const fetchProfitedItems = async () => {
     try {
@@ -89,10 +90,11 @@ export default function ProfitedItems() {
   };
 
   useEffect(() => {
-    if (role === "ADMIN" || role === "SUPERADMIN" || role === "MANAGER") {
+    if (has("profit.view.list")) {
       fetchProfitedItems();
     }
-  }, [currentPage, pageSize, appliedFilters, role]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, pageSize, appliedFilters]);
 
   const handleSearch = (filters: Record<string, FilterValue>) => {
     const pawnId = typeof filters.pawnId === 'string' ? filters.pawnId : undefined;

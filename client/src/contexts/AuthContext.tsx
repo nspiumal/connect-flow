@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import apiClient from "@/integrations/api";
 
-export type AppRole = "SUPERADMIN" | "ADMIN" | "MANAGER" | "STAFF";
+// Widened from the old 4-value union: Super Admin can create custom roles now,
+// so any role name the backend returns must be accepted here.
+export type AppRole = string;
 
 interface UserProfile {
   id: string;
@@ -17,10 +19,13 @@ interface AuthContextType {
   user: UserProfile | null;
   role: AppRole | null;
   branchId: string | null;
+  permissions: string[];
   profile: { full_name: string; email: string } | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** True if the current role has this permission key. SUPERADMIN always passes. */
+  has: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(userData);
           setRole(userData.role || null);
           setBranchId(userData.branchId || null);
+          setPermissions(userData.permissions || []);
           setProfile({ full_name: userData.fullName, email: userData.email });
         } else {
           console.log("No stored user or token found");
@@ -77,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("No token received from server");
       }
 
-      const userToStore: UserProfile = {
+      const userToStore: UserProfile & { permissions?: string[] } = {
         id: userData.id,
         fullName: userData.fullName,
         email: userData.email,
@@ -85,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: userData.role,
         branchId: userData.branchId,
         branch: userData.branch,
+        permissions: userData.permissions || [],
       };
 
       console.log("Storing user data:", userToStore);
@@ -94,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userToStore);
       setRole(userToStore.role || null);
       setBranchId(userToStore.branchId || null);
+      setPermissions(userToStore.permissions || []);
       setProfile({ full_name: userToStore.fullName, email: userToStore.email });
 
       console.log("Login successful, user state updated");
@@ -104,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setRole(null);
       setBranchId(null);
+      setPermissions([]);
       setProfile(null);
       throw error;
     } finally {
@@ -117,11 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setRole(null);
     setBranchId(null);
+    setPermissions([]);
     setProfile(null);
   };
 
+  const has = (permission: string) => role === "SUPERADMIN" || permissions.includes(permission);
+
   return (
-    <AuthContext.Provider value={{ user, role, branchId, profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, role, branchId, permissions, profile, loading, signIn, signOut, has }}>
       {children}
     </AuthContext.Provider>
   );

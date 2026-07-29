@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================================================
-# Connect Flow - Demo Users Setup Helper
+# Kalyani House of Jewellers - Demo Users Setup Helper
 # ============================================================================
 # This script provides instructions and helps verify demo users setup
 #
@@ -9,7 +9,7 @@
 # ============================================================================
 
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║       Connect Flow - Demo Users Setup & Login Helper           ║"
+echo "║  Kalyani House of Jewellers - Demo Users Setup & Login Helper    ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 

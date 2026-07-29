@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const UserRepository = require('../repository/UserRepository');
 const UserRoleRepository = require('../repository/UserRoleRepository');
+const PermissionService = require('./PermissionService');
 const { generateToken } = require('../security/JwtService');
 const logger = require('../config/logger');
 const { wrapWithLogging } = require('../utils/methodLogger');
@@ -24,6 +25,7 @@ const UserService = {
     const token = generateToken(user.email);
 
     const userRole = (user.roles && user.roles[0]) || null;
+    const permissions = await PermissionService.getKeysForUser(user);
 
     return {
       token,
@@ -35,9 +37,31 @@ const UserService = {
         role: userRole ? userRole.role : null,
         branchId: userRole ? userRole.branchId : null,
         branch: userRole && userRole.branch ? userRole.branch.name : null,
+        permissions,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
+    };
+  },
+
+  /** Re-derives the permission set for an existing session — used by GET /auth/me
+   *  so a client picks up role/permission edits without a fresh login. */
+  async getMe(email) {
+    const user = await UserRepository.findByEmail(email);
+    if (!user) throw { status: 404, message: 'User not found' };
+    const userRole = (user.roles && user.roles[0]) || null;
+    const permissions = await PermissionService.getKeysForUser(user);
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone || null,
+      role: userRole ? userRole.role : null,
+      branchId: userRole ? userRole.branchId : null,
+      branch: userRole && userRole.branch ? userRole.branch.name : null,
+      permissions,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   },
 

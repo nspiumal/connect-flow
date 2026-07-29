@@ -1,9 +1,9 @@
 'use strict';
 const { validateAndGetSubject } = require('./JwtService');
-const { User } = require('../model');
+const { User, UserRole } = require('../model');
 
 const PUBLIC_PATHS = [
-  /^\/api\/auth\//,
+  /^\/api\/auth\/login$/,
   /^\/api\/health/,
   /^\/api-docs/,
 ];
@@ -24,7 +24,7 @@ async function jwtMiddleware(req, res, next) {
   const token = authHeader.slice(7);
   try {
     const email = validateAndGetSubject(token);
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email }, include: [{ model: UserRole, as: 'roles' }] });
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }

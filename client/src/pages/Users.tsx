@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import apiClient from "@/integrations/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { CreateUserDialog } from "@/components/users/CreateUserDialog";
 import { PinManagementDialog } from "@/components/users/PinManagementDialog";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
@@ -42,6 +43,7 @@ export default function UsersPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const { role } = useAuth();
+  const has = usePermission();
 
   // Filter state
   const [showFilters, setShowFilters] = useState(true);
@@ -109,7 +111,7 @@ export default function UsersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold">{t("USER_MANAGEMENT")}</h1>
         <div className="flex gap-2">
-          {(role === "SUPERADMIN" || role === "ADMIN") && (
+          {has("users.create") && (
             <Button onClick={() => setShowCreate(true)}><UserPlus className="mr-2 h-4 w-4" /> {t("CREATE_USER")}</Button>
           )}
         </div>
@@ -189,7 +191,7 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>{u.branchName}</TableCell>
                   <TableCell className="text-right">
-                    {(role === "SUPERADMIN" || role === "ADMIN") && (
+                    {has("users.edit") && (
                       <>
                         <Button
                           variant="ghost"
@@ -203,7 +205,7 @@ export default function UsersPage() {
                           <Edit className="h-4 w-4" />
                           {t("EDIT")}
                         </Button>
-                        {u.roles.includes("MANAGER") && (
+                        {has("users.pin.set") && u.roles.includes("MANAGER") && (
                           <Button
                             variant="ghost"
                             size="sm"

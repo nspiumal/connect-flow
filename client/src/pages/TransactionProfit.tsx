@@ -9,7 +9,7 @@ import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { ArrowLeft } from "lucide-react";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { formatWeight } from "@/lib/utils";
 
 interface ItemDetail {
@@ -25,7 +25,7 @@ export default function TransactionProfit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { role } = useAuth();
+  const has = usePermission();
 
   const [loadingData, setLoadingData] = useState(true);
   const [profitLoading, setProfitLoading] = useState(false);
@@ -37,8 +37,8 @@ export default function TransactionProfit() {
   const toNumber = (value: unknown) => Number(value) || 0;
 
   useEffect(() => {
-    // Check role access
-    if (role !== "ADMIN" && role !== "SUPERADMIN" && role !== "MANAGER") {
+    // Check permission
+    if (!has("profit.record")) {
       toast({
         title: "Access Denied",
         description: "Only Admin and Branch Manager can access this page",
@@ -94,7 +94,8 @@ export default function TransactionProfit() {
     };
 
     loadData();
-  }, [id, navigate, toast, role]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, navigate, toast]);
 
   const handleSetProfit = async (e: React.FormEvent) => {
     e.preventDefault();

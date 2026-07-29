@@ -1,9 +1,10 @@
 import {
   LayoutDashboard, Building2, Users, FileText, Search, ShieldAlert,
-  Percent, BarChart3, ClipboardList, LogOut, ChevronDown, Menu, X, FilePlus, Package, Activity,
+  Percent, BarChart3, ClipboardList, LogOut, ChevronDown, Menu, X, FilePlus, Package, Activity, KeyRound,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -27,7 +28,7 @@ interface NavSubItem {
   title: string;
   url: string;
   icon: React.ElementType;
-  roles: string[];
+  permission: string;
 }
 
 interface NavCategory {
@@ -38,6 +39,7 @@ interface NavCategory {
 
 export function AppHeader() {
   const { role, profile, signOut } = useAuth();
+  const has = usePermission();
   const location = useLocation();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -48,58 +50,59 @@ export function AppHeader() {
       id: "file",
       title: "FILE",
       items: [
-        { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["SUPERADMIN", "ADMIN", "MANAGER", "STAFF"] },
-        { title: "Reports", url: "/reports", icon: BarChart3, roles: ["SUPERADMIN", "ADMIN", "MANAGER"] },
+        { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
+        { title: "Reports", url: "/reports", icon: BarChart3, permission: "reports.view" },
       ],
     },
     {
       id: "items",
       title: "ITEMS",
       items: [
-        { title: "Item Types", url: "/item-types", icon: Package, roles: ["ADMIN"] },
+        { title: "Item Types", url: "/item-types", icon: Package, permission: "itemTypes.view" },
       ],
     },
     {
       id: "tickets",
       title: "TICKETS",
       items: [
-        { title: "Add Ticket", url: "/transactions/create", icon: FilePlus, roles: ["ADMIN", "MANAGER", "STAFF"] },
-        { title: "View Tickets", url: "/transactions", icon: FileText, roles: ["ADMIN", "MANAGER", "STAFF"] },
+        { title: "Add Ticket", url: "/transactions/create", icon: FilePlus, permission: "tickets.create" },
+        { title: "View Tickets", url: "/transactions", icon: FileText, permission: "tickets.view" },
       ],
     },
     {
       id: "customers",
       title: "CUSTOMERS",
       items: [
-        { title: "Customer Search", url: "/customers", icon: Search, roles: ["ADMIN", "MANAGER", "STAFF"] },
-        { title: "Blacklist", url: "/blacklist", icon: ShieldAlert, roles: ["ADMIN", "MANAGER", "STAFF"] },
+        { title: "Customer Search", url: "/customers", icon: Search, permission: "customers.view" },
+        { title: "Blacklist", url: "/blacklist", icon: ShieldAlert, permission: "blacklist.view" },
       ],
     },
     {
       id: "config",
       title: "CONFIG",
       items: [
-        { title: "Branches", url: "/branches", icon: Building2, roles: ["SUPERADMIN", "ADMIN"] },
-        { title: "Branch Requests", url: "/branch-requests", icon: ClipboardList, roles: ["SUPERADMIN", "ADMIN"] },
-        { title: "Interest Rates", url: "/interest-rates", icon: Percent, roles: ["ADMIN"] },
+        { title: "Branches", url: "/branches", icon: Building2, permission: "branches.view" },
+        { title: "Branch Requests", url: "/branch-requests", icon: ClipboardList, permission: "branchRequests.view" },
+        { title: "Interest Rates", url: "/interest-rates", icon: Percent, permission: "interestRates.view" },
       ],
     },
     {
       id: "privileges",
       title: "PRIVILEGES",
       items: [
-        { title: "Users", url: "/users", icon: Users, roles: ["ADMIN", "MANAGER"] },
-        { title: "Activity Logs", url: "/activity-logs", icon: Activity, roles: ["SUPERADMIN", "ADMIN"] },
-        { title: "Audit Logs", url: "/audit-logs", icon: ClipboardList, roles: ["SUPERADMIN"] },
+        { title: "Users", url: "/users", icon: Users, permission: "users.view" },
+        { title: "Roles & Permissions", url: "/roles", icon: KeyRound, permission: "roles.manage" },
+        { title: "Activity Logs", url: "/activity-logs", icon: Activity, permission: "activityLogs.view" },
+        { title: "Audit Logs", url: "/audit-logs", icon: ClipboardList, permission: "auditLogs.view" },
       ],
     },
   ];
 
-  // Filter categories and items based on role
+  // Filter categories and items based on the current role's granted permissions
   const filteredCategories = categories
     .map((cat) => ({
       ...cat,
-      items: cat.items.filter((item) => role && item.roles.includes(role)),
+      items: cat.items.filter((item) => has(item.permission)),
     }))
     .filter((cat) => cat.items.length > 0);
 
@@ -169,7 +172,7 @@ export function AppHeader() {
               <div className="flex items-center gap-1.5">
                 <span className={cn("w-2 h-2 rounded-full", ROLE_COLORS[role] || "bg-gray-400")} />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/80">
-                  {ROLE_LABELS[role]}
+                  {ROLE_LABELS[role] || role}
                 </span>
               </div>
               <span className="text-xs text-sidebar-foreground/60 max-w-[120px] truncate font-medium mt-0.5">
@@ -222,15 +225,6 @@ export function AppHeader() {
               <span>{item.title}</span>
             </NavLink>
           ))}
-          {activeCategory === "file" && (
-            <button
-              onClick={signOut}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-md text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors border border-transparent whitespace-nowrap"
-            >
-              <LogOut className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-              <span>Sign Out</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -245,7 +239,7 @@ export function AppHeader() {
               </div>
               <div className="flex items-center gap-1.5 bg-sidebar-accent px-2.5 py-1 rounded-full">
                 <span className={cn("w-2 h-2 rounded-full", ROLE_COLORS[role] || "bg-gray-400")} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">{ROLE_LABELS[role]}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider">{ROLE_LABELS[role] || role}</span>
               </div>
             </div>
           )}

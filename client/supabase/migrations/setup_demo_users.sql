@@ -1,5 +1,5 @@
 -- ============================================================================
--- Connect Flow - Demo Users Setup Script
+-- Kalyani House of Jewellers - Demo Users Setup Script
 -- ============================================================================
 -- This script creates demo user profiles and roles for testing
 --

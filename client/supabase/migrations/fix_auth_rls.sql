@@ -1,5 +1,5 @@
 -- ============================================================================
--- Connect Flow - Fix Authentication & RLS Policies
+-- Kalyani House of Jewellers - Fix Authentication & RLS Policies
 -- ============================================================================
 -- This script fixes common authentication issues by ensuring RLS policies
 -- allow proper access to user data

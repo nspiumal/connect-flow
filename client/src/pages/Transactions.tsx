@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { Plus, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info, DollarSign, TrendingUp, Filter, Download } from "lucide-react";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
@@ -54,7 +54,7 @@ export default function Transactions() {
   const [showFilters, setShowFilters] = useState(true);
 
   const { toast } = useToast();
-  const { role } = useAuth();
+  const has = usePermission();
   const navigate = useNavigate();
 
   // Mock branchId - in real app this would come from user context
@@ -120,8 +120,11 @@ export default function Transactions() {
       setTotalPages(response.totalPages || 0);
       setTotalElements(response.totalElements || 0);
 
-      // Fetch outstanding balances (including accrued interest) for all active transactions
-      const activeTransactions = response.content?.filter((t: any) => t.status === "Active") || [];
+      // Fetch outstanding balances (including accrued interest) for all active transactions.
+      // Skip entirely when the role can't view redemption balances — the endpoint would 403.
+      const activeTransactions = has("redemption.view.balance")
+        ? response.content?.filter((t: any) => t.status === "Active") || []
+        : [];
       if (activeTransactions.length > 0) {
         const balances: { [key: string]: any } = {};
         for (const transaction of activeTransactions) {
@@ -654,7 +657,7 @@ export default function Transactions() {
             <Download className="h-4 w-4 mr-2" />
             {downloadingCsv ? "Exporting..." : "Download CSV"}
           </Button>
-          {(role !== "STAFF" || role === "STAFF") && branchId && (
+          {has("tickets.create.inline") && branchId && (
             <Button onClick={() => navigate("/transactions/create")} variant="default">
               Create Pawning
             </Button>
@@ -730,7 +733,7 @@ export default function Transactions() {
                   <TableHead>Rate %</TableHead>
                   <TableHead>Maturity</TableHead>
                   <TableHead>Status</TableHead>
-                  {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN" || role === "STAFF") && <TableHead>Actions</TableHead>}
+                  {has("tickets.view.detail") && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -810,7 +813,7 @@ export default function Transactions() {
                         );
                       })()}
                     </TableCell>
-                    {(role === "MANAGER" || role === "SUPERADMIN" || role === "ADMIN" || role === "STAFF") && (
+                    {has("tickets.view.detail") && (
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
@@ -831,7 +834,7 @@ export default function Transactions() {
                               Edit
                             </Button>
                           )}
-                          {t.status === "Active" && (
+                          {t.status === "Active" && has("redemption.view.balance") && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -841,7 +844,7 @@ export default function Transactions() {
                               Redeem
                             </Button>
                           )}
-                          {t.status === "Active" && (role === "ADMIN" || role === "SUPERADMIN" || role === "MANAGER") && (
+                          {t.status === "Active" && has("profit.record") && (
                             <Button
                               variant="outline"
                               size="sm"

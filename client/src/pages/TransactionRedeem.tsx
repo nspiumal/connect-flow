@@ -10,6 +10,7 @@ import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { ArrowLeft } from "lucide-react";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
+import { usePermission } from "@/hooks/usePermission";
 import { formatWeight } from "@/lib/utils";
 
 interface ItemDetail {
@@ -25,6 +26,7 @@ export default function TransactionRedeem() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const has = usePermission();
 
   const [loadingData, setLoadingData] = useState(true);
   const [redemptionLoading, setRedemptionLoading] = useState(false);
@@ -59,6 +61,14 @@ export default function TransactionRedeem() {
 
   useEffect(() => {
     if (!id) return;
+
+    // Redirect immediately rather than firing a request the backend will 403 —
+    // the /transactions/redeem/:id route is also guarded in App.tsx, but this
+    // covers the component being reached any other way.
+    if (!has("redemption.view.balance")) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
 
     const loadData = async () => {
       try {

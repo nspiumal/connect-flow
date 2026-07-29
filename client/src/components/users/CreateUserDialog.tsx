@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import apiClient from "@/integrations/api";
 
-type AppRole = "SUPERADMIN" | "ADMIN" | "MANAGER" | "STAFF";
+type AppRole = string;
 
 interface Props {
   open: boolean;
@@ -21,8 +21,22 @@ export function CreateUserDialog({ open, onOpenChange }: Props) {
   const [role, setRole] = useState<AppRole>("STAFF");
   const [branchId, setBranchId] = useState("");
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [roleOptions, setRoleOptions] = useState<{ name: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const fetchRoleOptions = async () => {
+    try {
+      const data = await apiClient.roles.getAll();
+      const active = data.filter((r: any) => r.isActive);
+      setRoleOptions(active.map((r: any) => ({ name: r.name, label: r.label })));
+      if (active.length > 0 && !active.some((r: any) => r.name === role)) {
+        setRole(active[0].name);
+      }
+    } catch (error) {
+      console.error("Failed to fetch roles:", error);
+    }
+  };
 
   const fetchBranches = async () => {
     try {
@@ -46,13 +60,15 @@ export function CreateUserDialog({ open, onOpenChange }: Props) {
     }
   };
 
-  // Fetch branches when dialog opens
+  // Fetch branches and role options when dialog opens
   useEffect(() => {
     console.log("Dialog open state changed to:", open);
     if (open) {
       console.log("Dialog is open, fetching branches...");
       fetchBranches();
+      fetchRoleOptions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,10 +136,13 @@ export function CreateUserDialog({ open, onOpenChange }: Props) {
             <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="SUPERADMIN">Super Admin</SelectItem>
-                <SelectItem value="ADMIN">Admin</SelectItem>
-                <SelectItem value="MANAGER">Branch Manager</SelectItem>
-                <SelectItem value="STAFF">Staff</SelectItem>
+                {roleOptions.length === 0 ? (
+                  <SelectItem value={role} disabled>Loading roles...</SelectItem>
+                ) : (
+                  roleOptions.map((r) => (
+                    <SelectItem key={r.name} value={r.name}>{r.label}</SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -144,7 +163,7 @@ export function CreateUserDialog({ open, onOpenChange }: Props) {
               </Select>
             </div>
           )}
-          {(role === "SUPERADMIN" || role === "ADMIN") && (
+          {role !== "MANAGER" && role !== "STAFF" && (
             <div className="space-y-2">
               <Label>Assign to Branch (Optional)</Label>
               <Select value={branchId} onValueChange={setBranchId}>

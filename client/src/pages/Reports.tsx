@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import apiClient from "@/integrations/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -87,7 +88,8 @@ const ProfitTooltip = ({ active, payload, label }: TooltipProps) => {
 // ─── component ─────────────────────────────────────────────────────────────
 
 export default function Reports() {
-  const { role, branchId: myBranchId } = useAuth();
+  const { branchId: myBranchId } = useAuth();
+  const has = usePermission();
 
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
   const [selectedBranch, setSelectedBranch] = useState("all");
@@ -117,11 +119,12 @@ export default function Reports() {
   }, [selectedView, selectedMonth, selYear, selMonth]);
 
   const effectiveBranchId = useMemo(() => {
-    if (role === "SUPERADMIN" || role === "ADMIN") {
+    if (has("reports.filter.branch")) {
       return selectedBranch !== "all" ? selectedBranch : undefined;
     }
     return myBranchId ?? undefined;
-  }, [role, selectedBranch, myBranchId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBranch, myBranchId]);
 
   // ── load branches once ──────────────────────────────────────────────────
   useEffect(() => {
@@ -235,7 +238,7 @@ export default function Reports() {
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="border rounded px-3 py-1.5 text-sm h-9 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
           />
-          {(role === "SUPERADMIN" || role === "ADMIN") && (
+          {has("reports.filter.branch") && (
             <Select value={selectedBranch} onValueChange={setSelectedBranch}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="All Branches" />

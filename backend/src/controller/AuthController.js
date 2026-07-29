@@ -18,4 +18,12 @@ module.exports = {
       res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
     }
   },
+
+  async me(req, res) {
+    try {
+      res.json(await UserService.getMe(req.userEmail));
+    } catch (err) {
+      res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
+    }
+  },
 };

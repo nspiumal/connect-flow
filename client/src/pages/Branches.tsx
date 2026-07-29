@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import apiClient from "@/integrations/api";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
 import { Plus, Edit, Power, ChevronLeft, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { t } from "@/lib/lang";
@@ -29,7 +29,7 @@ export default function Branches() {
   const [sortBy, setSortBy] = useState("name");
   const [sortDir, setSortDir] = useState("asc");
   const { toast } = useToast();
-  const { role } = useAuth();
+  const has = usePermission();
 
   const fetchBranches = async () => {
     try {
@@ -100,7 +100,7 @@ export default function Branches() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold">{t("BRANCH_MANAGEMENT")}</h1>
-        {(role === "SUPERADMIN" || role === "ADMIN") && (
+        {has("branches.create") && (
           <Button onClick={() => { setEditing(null); setName(""); setAddress(""); setPhone(""); setManagerId(""); setShowDialog(true); }}>
             <Plus className="mr-2 h-4 w-4" /> {t("ADD_BRANCH")}
           </Button>

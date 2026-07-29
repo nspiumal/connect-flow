@@ -13,6 +13,9 @@ const Blacklist = require('./Blacklist');
 const TransactionEditHistory = require('./TransactionEditHistory');
 const ActivityLogEntry = require('./ActivityLogEntry');
 const TransactionProfit = require('./TransactionProfit');
+const Role = require('./Role');
+const Permission = require('./Permission');
+const RolePermission = require('./RolePermission');
 
 // Branch <-> User (manager)
 Branch.belongsTo(User, { foreignKey: 'manager_id', as: 'manager' });
@@ -69,6 +72,25 @@ PawnTransaction.hasMany(TransactionEditHistory, { foreignKey: 'transaction_id', 
 TransactionProfit.belongsTo(PawnTransaction, { foreignKey: 'transaction_id', as: 'transaction' });
 PawnTransaction.hasOne(TransactionProfit, { foreignKey: 'transaction_id', as: 'profit' });
 
+// Role <-> Permission (through role_permissions, joined on the role NAME, not an id)
+Role.belongsToMany(Permission, {
+  through: RolePermission,
+  foreignKey: 'roleName',
+  otherKey: 'permissionId',
+  sourceKey: 'name',
+  as: 'permissions',
+});
+Permission.belongsToMany(Role, {
+  through: RolePermission,
+  foreignKey: 'permissionId',
+  otherKey: 'roleName',
+  targetKey: 'name',
+  as: 'roles',
+});
+
+// UserRole <-> Role — associates on the existing `role` column, not a new FK.
+UserRole.belongsTo(Role, { foreignKey: 'role', targetKey: 'name', as: 'roleDetail', constraints: false });
+
 module.exports = {
   User,
   Branch,
@@ -84,4 +106,7 @@ module.exports = {
   TransactionEditHistory,
   ActivityLogEntry,
   TransactionProfit,
+  Role,
+  Permission,
+  RolePermission,
 };
