@@ -1,0 +1,12 @@
+//
+//  Vendors
+// Settings - Tools - Generic - Elements - Objects - Components - VENDORS - Utilities
+//
+// Only vendor styles for packages actually installed in this app are imported
+// here. Facit ships partials for react-big-calendar/react-date-range/prismjs/
+// react-credit-cards/rc-tree, none of which this app uses — dropped rather
+// than vendoring unused third-party CSS. apexcharts is used by Reports.tsx.
+
+@import 'animate.css/animate';
+@import './react-notifications-component/notification';
+@import 'apexcharts';

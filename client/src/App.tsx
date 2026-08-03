@@ -1,9 +1,7 @@
-import "./App.css";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { ReactNotifications } from "react-notifications-component";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeContextProvider } from "@/vendor/facit/contexts/themeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout, AppLayoutNoSidebar } from "@/components/layout/AppLayout";
 import { RequirePermission } from "@/components/RequirePermission";
@@ -33,10 +31,9 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+  <ThemeContextProvider>
+    <QueryClientProvider client={queryClient}>
+      <ReactNotifications />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -70,8 +67,8 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+    </QueryClientProvider>
+  </ThemeContextProvider>
 );
 
 export default App;

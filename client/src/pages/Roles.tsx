@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
+import { useEffect, useMemo, useRef, useState } from "react";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft, SubHeaderRight } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody } from "@/vendor/facit/components/bootstrap/Card";
+import Badge from "@/vendor/facit/components/bootstrap/Badge";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import Spinner from "@/vendor/facit/components/bootstrap/Spinner";
+import Checks from "@/vendor/facit/components/bootstrap/forms/Checks";
+import classNames from "classnames";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
-import { Plus, Edit, Trash2, ShieldCheck } from "lucide-react";
 import { CreateRoleDialog } from "@/components/roles/CreateRoleDialog";
 import { EditRoleDialog } from "@/components/roles/EditRoleDialog";
-import { cn } from "@/lib/utils";
 
 interface RoleData {
   id: string;
@@ -27,6 +30,20 @@ interface PermissionData {
   label: string;
 }
 
+function ModuleCheckbox({ allChecked, someChecked, onChange }: { allChecked: boolean; someChecked: boolean; onChange: (checked: boolean) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !allChecked && someChecked;
+  }, [allChecked, someChecked]);
+  return (
+    <Checks
+      ref={ref}
+      checked={allChecked}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
+    />
+  );
+}
+
 export default function Roles() {
   const [roles, setRoles] = useState<RoleData[]>([]);
   const [grouped, setGrouped] = useState<Record<string, PermissionData[]>>({});
@@ -40,15 +57,14 @@ export default function Roles() {
   const [showEdit, setShowEdit] = useState(false);
   const [roleForEdit, setRoleForEdit] = useState<RoleData | null>(null);
 
-  const { toast } = useToast();
-
   const fetchRoles = async () => {
     try {
       const data = await apiClient.roles.getAll();
       setRoles(data);
       return data as RoleData[];
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to load roles", variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load roles";
+      notify({ title: "Error", description: message, variant: "destructive" });
       return [];
     }
   };
@@ -57,8 +73,9 @@ export default function Roles() {
     try {
       const data = await apiClient.permissions.getGrouped();
       setGrouped(data);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to load permissions", variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load permissions";
+      notify({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
@@ -68,7 +85,6 @@ export default function Roles() {
       await fetchPermissionCatalog();
       if (data.length > 0) setSelectedRole(data[0]);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -76,15 +92,15 @@ export default function Roles() {
     setLoadingPermissions(true);
     apiClient.roles
       .getPermissions(selectedRole.name)
-      .then((keys) => {
+      .then((keys: string[]) => {
         setGrantedKeys(new Set(keys));
         setDirty(false);
       })
-      .catch((error: any) => {
-        toast({ title: "Error", description: error.message || "Failed to load role permissions", variant: "destructive" });
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "Failed to load role permissions";
+        notify({ title: "Error", description: message, variant: "destructive" });
       })
       .finally(() => setLoadingPermissions(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRole]);
 
   const modules = useMemo(() => Object.keys(grouped).sort(), [grouped]);
@@ -113,10 +129,11 @@ export default function Roles() {
     setSaving(true);
     try {
       await apiClient.roles.setPermissions(selectedRole.name, Array.from(grantedKeys));
-      toast({ title: "Success", description: `Permissions updated for ${selectedRole.label}` });
+      notify({ title: "Success", description: `Permissions updated for ${selectedRole.label}`, variant: "success" });
       setDirty(false);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to save permissions", variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save permissions";
+      notify({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -126,135 +143,127 @@ export default function Roles() {
     if (!window.confirm(`Delete role "${role.label}"? This cannot be undone.`)) return;
     try {
       await apiClient.roles.delete(role.id);
-      toast({ title: "Success", description: "Role deleted" });
+      notify({ title: "Success", description: "Role deleted", variant: "success" });
       const data = await fetchRoles();
       if (selectedRole?.id === role.id) setSelectedRole(data[0] || null);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to delete role", variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete role";
+      notify({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6" /> Roles &amp; Permissions
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Create roles and control exactly which functions each one can perform.
-          </p>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="mr-2 h-4 w-4" /> New Role
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-        {/* Role list */}
-        <Card>
-          <CardContent className="p-2">
-            <div className="space-y-1">
-              {roles.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setSelectedRole(r)}
-                  className={cn(
-                    "w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between gap-2",
-                    selectedRole?.id === r.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  )}
-                >
-                  <span className="flex flex-col">
-                    <span className="font-medium">{r.label}</span>
-                    <span className={cn("text-xs", selectedRole?.id === r.id ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                      {r.name}
-                    </span>
-                  </span>
-                  {r.isSystem && <Badge variant="outline" className="shrink-0">System</Badge>}
-                </button>
-              ))}
-              {roles.length === 0 && (
-                <p className="text-sm text-muted-foreground px-3 py-6 text-center">No roles yet.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Permission matrix */}
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            {!selectedRole ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">Select a role to manage its permissions.</p>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">{selectedRole.label}</h2>
-                    {selectedRole.description && (
-                      <p className="text-sm text-muted-foreground">{selectedRole.description}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setRoleForEdit(selectedRole); setShowEdit(true); }}>
-                      <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
-                    </Button>
-                    {!selectedRole.isSystem && (
-                      <Button size="sm" variant="outline" onClick={() => handleDelete(selectedRole)}>
-                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
-                      </Button>
-                    )}
-                    <Button size="sm" onClick={handleSave} disabled={!dirty || saving}>
-                      {saving ? "Saving..." : "Save Permissions"}
-                    </Button>
-                  </div>
+    <PageWrapper title="Roles & Permissions">
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb list={[{ title: "Roles & Permissions", to: "/roles" }]} />
+        </SubHeaderLeft>
+        <SubHeaderRight>
+          <Button color="primary" icon="VpnKey" onClick={() => setShowCreate(true)}>
+            New Role
+          </Button>
+        </SubHeaderRight>
+      </SubHeader>
+      <Page>
+        <div className="row g-4">
+          <div className="col-12 col-lg-3">
+            <Card>
+              <CardBody className="p-2">
+                <div className="d-flex flex-column gap-1">
+                  {roles.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setSelectedRole(r)}
+                      className={classNames("btn text-start d-flex align-items-center justify-content-between gap-2 py-2", {
+                        "btn-primary": selectedRole?.id === r.id,
+                        "btn-link text-decoration-none text-body": selectedRole?.id !== r.id,
+                      })}
+                    >
+                      <span className="d-flex flex-column">
+                        <span className="fw-semibold">{r.label}</span>
+                        <span className={classNames("small", selectedRole?.id === r.id ? "text-white-50" : "text-muted")}>{r.name}</span>
+                      </span>
+                      {r.isSystem && <Badge color="secondary" isLight className="flex-shrink-0">System</Badge>}
+                    </button>
+                  ))}
+                  {roles.length === 0 && <p className="text-muted small text-center py-4 mb-0">No roles yet.</p>}
                 </div>
+              </CardBody>
+            </Card>
+          </div>
 
-                <Separator />
-
-                {loadingPermissions ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center">Loading permissions...</p>
+          <div className="col-12 col-lg-9">
+            <Card>
+              <CardBody>
+                {!selectedRole ? (
+                  <p className="text-muted text-center py-5 mb-0">Select a role to manage its permissions.</p>
                 ) : (
-                  <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-1">
-                    {modules.map((moduleName) => {
-                      const perms = grouped[moduleName];
-                      const moduleKeys = perms.map((p) => p.key);
-                      const allChecked = moduleKeys.every((k) => grantedKeys.has(k));
-                      const someChecked = moduleKeys.some((k) => grantedKeys.has(k));
-                      return (
-                        <div key={moduleName}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Checkbox
-                              checked={allChecked ? true : someChecked ? "indeterminate" : false}
-                              onCheckedChange={(v) => toggleModule(moduleKeys, !!v)}
-                            />
-                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                              {moduleName}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pl-6">
-                            {perms.map((p) => (
-                              <div key={p.key} className="flex items-center gap-2">
-                                <Checkbox
-                                  id={p.key}
-                                  checked={grantedKeys.has(p.key)}
-                                  onCheckedChange={(v) => togglePermission(p.key, !!v)}
-                                />
-                                <label htmlFor={p.key} className="text-sm cursor-pointer">
-                                  {p.label}
-                                </label>
+                  <>
+                    <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+                      <div>
+                        <h2 className="fs-5 fw-semibold mb-0">{selectedRole.label}</h2>
+                        {selectedRole.description && <p className="text-muted small mb-0">{selectedRole.description}</p>}
+                      </div>
+                      <div className="d-flex gap-2">
+                        <Button color="dark" isLight icon="Edit" onClick={() => { setRoleForEdit(selectedRole); setShowEdit(true); }}>
+                          Edit
+                        </Button>
+                        {!selectedRole.isSystem && (
+                          <Button color="danger" isLight icon="Delete" onClick={() => handleDelete(selectedRole)}>
+                            Delete
+                          </Button>
+                        )}
+                        <Button color="primary" onClick={handleSave} isDisable={!dirty || saving}>
+                          {saving && <Spinner isSmall inButton />}
+                          {saving ? "Saving..." : "Save Permissions"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <hr />
+
+                    {loadingPermissions ? (
+                      <p className="text-muted text-center py-5 mb-0">Loading permissions...</p>
+                    ) : (
+                      <div className="d-flex flex-column gap-4" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+                        {modules.map((moduleName) => {
+                          const perms = grouped[moduleName];
+                          const moduleKeys = perms.map((p) => p.key);
+                          const allChecked = moduleKeys.every((k) => grantedKeys.has(k));
+                          const someChecked = moduleKeys.some((k) => grantedKeys.has(k));
+                          return (
+                            <div key={moduleName}>
+                              <div className="d-flex align-items-center gap-2 mb-2">
+                                <ModuleCheckbox allChecked={allChecked} someChecked={someChecked} onChange={(checked) => toggleModule(moduleKeys, checked)} />
+                                <span className="small fw-bold text-uppercase text-muted" style={{ letterSpacing: "0.05em" }}>
+                                  {moduleName}
+                                </span>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                              <div className="row g-2 ps-4">
+                                {perms.map((p) => (
+                                  <div key={p.key} className="col-12 col-sm-6 col-lg-4">
+                                    <Checks
+                                      id={p.key}
+                                      label={p.label}
+                                      checked={grantedKeys.has(p.key)}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => togglePermission(p.key, e.target.checked)}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              </CardBody>
+            </Card>
+          </div>
+        </div>
+      </Page>
 
       <CreateRoleDialog open={showCreate} onOpenChange={setShowCreate} onSuccess={fetchRoles} />
       <EditRoleDialog
@@ -269,6 +278,6 @@ export default function Roles() {
           }
         }}
       />
-    </div>
+    </PageWrapper>
   );
 }

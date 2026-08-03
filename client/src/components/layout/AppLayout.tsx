@@ -1,8 +1,13 @@
 import { Outlet, Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { AppHeader } from "./AppHeader";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
 
+// Pages bring their own PageWrapper > SubHeader > Page (Facit grammar), which
+// supplies its own container gutters, so <main> itself carries no padding —
+// matching Facit's own Content/PageWrapper layering. The small p-3/p-md-4
+// here is a transitional fallback for pages not yet migrated off their old
+// hand-rolled wrapper divs; harmless double-padding once a page adopts Page.
 export function AppLayout() {
   const { user, loading } = useAuth();
 
@@ -13,10 +18,10 @@ export function AppLayout() {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background">
+    <div className="d-flex flex-column min-vh-100 w-100">
       <AppHeader />
-      <main className="flex-1 overflow-auto">
-        <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 lg:space-y-8">
+      <main className="flex-grow-1 overflow-auto">
+        <div className="p-3 p-md-4">
           <Outlet />
         </div>
       </main>
@@ -34,9 +39,9 @@ export function AppLayoutNoSidebar() {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <main className="flex-1 overflow-auto">
-        <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 space-y-4">
+    <div className="d-flex min-vh-100 w-100">
+      <main className="flex-grow-1 overflow-auto">
+        <div className="px-3 px-md-4 py-3">
           <Outlet />
         </div>
       </main>

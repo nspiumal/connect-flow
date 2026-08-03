@@ -1,17 +1,12 @@
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect, useId } from "react";
+import Modal, { ModalHeader, ModalTitle, ModalBody, ModalFooter } from "@/vendor/facit/components/bootstrap/Modal";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import Spinner from "@/vendor/facit/components/bootstrap/Spinner";
+import Alert from "@/vendor/facit/components/bootstrap/Alert";
+import FormGroup from "@/vendor/facit/components/bootstrap/forms/FormGroup";
+import Input from "@/vendor/facit/components/bootstrap/forms/Input";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
-import { AlertCircle, CheckCircle, Lock } from "lucide-react";
 
 interface PinManagementDialogProps {
   userId: string;
@@ -31,75 +26,54 @@ export function PinManagementDialog({
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [loading, setLoading] = useState(false);
-  const [hasPinSet, setHasPinSet] = useState(false);
   const [mode, setMode] = useState<"set" | "verify" | "change">("set");
   const [currentPin, setCurrentPin] = useState("");
-  const { toast } = useToast();
+  const titleId = `pin-modal-title-${useId()}`;
 
   // Check if user has PIN set
   useEffect(() => {
     if (open) {
       checkPinStatus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, userId]);
 
   const checkPinStatus = async () => {
     try {
       const result = await apiClient.users.hasPinSet(userId);
-      setHasPinSet(result.hasPinSet);
       setMode(result.hasPinSet ? "change" : "set");
     } catch (error) {
       console.error("Failed to check PIN status:", error);
     }
   };
 
+  const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback);
+
   const handleSetPin = async () => {
     if (!pin || !confirmPin) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter and confirm the PIN",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please enter and confirm the PIN", variant: "destructive" });
       return;
     }
-
     if (pin !== confirmPin) {
-      toast({
-        title: "Validation Error",
-        description: "PINs do not match",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "PINs do not match", variant: "destructive" });
       return;
     }
-
     if (!pin.match(/^\d{4,6}$/)) {
-      toast({
-        title: "Validation Error",
-        description: "PIN must be 4-6 digits",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "PIN must be 4-6 digits", variant: "destructive" });
       return;
     }
 
     try {
       setLoading(true);
       await apiClient.users.setPin(userId, pin);
-      toast({
-        title: "Success",
-        description: "PIN has been set successfully",
-      });
+      notify({ title: "Success", description: "PIN has been set successfully", variant: "success" });
       setPin("");
       setConfirmPin("");
-      setHasPinSet(true);
       setMode("change");
       onOpenChange(false);
       onSuccess?.();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to set PIN",
-        variant: "destructive",
-      });
+    } catch (error) {
+      notify({ title: "Error", description: errorMessage(error, "Failed to set PIN"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -107,56 +81,35 @@ export function PinManagementDialog({
 
   const handleChangePin = async () => {
     if (!currentPin || !pin || !confirmPin) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please fill in all fields", variant: "destructive" });
       return;
     }
 
-    // First verify current PIN
     try {
       setLoading(true);
       await apiClient.users.verifyPin(userId, currentPin);
 
-      // If verified, set new PIN
       if (pin !== confirmPin) {
-        toast({
-          title: "Validation Error",
-          description: "New PINs do not match",
-          variant: "destructive",
-        });
+        notify({ title: "Validation Error", description: "New PINs do not match", variant: "destructive" });
         setLoading(false);
         return;
       }
 
       if (!pin.match(/^\d{4,6}$/)) {
-        toast({
-          title: "Validation Error",
-          description: "PIN must be 4-6 digits",
-          variant: "destructive",
-        });
+        notify({ title: "Validation Error", description: "PIN must be 4-6 digits", variant: "destructive" });
         setLoading(false);
         return;
       }
 
       await apiClient.users.setPin(userId, pin);
-      toast({
-        title: "Success",
-        description: "PIN has been changed successfully",
-      });
+      notify({ title: "Success", description: "PIN has been changed successfully", variant: "success" });
       setCurrentPin("");
       setPin("");
       setConfirmPin("");
       onOpenChange(false);
       onSuccess?.();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to change PIN",
-        variant: "destructive",
-      });
+    } catch (error) {
+      notify({ title: "Error", description: errorMessage(error, "Failed to change PIN"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -164,11 +117,7 @@ export function PinManagementDialog({
 
   const handleVerifyPin = async () => {
     if (!pin) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter the PIN",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please enter the PIN", variant: "destructive" });
       return;
     }
 
@@ -176,174 +125,83 @@ export function PinManagementDialog({
       setLoading(true);
       const result = await apiClient.users.verifyPin(userId, pin);
       if (result.valid) {
-        toast({
-          title: "Success",
-          description: "PIN is correct",
-        });
+        notify({ title: "Success", description: "PIN is correct", variant: "success" });
         setPin("");
         onOpenChange(false);
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Invalid PIN",
-        variant: "destructive",
-      });
+    } catch (error) {
+      notify({ title: "Error", description: errorMessage(error, "Invalid PIN"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleAction = () => {
+    if (mode === "set") handleSetPin();
+    else if (mode === "verify") handleVerifyPin();
+    else handleChangePin();
+  };
+
+  const handleCancel = () => {
+    setPin("");
+    setConfirmPin("");
+    setCurrentPin("");
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5" />
-            PIN Management
-          </DialogTitle>
-          <DialogDescription>
-            Manage PIN for {userName}
-          </DialogDescription>
-        </DialogHeader>
+    <Modal isOpen={open} setIsOpen={onOpenChange} titleId={titleId} isCentered size="sm">
+      <ModalHeader setIsOpen={onOpenChange}>
+        <ModalTitle id={titleId}>
+          <span className="d-inline-flex align-items-center gap-2">PIN Management</span>
+        </ModalTitle>
+      </ModalHeader>
+      <ModalBody>
+        <p className="text-muted small mb-3">Manage PIN for {userName}</p>
 
-        <div className="space-y-4">
-          {mode === "set" && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="pin">Set PIN (4-6 digits)</Label>
-                <Input
-                  id="pin"
-                  type="password"
-                  placeholder="Enter PIN"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  maxLength={6}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPin">Confirm PIN</Label>
-                <Input
-                  id="confirmPin"
-                  type="password"
-                  placeholder="Confirm PIN"
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value)}
-                  maxLength={6}
-                  disabled={loading}
-                />
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex gap-2">
-                <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800">
-                  PIN must be 4-6 digits. This will be used for special operations.
-                </p>
-              </div>
-            </>
-          )}
+        {mode === "set" && (
+          <>
+            <FormGroup id="pin" label="Set PIN (4-6 digits)" isFloating className="mb-3">
+              <Input type="password" placeholder="Enter PIN" value={pin} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPin(e.target.value)} maxLength={6} disabled={loading} />
+            </FormGroup>
+            <FormGroup id="confirmPin" label="Confirm PIN" isFloating className="mb-3">
+              <Input type="password" placeholder="Confirm PIN" value={confirmPin} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPin(e.target.value)} maxLength={6} disabled={loading} />
+            </FormGroup>
+            <Alert color="info" isLight icon="Info">
+              PIN must be 4-6 digits. This will be used for special operations.
+            </Alert>
+          </>
+        )}
 
-          {mode === "verify" && (
-            <div className="space-y-2">
-              <Label htmlFor="pin">Enter PIN</Label>
-              <Input
-                id="pin"
-                type="password"
-                placeholder="Enter PIN"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                maxLength={6}
-                disabled={loading}
-              />
-            </div>
-          )}
+        {mode === "verify" && (
+          <FormGroup id="verifyPin" label="Enter PIN" isFloating>
+            <Input type="password" placeholder="Enter PIN" value={pin} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPin(e.target.value)} maxLength={6} disabled={loading} />
+          </FormGroup>
+        )}
 
-          {mode === "change" && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="currentPin">Current PIN</Label>
-                <Input
-                  id="currentPin"
-                  type="password"
-                  placeholder="Enter current PIN"
-                  value={currentPin}
-                  onChange={(e) => setCurrentPin(e.target.value)}
-                  maxLength={6}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="newPin">New PIN (4-6 digits)</Label>
-                <Input
-                  id="newPin"
-                  type="password"
-                  placeholder="Enter new PIN"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  maxLength={6}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmNewPin">Confirm New PIN</Label>
-                <Input
-                  id="confirmNewPin"
-                  type="password"
-                  placeholder="Confirm new PIN"
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value)}
-                  maxLength={6}
-                  disabled={loading}
-                />
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setPin("");
-                setConfirmPin("");
-                setCurrentPin("");
-                onOpenChange(false);
-              }}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (mode === "set") handleSetPin();
-                else if (mode === "verify") handleVerifyPin();
-                else handleChangePin();
-              }}
-              disabled={loading}
-              className="gap-2"
-            >
-              {loading ? (
-                <>Processing...</>
-              ) : mode === "set" ? (
-                <>
-                  <Lock className="h-4 w-4" />
-                  Set PIN
-                </>
-              ) : mode === "verify" ? (
-                <>
-                  <CheckCircle className="h-4 w-4" />
-                  Verify PIN
-                </>
-              ) : (
-                <>
-                  <Lock className="h-4 w-4" />
-                  Change PIN
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        {mode === "change" && (
+          <>
+            <FormGroup id="currentPin" label="Current PIN" isFloating className="mb-3">
+              <Input type="password" placeholder="Enter current PIN" value={currentPin} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCurrentPin(e.target.value)} maxLength={6} disabled={loading} />
+            </FormGroup>
+            <FormGroup id="newPin" label="New PIN (4-6 digits)" isFloating className="mb-3">
+              <Input type="password" placeholder="Enter new PIN" value={pin} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPin(e.target.value)} maxLength={6} disabled={loading} />
+            </FormGroup>
+            <FormGroup id="confirmNewPin" label="Confirm New PIN" isFloating>
+              <Input type="password" placeholder="Confirm new PIN" value={confirmPin} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPin(e.target.value)} maxLength={6} disabled={loading} />
+            </FormGroup>
+          </>
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <Button color="dark" isLight onClick={handleCancel} isDisable={loading}>
+          Cancel
+        </Button>
+        <Button color="primary" onClick={handleAction} isDisable={loading} icon={loading ? undefined : "Lock"}>
+          {loading && <Spinner isSmall inButton />}
+          {loading ? "Processing..." : mode === "set" ? "Set PIN" : mode === "verify" ? "Verify PIN" : "Change PIN"}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }
-

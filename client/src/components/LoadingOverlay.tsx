@@ -1,5 +1,6 @@
 import React from 'react';
 import { t } from "@/lib/lang";
+import Spinner from "@/vendor/facit/components/bootstrap/Spinner";
 
 interface LoadingOverlayProps {
   isLoading: boolean;
@@ -7,7 +8,7 @@ interface LoadingOverlayProps {
 }
 
 /**
- * Full-page loading overlay with animated ball loader
+ * Full-page loading overlay shown during auth/session checks.
  */
 export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   isLoading,
@@ -16,22 +17,17 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   if (!isLoading) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 shadow-2xl text-center min-w-[250px]">
-        {/* Animated Ball Loader - Bouncing Dots */}
-        <div className="flex justify-center items-end mb-6 h-16">
-          <div className="flex gap-2 items-end">
-            <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '0.7s' }} />
-            <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.15s', animationDuration: '0.7s' }} />
-            <div className="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.3s', animationDuration: '0.7s' }} />
-          </div>
-        </div>
-        <p className="text-gray-800 font-semibold text-xl">{message}</p>
-        <p className="text-gray-500 text-sm mt-2">{t("PLEASE_WAIT")}</p>
+    <div
+      className="d-flex align-items-center justify-content-center position-fixed top-0 start-0 w-100 h-100"
+      style={{ background: "rgba(0,0,0,.5)", zIndex: 1050 }}
+    >
+      <div className="bg-body rounded-3 shadow-lg text-center p-5" style={{ minWidth: 250 }}>
+        <Spinner color="primary" style={{ width: "3rem", height: "3rem" }} className="mb-3" />
+        <p className="fw-semibold fs-5 mb-1">{message}</p>
+        <p className="text-muted small mb-0">{t("PLEASE_WAIT")}</p>
       </div>
     </div>
   );
 };
 
 export default LoadingOverlay;
-

@@ -1,29 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatAmount, formatWeight } from "@/lib/utils";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import NumberInput from "@/components/ui/number-input";
-
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
-import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import apiClient from "@/integrations/api";
+import { formatAmount, formatWeight } from "@/lib/utils";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody, CardHeader, CardTitle } from "@/vendor/facit/components/bootstrap/Card";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import Input from "@/vendor/facit/components/bootstrap/forms/Input";
+import Select from "@/vendor/facit/components/bootstrap/forms/Select";
+import Option from "@/vendor/facit/components/bootstrap/Option";
+import Checks from "@/vendor/facit/components/bootstrap/forms/Checks";
+import Badge from "@/vendor/facit/components/bootstrap/Badge";
+import { FormModal } from "@/components/facit/FormModal";
+import NumberInput from "@/components/facit/NumberInput";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Upload, X, PlusCircle, ArrowLeft } from "lucide-react";
+import { notify } from "@/components/facit/notify";
+import apiClient from "@/integrations/api";
 import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
-
 
 type IdType = "NIC" | "Passport" | "DrivingLicense" | "Other";
 
@@ -71,7 +63,12 @@ interface Customer {
   nic: string;
   phone?: string;
   address?: string;
-  gender?: string
+  gender?: string;
+}
+
+interface ItemType {
+  id: string;
+  name: string;
 }
 
 const emptyItemDraft: ItemDraft = {
@@ -86,12 +83,11 @@ const emptyItemDraft: ItemDraft = {
 };
 
 export default function CreatePawningSample() {
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [rates, setRates] = useState<Rate[]>([]);
-  const [itemTypes, setItemTypes] = useState<any[]>([]);
+  const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
 
   // Customer fields
   const [customerName, setCustomerName] = useState("");
@@ -134,7 +130,7 @@ export default function CreatePawningSample() {
   // Customer search dropdown state
   const [customerSearchResults, setCustomerSearchResults] = useState<Customer[]>([]);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const searchDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectingCustomerRef = useRef(false);
   const skipNextAutoSearchRef = useRef(false);
   const selectedNicRef = useRef<string | null>(null);
@@ -160,41 +156,33 @@ export default function CreatePawningSample() {
       const data = await apiClient.interestRates.getActive();
       setRates(data || []);
 
-      // Auto-select default rate if available
       if (data && data.length > 0) {
         const defaultRate = data.find((rate: Rate) => rate.isDefault);
-        if (defaultRate) {
-          setSelectedRateId(defaultRate.id);
-        } else {
-          // Fall back to first rate if no default is marked
-          setSelectedRateId(data[0].id);
-        }
+        setSelectedRateId(defaultRate ? defaultRate.id : data[0].id);
       }
-    } catch (error: unknown) {
-      toast({
-        title: "Error",
-        description: "Failed to load interest rates",
-        variant: "destructive",
-      });
+    } catch (error) {
+      notify({ title: "Error", description: "Failed to load interest rates", variant: "destructive" });
     }
   };
 
   const fetchItemTypes = async () => {
-    console.log("🔄 Fetching item types from API...");
     try {
       const data = await apiClient.itemTypes.getAll();
-      console.log("✅ Fetched item types:", data);
-      console.log("📊 Number of item types:", data?.length || 0);
       setItemTypes(data || []);
-
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Failed to fetch item types:", error);
-      console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
-      toast({
-        title: "Warning",
-        description: `Failed to load item types${error instanceof Error ? `: ${error.message}` : ''}. Using default options.`,
-        variant: "destructive",
-      });
+      notify({ title: "Warning", description: `Failed to load item types${error instanceof Error ? `: ${error.message}` : ""}. Using default options.`, variant: "destructive" });
+    }
+  };
+
+  const fetchPatternConfig = async () => {
+    try {
+      const data = await apiClient.pawnTransactions.getPatternConfig();
+      if (data?.pattern && typeof data.pattern === "string") {
+        setSpecialPattern(data.pattern);
+      }
+    } catch {
+      setSpecialPattern("TND");
     }
   };
 
@@ -210,15 +198,12 @@ export default function CreatePawningSample() {
       selectingCustomerRef.current = false;
       return;
     }
-
-    // Reset verification whenever identity type/value changes by manual input
     setIdentityVerified(false);
     setCustomerFound(false);
     setBlockedReason(null);
   }, [idType, identityNumber]);
 
   useEffect(() => {
-    // Skip one auto-search cycle when NIC is set by dropdown selection
     if (skipNextAutoSearchRef.current) {
       skipNextAutoSearchRef.current = false;
       setShowCustomerDropdown(false);
@@ -226,7 +211,6 @@ export default function CreatePawningSample() {
       return;
     }
 
-    // If NIC is already selected + verified, do not trigger dropdown search again
     if (
       idType === "NIC" &&
       identityVerified &&
@@ -239,28 +223,24 @@ export default function CreatePawningSample() {
       return;
     }
 
-    // Auto-search for customers when 5+ digits are entered in the NIC field
     if (idType !== "NIC" || identityNumber.length < 5) {
       setShowCustomerDropdown(false);
       setCustomerSearchResults([]);
-      if (searchDebounceTimer) {
-        clearTimeout(searchDebounceTimer);
-        setSearchDebounceTimer(null);
+      if (searchDebounceTimerRef.current) {
+        clearTimeout(searchDebounceTimerRef.current);
+        searchDebounceTimerRef.current = null;
       }
       return;
     }
 
-    // Clear previous timeout
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer);
+    if (searchDebounceTimerRef.current) {
+      clearTimeout(searchDebounceTimerRef.current);
     }
 
-    // Set new debounced search
     const timer = setTimeout(async () => {
       try {
         setIdentityVerifying(true);
 
-        // Check blacklist first
         const result = await apiClient.blacklist.verifyNic(identityNumber.trim());
 
         if (result?.isBlocked) {
@@ -270,7 +250,6 @@ export default function CreatePawningSample() {
           return;
         }
 
-        // Search for matching customers
         const searchResult = await apiClient.customers.search(identityNumber.trim(), 0, 10);
         const customers = searchResult?.content || [];
 
@@ -282,25 +261,21 @@ export default function CreatePawningSample() {
           setCustomerSearchResults([]);
         }
       } catch (error) {
-        console.log('Search error:', error);
+        console.error("Search error:", error);
         setCustomerSearchResults([]);
         setShowCustomerDropdown(false);
       } finally {
         setIdentityVerifying(false);
       }
-    }, 500); // 500ms debounce
+    }, 500);
 
-    setSearchDebounceTimer(timer);
+    searchDebounceTimerRef.current = timer;
 
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
+    return () => clearTimeout(timer);
   }, [identityNumber, idType, identityVerified, customerFound]);
 
   const handleSelectCustomer = (customer: Customer) => {
-    // Mark as programmatic selection to avoid resetting verified state
     selectingCustomerRef.current = true;
-    // Also skip the next auto-search effect so dropdown does not re-open
     skipNextAutoSearchRef.current = true;
     selectedNicRef.current = customer.nic || null;
 
@@ -308,26 +283,22 @@ export default function CreatePawningSample() {
     setCustomerName(customer.fullName || "");
     setCustomerPhone(customer.phone || "");
     setCustomerAddress(customer.address || "");
-    setGender(customer.gender || "");  // ADD GENDER
+    setGender(customer.gender || "");
     setCustomerFound(true);
     setIdentityVerified(true);
     setShowCustomerDropdown(false);
     setCustomerSearchResults([]);
   };
 
+  // Stealth pattern unlock — a filterable admin easter egg, not a security boundary
   useEffect(() => {
-    // Global keydown listener for stealth pattern unlock
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input field (except our special pattern logic)
       const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
-        return;
-      }
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return;
 
       const currentTime = Date.now();
       const key = e.key.toUpperCase();
 
-      // If more than 2 seconds since last key, reset buffer
       if (currentTime - lastKeyTime > 2000) {
         setPatternBuffer(key);
       } else {
@@ -335,43 +306,28 @@ export default function CreatePawningSample() {
       }
       setLastKeyTime(currentTime);
 
-      // Check if buffer matches pattern
       const newBuffer = currentTime - lastKeyTime > 2000 ? key : patternBuffer + key;
       if (newBuffer.length >= specialPattern.length) {
         const lastChars = newBuffer.slice(-specialPattern.length);
         if (lastChars === specialPattern.toUpperCase()) {
           setPatternUnlocked(true);
           setPatternBuffer("");
-          toast({ title: "Special Mode Enabled", description: "Period selection unlocked" });
+          notify({ title: "Special Mode Enabled", description: "Period selection unlocked" });
         }
       }
     };
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [lastKeyTime, patternBuffer, specialPattern, toast]);
-
-
-
-  const fetchPatternConfig = async () => {
-    try {
-      const data = await apiClient.pawnTransactions.getPatternConfig();
-      if (data?.pattern && typeof data.pattern === "string") {
-        setSpecialPattern(data.pattern);
-      }
-    } catch {
-      // keep fallback local default if config fetch fails
-      setSpecialPattern("TND");
-    }
-  };
+  }, [lastKeyTime, patternBuffer, specialPattern]);
 
   const updateDraft = (patch: Partial<ItemDraft>) => {
     setItemDraft((prev) => ({ ...prev, ...patch }));
   };
 
   const playSuccessSound = () => {
-    const audio = new Audio('/success-beep.mp3');
-    audio.play().catch(err => console.log('Audio play failed:', err));
+    const audio = new Audio("/success-beep.mp3");
+    audio.play().catch((err) => console.log("Audio play failed:", err));
   };
 
   const handleRequestRateOverride = () => {
@@ -381,43 +337,30 @@ export default function CreatePawningSample() {
 
   const handleVerifyManagerPin = async () => {
     if (!managerPin.trim()) {
-      toast({ title: "Error", description: "Please enter PIN", variant: "destructive" });
+      notify({ title: "Error", description: "Please enter PIN", variant: "destructive" });
       return;
     }
 
     try {
       setPinVerifying(true);
 
-      // Get current user email from localStorage
       const currentUserEmail = localStorage.getItem("userEmail") || "";
-
       if (!currentUserEmail) {
-        toast({ title: "Error", description: "User email not found", variant: "destructive" });
+        notify({ title: "Error", description: "User email not found", variant: "destructive" });
         return;
       }
 
-      await apiClient.users.verifyManagerPin(
-        currentUserEmail,
-        managerPin,
-        "Interest Rate Override - Transaction Creation"
-      );
+      await apiClient.users.verifyManagerPin(currentUserEmail, managerPin, "Interest Rate Override - Transaction Creation");
 
-      // Success!
       playSuccessSound();
       setRateOverrideEnabled(true);
       setShowPinDialog(false);
       setManualInterestRate("");
 
-      toast({
-        title: "Override Enabled",
-        description: "You can now manually enter the interest rate (0.1% - 50%)",
-      });
-    } catch (error: unknown) {
-      toast({
-        title: "Invalid PIN",
-        description: error instanceof Error ? error.message : "Failed to verify PIN",
-        variant: "destructive",
-      });
+      notify({ title: "Override Enabled", description: "You can now manually enter the interest rate (0.1% - 50%)", variant: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to verify PIN";
+      notify({ title: "Invalid PIN", description: message, variant: "destructive" });
     } finally {
       setPinVerifying(false);
     }
@@ -429,18 +372,13 @@ export default function CreatePawningSample() {
 
     files.forEach((file) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setItemDraft((prev) => ({ ...prev, images: [...prev.images, reader.result as string] }));
-      };
+      reader.onloadend = () => setItemDraft((prev) => ({ ...prev, images: [...prev.images, reader.result as string] }));
       reader.readAsDataURL(file);
     });
   };
 
   const removeDraftImage = (index: number) => {
-    setItemDraft((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
+    setItemDraft((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
   };
 
   const validateIdentity = (type: IdType, value: string): string | null => {
@@ -472,7 +410,7 @@ export default function CreatePawningSample() {
   const handleVerifyIdentity = async () => {
     const identityError = validateIdentity(idType, identityNumber);
     if (identityError) {
-      toast({ title: "Validation Error", description: identityError, variant: "destructive" });
+      notify({ title: "Validation Error", description: identityError, variant: "destructive" });
       return;
     }
 
@@ -488,11 +426,7 @@ export default function CreatePawningSample() {
         if (result?.isBlocked) {
           setIdentityVerified(false);
           setBlockedReason(result.blocklistReason || "Customer is blocked");
-          toast({
-            title: "Blocked Customer",
-            description: result.blocklistReason || "This customer is blocked",
-            variant: "destructive",
-          });
+          notify({ title: "Blocked Customer", description: result.blocklistReason || "This customer is blocked", variant: "destructive" });
           return;
         }
 
@@ -506,35 +440,25 @@ export default function CreatePawningSample() {
         }
 
         setIdentityVerified(true);
-        toast({
-          title: "Identity Verified",
-          description: result?.customer
-            ? "Customer auto-filled from database"
-            : "No existing customer found. Enter details manually.",
-        });
+        notify({ title: "Identity Verified", description: result?.customer ? "Customer auto-filled from database" : "No existing customer found. Enter details manually." });
         return;
       }
 
-      // Passport / DrivingLicense: attempt lookup using same endpoint value
       try {
         const customer = await apiClient.customers.getByNic(identity);
         setCustomerName(customer.fullName || "");
         setCustomerPhone(customer.phone || "");
         setCustomerAddress(customer.address || "");
         setCustomerFound(true);
-        toast({ title: "Identity Verified", description: "Customer auto-filled from database" });
+        notify({ title: "Identity Verified", description: "Customer auto-filled from database" });
       } catch {
         setCustomerFound(false);
-        toast({ title: "Identity Verified", description: "No existing customer found. Enter details manually." });
+        notify({ title: "Identity Verified", description: "No existing customer found. Enter details manually." });
       }
 
       setIdentityVerified(true);
-    } catch (error: unknown) {
-      toast({
-        title: "Verification Error",
-        description: "Failed to verify identity",
-        variant: "destructive",
-      });
+    } catch (error) {
+      notify({ title: "Verification Error", description: "Failed to verify identity", variant: "destructive" });
     } finally {
       setIdentityVerifying(false);
     }
@@ -542,15 +466,15 @@ export default function CreatePawningSample() {
 
   const handleAddItem = () => {
     if (!itemDraft.weight || parseFloat(itemDraft.weight) <= 0) {
-      toast({ title: "Validation Error", description: "Please enter valid item weight", variant: "destructive" });
+      notify({ title: "Validation Error", description: "Please enter valid item weight", variant: "destructive" });
       return;
     }
     if (!itemDraft.appraisedValue || parseFloat(itemDraft.appraisedValue) <= 0) {
-      toast({ title: "Validation Error", description: "Please enter valid loan amount", variant: "destructive" });
+      notify({ title: "Validation Error", description: "Please enter valid loan amount", variant: "destructive" });
       return;
     }
     if (!itemDraft.marketValue || parseFloat(itemDraft.marketValue) <= 0) {
-      toast({ title: "Validation Error", description: "Please enter valid market value", variant: "destructive" });
+      notify({ title: "Validation Error", description: "Please enter valid market value", variant: "destructive" });
       return;
     }
 
@@ -568,7 +492,7 @@ export default function CreatePawningSample() {
     setItems((prev) => [...prev, newItem]);
     setItemDraft(emptyItemDraft);
 
-    toast({ title: "Item Added", description: `Added item ${items.length + 1}` });
+    notify({ title: "Item Added", description: `Added item ${items.length + 1}` });
   };
 
   const handleItemKeyDown = (e: React.KeyboardEvent) => {
@@ -584,47 +508,39 @@ export default function CreatePawningSample() {
 
   const handleCreateTransaction = () => {
     if (!customerName.trim() || !customerAddress.trim() || !gender) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required customer fields",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please fill in all required customer fields", variant: "destructive" });
       return;
     }
 
     const identityError = validateIdentity(idType, identityNumber);
     if (identityError) {
-      toast({ title: "Validation Error", description: identityError, variant: "destructive" });
+      notify({ title: "Validation Error", description: identityError, variant: "destructive" });
       return;
     }
 
     if (blockedReason) {
-      toast({ title: "Blocked Customer", description: blockedReason, variant: "destructive" });
+      notify({ title: "Blocked Customer", description: blockedReason, variant: "destructive" });
       return;
     }
 
     if (items.length === 0) {
-      toast({ title: "Validation Error", description: "Please add at least one item", variant: "destructive" });
+      notify({ title: "Validation Error", description: "Please add at least one item", variant: "destructive" });
       return;
     }
 
     if (!rateOverrideEnabled && !selectedRateId) {
-      toast({ title: "Validation Error", description: "Please select an interest rate", variant: "destructive" });
+      notify({ title: "Validation Error", description: "Please select an interest rate", variant: "destructive" });
       return;
     }
 
     if (rateOverrideEnabled && (!manualInterestRate || parseFloat(manualInterestRate) <= 0)) {
-      toast({ title: "Validation Error", description: "Please enter a valid interest rate", variant: "destructive" });
+      notify({ title: "Validation Error", description: "Please enter a valid interest rate", variant: "destructive" });
       return;
     }
 
     const rateValue = rateOverrideEnabled ? parseFloat(manualInterestRate) : 0;
     if (rateOverrideEnabled && (rateValue < 0.1 || rateValue > 50)) {
-      toast({
-        title: "Validation Error",
-        description: "Interest rate must be between 0.1% and 50%",
-        variant: "destructive"
-      });
+      notify({ title: "Validation Error", description: "Interest rate must be between 0.1% and 50%", variant: "destructive" });
       return;
     }
 
@@ -642,8 +558,8 @@ export default function CreatePawningSample() {
       maturityDate.setMonth(maturityDate.getMonth() + parseInt(periodMonths, 10));
       const maturityDateStr = maturityDate.toISOString().split("T")[0];
 
-      let effectiveRatePercent;
-      let firstMonthRatePercent;
+      let effectiveRatePercent: number;
+      let firstMonthRatePercent: number;
       if (rateOverrideEnabled && manualInterestRate) {
         effectiveRatePercent = parseFloat(manualInterestRate);
         firstMonthRatePercent = effectiveRatePercent / 12;
@@ -686,10 +602,7 @@ export default function CreatePawningSample() {
 
       const response = await apiClient.pawnTransactions.create(transactionData);
 
-      toast({
-        title: "Success",
-        description: `Pawning transaction created successfully! Pawn ID: ${response.pawnId || response.pawn_id}`,
-      });
+      notify({ title: "Success", description: `Pawning transaction created successfully! Pawn ID: ${response.pawnId || response.pawn_id}`, variant: "success" });
 
       setCustomerName("");
       setIdentityNumber("");
@@ -713,12 +626,8 @@ export default function CreatePawningSample() {
       setManagerPin("");
 
       navigate("/transactions");
-    } catch (error: unknown) {
-      toast({
-        title: "Error",
-        description: "Failed to create transaction",
-        variant: "destructive",
-      });
+    } catch (error) {
+      notify({ title: "Error", description: "Failed to create transaction", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -727,8 +636,7 @@ export default function CreatePawningSample() {
   const selectedRateName = rates.find((r) => r.id === selectedRateId)?.name || "Not selected";
   const selectedRateValue = rates.find((r) => r.id === selectedRateId)?.rate_percent || rates.find((r) => r.id === selectedRateId)?.ratePercent || 0;
 
-  // Form validation: all required fields must be filled before allowing submission
-  const isFormValid = (
+  const isFormValid =
     customerName.trim().length > 0 &&
     identityNumber.trim().length > 0 &&
     gender.length > 0 &&
@@ -738,179 +646,132 @@ export default function CreatePawningSample() {
     totals.appraised > 0 &&
     (rateOverrideEnabled
       ? manualInterestRate.trim().length > 0 && parseFloat(manualInterestRate) >= 0.1 && parseFloat(manualInterestRate) <= 50
-      : selectedRateId.length > 0)
-  );
+      : selectedRateId.length > 0);
+
+  const smallLabel: React.CSSProperties = { fontSize: "0.75rem" };
+  const microLabel: React.CSSProperties = { fontSize: "0.625rem" };
 
   return (
-    <>
-      {loading && <LoadingOverlay isLoading={loading} />}
+    <PageWrapper title="Create Ticket" isProtected={false}>
+      <LoadingOverlay isLoading={loading} />
 
-      <div className="pawn-ticket-form overflow-auto min-h-screen bg-gray-50">
-        <div className="max-w-[1300px] mx-auto space-y-4">
+      <Page container="fluid">
+        <div className="d-flex align-items-center gap-3 mb-3">
+          <Button color="dark" isLight icon="ArrowBack" onClick={() => navigate("/dashboard")} aria-label="Back to Dashboard" />
+          <h1 className="fs-5 fw-bold mb-0">Create Ticket</h1>
+        </div>
 
-          {/* Page header: Back arrow + title (replaces the global nav on this route) */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigate("/dashboard")}
-              aria-label="Back to Dashboard"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-lg font-bold">Create Ticket</h1>
-          </div>
-
-          {/* Row 1: Customer Details | Duration */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-            {/* Customer Details Card */}
-            <Card className="lg:col-span-2 shadow-sm border-gray-200">
-              <CardHeader className="py-3 px-4 bg-gray-50 border-b border-gray-200">
-                <CardTitle className="text-sm font-bold text-gray-700">Customer Details</CardTitle>
+        <div className="row g-3">
+          {/* Customer Details */}
+          <div className="col-12 col-lg-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Customer Details</CardTitle>
               </CardHeader>
-              <CardContent className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-
-                  {/* ID Type */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs w-24 shrink-0 font-semibold">ID Type</Label>
-                    <Select value={idType} onValueChange={(v: IdType) => setIdType(v)}>
-                      <SelectTrigger className="h-8 text-xs flex-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NIC">NIC</SelectItem>
-                        <SelectItem value="Passport">Passport</SelectItem>
-                        <SelectItem value="DrivingLicense">Driving License</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
+              <CardBody className="pt-0">
+                <div className="row g-3">
+                  <div className="col-12 col-sm-6 d-flex align-items-center gap-2">
+                    <label className="fw-semibold flex-shrink-0" style={{ ...smallLabel, width: 96 }}>ID Type</label>
+                    <Select ariaLabel="ID Type" size="sm" value={idType} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setIdType(e.target.value as IdType)}>
+                      <Option value="NIC">NIC</Option>
+                      <Option value="Passport">Passport</Option>
+                      <Option value="DrivingLicense">Driving License</Option>
+                      <Option value="Other">Other</Option>
                     </Select>
                   </div>
 
-                  {/* ID Number */}
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="identityNumber" className="text-xs w-24 shrink-0 font-semibold">
-                      ID Number
-                    </Label>
-                    <div className="flex-1 relative">
-                      <Input
-                        id="identityNumber"
-                        value={identityNumber}
-                        onChange={(e) => setIdentityNumber(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleVerifyIdentity();
-                          }
-                        }}
-                        placeholder={`Enter ${identityLabel.toLowerCase()}`}
-                        className="h-8 text-xs"
-                      />
-                      {showCustomerDropdown && customerSearchResults.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full border rounded-md bg-white shadow-lg z-50 max-h-40 overflow-y-auto">
-                          {customerSearchResults.map((customer) => (
-                            <button
-                              key={customer.id}
-                              type="button"
-                              onClick={() => handleSelectCustomer(customer)}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 border-b last:border-b-0"
-                            >
-                              <p className="font-medium text-xs">{customer.fullName}</p>
-                              <p className="text-xs text-blue-600">NIC: {customer.nic}</p>
-                              {customer.phone && <p className="text-xs text-gray-600">{customer.phone}</p>}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {identityVerified && !blockedReason && (
-                        <p className="text-[10px] text-green-600 mt-0.5">
-                          ✓ {customerFound ? "Auto-filled" : "No existing record"}
-                        </p>
-                      )}
-                      {blockedReason && <p className="text-[10px] text-red-600 mt-0.5">{blockedReason}</p>}
-                      {identityVerifying && <p className="text-[10px] text-blue-600 mt-0.5">Searching...</p>}
+                  <div className="col-12 col-sm-6 position-relative">
+                    <div className="d-flex align-items-center gap-2">
+                      <label htmlFor="identityNumber" className="fw-semibold flex-shrink-0" style={{ ...smallLabel, width: 96 }}>ID Number</label>
+                      <div className="flex-grow-1 position-relative">
+                        <Input
+                          id="identityNumber"
+                          size="sm"
+                          value={identityNumber}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIdentityNumber(e.target.value)}
+                          onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); handleVerifyIdentity(); } }}
+                          placeholder={`Enter ${identityLabel.toLowerCase()}`}
+                        />
+                        {showCustomerDropdown && customerSearchResults.length > 0 && (
+                          <div className="position-absolute start-0 end-0 top-100 border rounded bg-body shadow-lg" style={{ zIndex: 50, maxHeight: 160, overflowY: "auto" }}>
+                            {customerSearchResults.map((customer) => (
+                              <button
+                                key={customer.id}
+                                type="button"
+                                onClick={() => handleSelectCustomer(customer)}
+                                className="w-100 text-start btn btn-link text-decoration-none px-3 py-2 border-bottom text-body"
+                                style={smallLabel}
+                              >
+                                <p className="fw-medium mb-0" style={smallLabel}>{customer.fullName}</p>
+                                <p className="text-primary mb-0" style={microLabel}>NIC: {customer.nic}</p>
+                                {customer.phone && <p className="text-muted mb-0" style={microLabel}>{customer.phone}</p>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {identityVerified && !blockedReason && (
+                          <p className="text-success mb-0 mt-1" style={microLabel}>✓ {customerFound ? "Auto-filled" : "No existing record"}</p>
+                        )}
+                        {blockedReason && <p className="text-danger mb-0 mt-1" style={microLabel}>{blockedReason}</p>}
+                        {identityVerifying && <p className="text-info mb-0 mt-1" style={microLabel}>Searching...</p>}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Gender */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs w-24 shrink-0 font-semibold">Gender</Label>
-                    <div className="flex items-center gap-4">
+                  <div className="col-12 col-sm-6 d-flex align-items-center gap-2">
+                    <label className="fw-semibold flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Gender</label>
+                    <div className="d-flex gap-3">
                       {["Male", "Female"].map((g) => (
-                        <label key={g} className="flex items-center gap-1 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="gender"
-                            value={g}
-                            checked={gender === g}
-                            onChange={() => setGender(g)}
-                            className="w-3 h-3"
-                          />
-                          <span className="text-xs">{g}</span>
-                        </label>
+                        <Checks key={g} type="radio" name="gender" id={`gender-${g}`} label={g} value={g} checked={gender === g} onChange={() => setGender(g)} />
                       ))}
                     </div>
                   </div>
 
-                  {/* Name */}
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="customerName" className="text-xs w-24 shrink-0 font-semibold">Name</Label>
-                    <Input
-                      id="customerName"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="h-8 text-xs flex-1"
-                    />
+                  <div className="col-12 col-sm-6 d-flex align-items-center gap-2">
+                    <label htmlFor="customerName" className="fw-semibold flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Name</label>
+                    <Input id="customerName" size="sm" value={customerName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerName(e.target.value)} />
                   </div>
 
-                  {/* Telephone */}
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="customerPhone" className="text-xs w-24 shrink-0 font-semibold">Telephone</Label>
-                    <Input
-                      id="customerPhone"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="h-8 text-xs flex-1"
-                    />
+                  <div className="col-12 col-sm-6 d-flex align-items-center gap-2">
+                    <label htmlFor="customerPhone" className="fw-semibold flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Telephone</label>
+                    <Input id="customerPhone" size="sm" value={customerPhone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerPhone(e.target.value)} />
                   </div>
 
-                  {/* Email */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs w-24 shrink-0 font-semibold">Email</Label>
-                    <div className="flex-1 h-8 border border-gray-200 rounded px-2 bg-gray-50 text-[10px] text-gray-400 flex items-center">
+                  <div className="col-12 col-sm-6 d-flex align-items-center gap-2">
+                    <label className="fw-semibold flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Email</label>
+                    <div className="flex-grow-1 border rounded px-2 bg-body-tertiary text-muted d-flex align-items-center" style={{ height: 31, fontSize: "0.625rem" }}>
                       Not Available
                     </div>
                   </div>
 
-                  {/* Address */}
-                  <div className="sm:col-span-2 flex items-start gap-2">
-                    <Label htmlFor="customerAddress" className="text-xs w-24 shrink-0 font-semibold mt-1.5">Address</Label>
+                  <div className="col-12 d-flex align-items-start gap-2">
+                    <label htmlFor="customerAddress" className="fw-semibold flex-shrink-0 mt-1" style={{ ...smallLabel, width: 96 }}>Address</label>
                     <textarea
                       id="customerAddress"
                       value={customerAddress}
                       onChange={(e) => setCustomerAddress(e.target.value)}
                       rows={2}
-                      className="flex-1 text-xs px-2 py-1.5 border border-gray-200 rounded resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="form-control form-control-sm flex-grow-1"
                     />
                   </div>
-
                 </div>
-              </CardContent>
+              </CardBody>
             </Card>
+          </div>
 
-            {/* Duration Card */}
-            <Card className="shadow-sm border-gray-200">
-              <CardHeader className="py-3 px-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <CardTitle className="text-sm font-bold text-gray-700">Duration</CardTitle>
-                {patternUnlocked && (
-                  <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded">SPECIAL MODE</span>
-                )}
+          {/* Duration */}
+          <div className="col-12 col-lg-4">
+            <Card>
+              <CardHeader>
+                <div className="d-flex align-items-center justify-content-between w-100">
+                  <CardTitle className="fs-6">Duration</CardTitle>
+                  {patternUnlocked && <Badge color="danger">SPECIAL MODE</Badge>}
+                </div>
               </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="bg-blue-700 text-white rounded-lg p-3">
-                  <p className="text-[11px] font-bold mb-2">Duration Type</p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+              <CardBody className="pt-0">
+                <div className="bg-primary text-white rounded p-3 mb-3">
+                  <p className="fw-bold mb-2" style={smallLabel}>Duration Type</p>
+                  <div className="row g-2">
                     {(patternUnlocked
                       ? [
                           { value: "12", label: "One Year (A)" },
@@ -920,268 +781,176 @@ export default function CreatePawningSample() {
                         ]
                       : [{ value: "12", label: "1 Year" }]
                     ).map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-1 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="durationRadio"
-                          value={opt.value}
-                          checked={
-                            opt.value === "12B"
-                              ? periodMonths === "12" && patternUnlocked
-                              : periodMonths === opt.value
-                          }
-                          onChange={() => setPeriodMonths(opt.value === "12B" ? "12" : opt.value)}
-                          className="w-3 h-3 accent-white"
-                        />
-                        <span className="text-[11px]">{opt.label}</span>
-                      </label>
+                      <div key={opt.value} className="col-6">
+                        <label className="d-flex align-items-center gap-1" style={microLabel}>
+                          <input
+                            type="radio"
+                            name="durationRadio"
+                            value={opt.value}
+                            checked={opt.value === "12B" ? periodMonths === "12" && patternUnlocked : periodMonths === opt.value}
+                            onChange={() => setPeriodMonths(opt.value === "12B" ? "12" : opt.value)}
+                          />
+                          {opt.label}
+                        </label>
+                      </div>
                     ))}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-yellow-600">Evident Ref # :</p>
-                </div>
-              </CardContent>
+                <p className="fw-bold text-warning mb-0" style={smallLabel}>Evident Ref # :</p>
+              </CardBody>
             </Card>
-
           </div>
 
-          {/* Row 2: Item Details | Financial Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-            {/* Item Details Card */}
-            <Card className="lg:col-span-2 shadow-sm border-gray-200">
-              <CardHeader className="py-3 px-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <CardTitle className="text-sm font-bold text-gray-700">Item Details</CardTitle>
-                <span className="text-[10px] text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full font-medium">
-                  {items.length} item(s)
-                </span>
+          {/* Item Details */}
+          <div className="col-12 col-lg-8">
+            <Card>
+              <CardHeader>
+                <div className="d-flex align-items-center justify-content-between w-100">
+                  <CardTitle className="fs-6">Item Details</CardTitle>
+                  <Badge color="secondary" isLight rounded="pill">{items.length} item(s)</Badge>
+                </div>
               </CardHeader>
-              <CardContent className="p-4 space-y-4">
+              <CardBody className="pt-0">
+                <p className="text-muted fw-bold text-uppercase mb-2" style={microLabel}>Add Gold Item</p>
 
-                {/* Add Gold Item — two sub-sections */}
-                <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Add Gold Item</p>
+                <div className="row g-3">
+                  <div className="col-12 col-sm-6">
+                    <div className="rounded border bg-body-tertiary p-3">
+                      <p className="text-muted fw-bold text-uppercase mb-2" style={microLabel}>Item Information</p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-                    {/* Section 1: Item Information (Type, Karat, Weight, Condition) */}
-                    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3 space-y-2">
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Item Information</p>
-
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex items-center justify-between w-20 shrink-0">
-                          <Label className="text-xs font-semibold text-gray-600">Type</Label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 px-1 text-[9px] text-primary gap-1"
-                            onClick={() => setShowAddItemTypeDialog(true)}
-                          >
-                            <PlusCircle className="h-2.5 w-2.5" />
-                          </Button>
+                      <div className="d-flex align-items-center gap-2 mb-2">
+                        <div className="d-flex align-items-center justify-content-between flex-shrink-0" style={{ width: 80 }}>
+                          <label className="fw-semibold text-muted" style={smallLabel}>Type</label>
+                          <Button color="primary" isLink onClick={() => setShowAddItemTypeDialog(true)} icon="AddCircle" isVisuallyHidden aria-label="Add item type" className="p-0" />
                         </div>
-                        <Select value={itemDraft.content} onValueChange={(v) => updateDraft({ content: v })}>
-                          <SelectTrigger className="h-7 text-xs flex-1">
-                            <SelectValue placeholder="Select item type..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {itemTypes.length > 0 ? (
-                              itemTypes.map((type) => (
-                                <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>
-                              ))
-                            ) : (
-                              <>
-                                <SelectItem value="Ring">Ring</SelectItem>
-                                <SelectItem value="Chain">Chain</SelectItem>
-                                <SelectItem value="Bracelet">Bracelet</SelectItem>
-                                <SelectItem value="Necklace">Necklace</SelectItem>
-                                <SelectItem value="Earrings">Earrings</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
-                              </>
-                            )}
-                          </SelectContent>
+                        <Select ariaLabel="Item Type" size="sm" value={itemDraft.content} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateDraft({ content: e.target.value })} placeholder="Select item type...">
+                          {itemTypes.length > 0 ? (
+                            itemTypes.map((type) => <Option key={type.id} value={type.name}>{type.name}</Option>)
+                          ) : (
+                            <>
+                              <Option value="Ring">Ring</Option>
+                              <Option value="Chain">Chain</Option>
+                              <Option value="Bracelet">Bracelet</Option>
+                              <Option value="Necklace">Necklace</Option>
+                              <Option value="Earrings">Earrings</Option>
+                              <Option value="Other">Other</Option>
+                            </>
+                          )}
                         </Select>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <Label className="text-xs w-20 shrink-0 font-semibold text-gray-600">Gold Content</Label>
-                        <Select value={itemDraft.karat} onValueChange={(v) => updateDraft({ karat: v })}>
-                          <SelectTrigger className="h-7 text-xs flex-1">
-                            <SelectValue placeholder="Select karat..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="N/A">N/A</SelectItem>
-                            <SelectItem value="10K">10K</SelectItem>
-                            <SelectItem value="14K">14K</SelectItem>
-                            <SelectItem value="18K">18K</SelectItem>
-                            <SelectItem value="22K">22K</SelectItem>
-                            <SelectItem value="24K">24K</SelectItem>
-                          </SelectContent>
+                      <div className="d-flex align-items-center gap-2 mb-2">
+                        <label className="fw-semibold text-muted flex-shrink-0" style={{ ...smallLabel, width: 80 }}>Gold Content</label>
+                        <Select ariaLabel="Karat" size="sm" value={itemDraft.karat} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateDraft({ karat: e.target.value })}>
+                          <Option value="N/A">N/A</Option>
+                          <Option value="10K">10K</Option>
+                          <Option value="14K">14K</Option>
+                          <Option value="18K">18K</Option>
+                          <Option value="22K">22K</Option>
+                          <Option value="24K">24K</Option>
                         </Select>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <Label className="text-xs w-20 shrink-0 font-semibold text-gray-600">Weight (g)</Label>
-                        <NumberInput
-                          value={itemDraft.weight}
-                          onChange={(value) => updateDraft({ weight: value })}
-                          onKeyDown={handleItemKeyDown}
-                          precision={3}
-                          className="h-7 text-xs flex-1"
-                          placeholder="0.000"
-                        />
+                      <div className="d-flex align-items-center gap-2 mb-2">
+                        <label className="fw-semibold text-muted flex-shrink-0" style={{ ...smallLabel, width: 80 }}>Weight (g)</label>
+                        <NumberInput value={itemDraft.weight} onChange={(value) => updateDraft({ weight: value })} onKeyDown={handleItemKeyDown} precision={3} placeholder="0.000" />
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <Label className="text-xs w-20 shrink-0 font-semibold text-gray-600">Condition</Label>
-                        <Select value={itemDraft.condition} onValueChange={(v) => updateDraft({ condition: v })}>
-                          <SelectTrigger className="h-7 text-xs flex-1">
-                            <SelectValue placeholder="Select condition..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Excellent">Excellent</SelectItem>
-                            <SelectItem value="Good">Good</SelectItem>
-                            <SelectItem value="Fair">Fair</SelectItem>
-                            <SelectItem value="Poor">Poor</SelectItem>
-                          </SelectContent>
+                      <div className="d-flex align-items-center gap-2">
+                        <label className="fw-semibold text-muted flex-shrink-0" style={{ ...smallLabel, width: 80 }}>Condition</label>
+                        <Select ariaLabel="Condition" size="sm" value={itemDraft.condition} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateDraft({ condition: e.target.value })}>
+                          <Option value="Excellent">Excellent</Option>
+                          <Option value="Good">Good</Option>
+                          <Option value="Fair">Fair</Option>
+                          <Option value="Poor">Poor</Option>
                         </Select>
                       </div>
                     </div>
-
-                    {/* Section 2: Valuation (Loan Amount, Market Value) */}
-                    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3 space-y-2">
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Valuation</p>
-
-                      <div className="flex items-center gap-1.5">
-                        <Label className="text-xs w-24 shrink-0 font-semibold text-gray-600">Loan Amount</Label>
-                        <NumberInput
-                          value={itemDraft.appraisedValue}
-                          onChange={(value) => updateDraft({ appraisedValue: value })}
-                          onKeyDown={handleItemKeyDown}
-                          precision={2}
-                          className="h-7 text-xs flex-1"
-                          placeholder="0.00"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <Label className="text-xs w-24 shrink-0 font-semibold text-gray-600">Market Value</Label>
-                        <NumberInput
-                          value={itemDraft.marketValue}
-                          onChange={(value) => updateDraft({ marketValue: value })}
-                          onKeyDown={handleItemKeyDown}
-                          precision={2}
-                          className="h-7 text-xs flex-1"
-                          placeholder="0.00"
-                        />
-                      </div>
-
-                      <p className="text-[9px] text-gray-400 pt-1">LKR · auto-summed into transaction totals</p>
-                    </div>
-
                   </div>
 
-                  {/* Add Item Button + Image Upload */}
-                  <div className="flex gap-2 mt-3">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleAddItem}
-                      className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white flex-1 gap-1"
-                    >
-                      <PlusCircle className="h-3 w-3" /> Add Item
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => document.getElementById("image-upload-sample")?.click()}
-                      className="h-7 text-[10px]"
-                    >
-                      <Upload className="h-3 w-3 mr-1" />Upload
-                      <input id="image-upload-sample" type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
-                    </Button>
-                    <span className="text-[10px] text-muted-foreground self-center">{itemDraft.images.length} img(s)</span>
-                  </div>
+                  <div className="col-12 col-sm-6">
+                    <div className="rounded border bg-body-tertiary p-3">
+                      <p className="text-muted fw-bold text-uppercase mb-2" style={microLabel}>Valuation</p>
 
-                  {itemDraft.images.length > 0 && (
-                    <div className="grid grid-cols-8 gap-1 mt-2">
-                      {itemDraft.images.map((preview, index) => (
-                        <div key={index} className="relative group">
-                          <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-6 object-cover rounded border" />
-                          <button
-                            type="button"
-                            onClick={() => removeDraftImage(index)}
-                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100"
-                          >
-                            <X className="h-2 w-2" />
-                          </button>
-                        </div>
-                      ))}
+                      <div className="d-flex align-items-center gap-2 mb-2">
+                        <label className="fw-semibold text-muted flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Loan Amount</label>
+                        <NumberInput value={itemDraft.appraisedValue} onChange={(value) => updateDraft({ appraisedValue: value })} onKeyDown={handleItemKeyDown} precision={2} placeholder="0.00" />
+                      </div>
+
+                      <div className="d-flex align-items-center gap-2 mb-2">
+                        <label className="fw-semibold text-muted flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Market Value</label>
+                        <NumberInput value={itemDraft.marketValue} onChange={(value) => updateDraft({ marketValue: value })} onKeyDown={handleItemKeyDown} precision={2} placeholder="0.00" />
+                      </div>
+
+                      <p className="text-muted mb-0 pt-1" style={microLabel}>LKR · auto-summed into transaction totals</p>
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Added Items — card grid */}
-                <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Added Items</p>
-                  {items.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[160px] overflow-y-auto pr-1">
-                      {items.map((item, index) => (
-                        <div
-                          key={index}
-                          className="relative rounded-lg border border-gray-200 bg-white p-2.5 shadow-sm hover:shadow-md transition-shadow"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(index)}
-                            className="absolute top-1.5 right-1.5 text-red-400 hover:text-red-600 transition-colors"
-                            title="Remove item"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                          <p className="text-[11px] font-semibold text-gray-700 truncate pr-4">
-                            {item.content || item.description || "Item"}
-                          </p>
-                          <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-gray-500">
-                            {item.karat !== "N/A" && <span>Karat: {item.karat}</span>}
-                            <span>Weight: {formatWeight(item.weightGrams)} g</span>
-                            <span>Loan: LKR {formatAmount(item.appraisedValue)}</span>
-                            <span>Market: LKR {formatAmount(item.marketValue)}</span>
+                <div className="d-flex gap-2 mt-3">
+                  <Button color="primary" size="sm" icon="AddCircle" className="flex-grow-1" onClick={handleAddItem}>
+                    Add Item
+                  </Button>
+                  <Button color="dark" isLight size="sm" icon="Upload" onClick={() => document.getElementById("image-upload-sample")?.click()}>
+                    Upload
+                  </Button>
+                  <input id="image-upload-sample" type="file" accept="image/*" multiple onChange={handleImageUpload} className="d-none" />
+                  <span className="text-muted align-self-center" style={microLabel}>{itemDraft.images.length} img(s)</span>
+                </div>
+
+                {itemDraft.images.length > 0 && (
+                  <div className="row g-1 mt-2">
+                    {itemDraft.images.map((preview, index) => (
+                      <div key={index} className="col-1 position-relative">
+                        <img src={preview} alt={`Preview ${index + 1}`} className="w-100 rounded border" style={{ height: 24, objectFit: "cover" }} />
+                        <button type="button" onClick={() => removeDraftImage(index)} className="btn-close btn-close-white bg-danger rounded-circle position-absolute top-0 end-0" style={{ width: 12, height: 12, padding: 2 }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-muted fw-bold text-uppercase mt-3 mb-2" style={microLabel}>Added Items</p>
+                {items.length > 0 ? (
+                  <div className="row g-2" style={{ maxHeight: 160, overflowY: "auto" }}>
+                    {items.map((item, index) => (
+                      <div key={index} className="col-12 col-sm-6">
+                        <div className="position-relative rounded border bg-body p-2 shadow-sm">
+                          <button type="button" onClick={() => handleRemoveItem(index)} className="btn-close position-absolute top-0 end-0 m-1" style={{ width: 8, height: 8 }} title="Remove item" />
+                          <p className="fw-semibold text-truncate mb-1 pe-4" style={smallLabel}>{item.content || item.description || "Item"}</p>
+                          <div className="row g-1 text-muted" style={microLabel}>
+                            {item.karat !== "N/A" && <div className="col-6">Karat: {item.karat}</div>}
+                            <div className="col-6">Weight: {formatWeight(item.weightGrams)} g</div>
+                            <div className="col-6">Loan: LKR {formatAmount(item.appraisedValue)}</div>
+                            <div className="col-6">Market: LKR {formatAmount(item.marketValue)}</div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-[52px] rounded-lg border border-dashed border-gray-200 bg-gray-50">
-                      <p className="text-[10px] text-gray-400">No items added yet</p>
-                    </div>
-                  )}
-                </div>
-
-              </CardContent>
-            </Card>
-
-            {/* Financial Summary Card */}
-            <Card className="shadow-sm border-gray-200 flex flex-col">
-              <CardHeader className="py-3 px-4 bg-gray-50 border-b border-gray-200">
-                <CardTitle className="text-sm font-bold text-gray-700">Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 flex flex-col justify-between flex-1">
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-600">Issue Date :</span>
-                    <span className="text-xs text-gray-500">{new Date().toLocaleDateString("en-GB")}</span>
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  <div className="d-flex align-items-center justify-content-center rounded border border-dashed bg-body-tertiary" style={{ height: 52 }}>
+                    <p className="text-muted mb-0" style={microLabel}>No items added yet</p>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-600">Due Date :</span>
-                    <span className="text-xs text-gray-500">
+          {/* Financial Summary */}
+          <div className="col-12 col-lg-4">
+            <Card className="h-100 d-flex flex-column">
+              <CardHeader>
+                <CardTitle className="fs-6">Summary</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0 d-flex flex-column justify-content-between flex-grow-1">
+                <div className="bg-l10-info rounded border p-3">
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="fw-semibold text-muted" style={smallLabel}>Issue Date :</span>
+                    <span className="text-muted" style={smallLabel}>{new Date().toLocaleDateString("en-GB")}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="fw-semibold text-muted" style={smallLabel}>Due Date :</span>
+                    <span className="text-muted" style={smallLabel}>
                       {(() => {
                         const d = new Date();
                         d.setMonth(d.getMonth() + parseInt(periodMonths, 10));
@@ -1189,219 +958,149 @@ export default function CreatePawningSample() {
                       })()}
                     </span>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-600">Redeemed Date :</span>
-                    <span className="text-xs text-gray-400">—</span>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="fw-semibold text-muted" style={smallLabel}>Redeemed Date :</span>
+                    <span className="text-muted" style={smallLabel}>—</span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs font-semibold text-gray-600 w-24 shrink-0">Duration</Label>
-                    <Input
-                      value={`${periodMonths} month(s)`}
-                      readOnly
-                      className="h-7 text-xs flex-1 bg-white"
-                    />
+                  <div className="d-flex align-items-center gap-2 mb-2">
+                    <label className="fw-semibold text-muted flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Duration</label>
+                    <Input size="sm" value={`${periodMonths} month(s)`} readOnly />
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs font-semibold text-gray-600 w-24 shrink-0">Total Wt (g)</Label>
-                    <Input
-                      value={totals.weight > 0 ? formatWeight(totals.weight) : ""}
-                      readOnly
-                      className="h-7 text-xs flex-1 bg-blue-100 border-blue-300 font-semibold"
-                    />
+                  <div className="d-flex align-items-center gap-2 mb-2">
+                    <label className="fw-semibold text-muted flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Total Wt (g)</label>
+                    <Input size="sm" className="fw-semibold" value={totals.weight > 0 ? formatWeight(totals.weight) : ""} readOnly />
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold text-gray-600">Rate</Label>
+                  <div className="mb-2">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <label className="fw-semibold text-muted" style={smallLabel}>Rate</label>
                       {!rateOverrideEnabled && (
-                        <Button
-                          type="button"
-                          variant="link"
-                          size="sm"
-                          className="h-auto p-0 text-xs text-blue-600"
-                          onClick={handleRequestRateOverride}
-                        >
+                        <Button color="primary" isLink className="p-0" onClick={handleRequestRateOverride} style={smallLabel}>
                           Override
                         </Button>
                       )}
                     </div>
 
                     {rateOverrideEnabled ? (
-                      <div className="space-y-1">
-                        <Input
-                          value={manualInterestRate}
-                          onChange={(e) => setManualInterestRate(e.target.value)}
-                          placeholder="0.1-50"
-                          className="h-7 text-xs border-amber-500"
-                        />
-                        <p className="text-[10px] text-amber-600">Manager override (0.1% - 50%)</p>
-                      </div>
+                      <>
+                        <Input size="sm" value={manualInterestRate} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setManualInterestRate(e.target.value)} placeholder="0.1-50" />
+                        <p className="text-warning mb-0 mt-1" style={microLabel}>Manager override (0.1% - 50%)</p>
+                      </>
                     ) : (
-                      <Select value={selectedRateId} onValueChange={setSelectedRateId}>
-                        <SelectTrigger className="h-7 text-xs">
-                          <SelectValue placeholder="Select rate" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {rates.map((r) => (
-                            <SelectItem key={r.id} value={r.id}>
-                              {r.name} - {r.rate_percent || r.ratePercent}% per annum
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                      <Select ariaLabel="Interest Rate" size="sm" value={selectedRateId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedRateId(e.target.value)} placeholder="Select rate">
+                        {rates.map((r) => (
+                          <Option key={r.id} value={r.id}>{`${r.name} - ${r.rate_percent || r.ratePercent}% per annum`}</Option>
+                        ))}
                       </Select>
                     )}
-                    <p className="text-[10px] text-blue-700">Selected rate applies to all items in this transaction.</p>
+                    <p className="text-primary mb-0 mt-1" style={microLabel}>Selected rate applies to all items in this transaction.</p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs font-semibold text-gray-600 w-24 shrink-0">Total Loan Amount</Label>
-                    <Input
-                      type="text"
-                      value={totals.appraised > 0 ? formatAmount(totals.appraised) : ""}
-                      readOnly
-                      disabled
-                      className="h-7 text-xs flex-1 bg-white"
-                      placeholder="Auto-calculated from item loan amounts"
-                    />
+                  <div className="d-flex align-items-center gap-2">
+                    <label className="fw-semibold text-muted flex-shrink-0" style={{ ...smallLabel, width: 96 }}>Total Loan Amount</label>
+                    <Input size="sm" value={totals.appraised > 0 ? formatAmount(totals.appraised) : ""} readOnly disabled placeholder="Auto-calculated from item loan amounts" />
                   </div>
-
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 mt-4 justify-end">
+                <div className="d-flex gap-2 justify-content-end mt-3">
                   <Button
+                    color="primary"
                     onClick={handleCreateTransaction}
-                    disabled={!isFormValid || loading}
+                    isDisable={!isFormValid || loading}
                     title={!isFormValid ? "Please fill in all required fields and add at least one item" : undefined}
-                    className="h-8 px-8 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Add
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate("/transactions")}
-                    className="h-8 px-6 text-sm border-blue-600 text-blue-600 hover:bg-blue-50"
-                  >
+                  <Button color="primary" isOutline onClick={() => navigate("/transactions")}>
                     Cancel
                   </Button>
                 </div>
                 {!isFormValid && (
-                  <p className="text-[10px] text-gray-400 text-right mt-1">
-                    {items.length === 0
-                      ? "Add at least one item to continue"
-                      : "Fill in all required customer fields to continue"}
+                  <p className="text-muted text-end mt-1 mb-0" style={microLabel}>
+                    {items.length === 0 ? "Add at least one item to continue" : "Fill in all required customer fields to continue"}
                   </p>
                 )}
-
-              </CardContent>
+              </CardBody>
             </Card>
-
           </div>
-
         </div>
-      </div>
+      </Page>
 
-      {/* ── Confirm Dialog ── */}
-      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Confirm Transaction</DialogTitle>
-            <DialogDescription>Please review the transaction details before submitting</DialogDescription>
-          </DialogHeader>
+      {/* Confirm Dialog */}
+      <FormModal
+        isOpen={showConfirmDialog}
+        setIsOpen={setShowConfirmDialog}
+        title="Confirm Transaction"
+        onSubmit={confirmSubmit}
+        isSubmitting={loading}
+        submitLabel="Confirm & Submit"
+        size="lg"
+      >
+        <p className="text-muted small mb-0">Please review the transaction details before submitting</p>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm border-b pb-1">Customer Information</h4>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div><span className="text-muted-foreground">Name:</span><span className="ml-2 font-medium">{customerName}</span></div>
-                <div><span className="text-muted-foreground">{identityLabel}:</span><span className="ml-2 font-medium">{identityNumber}</span></div>
-                <div><span className="text-muted-foreground">Gender:</span><span className="ml-2 font-medium">{gender}</span></div>
-                <div><span className="text-muted-foreground">Phone:</span><span className="ml-2 font-medium">{customerPhone || "N/A"}</span></div>
-                <div className="col-span-2"><span className="text-muted-foreground">Address:</span><span className="ml-2 font-medium">{customerAddress}</span></div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm border-b pb-1">Items ({items.length})</h4>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {items.map((item, index) => (
-                  <div key={index} className="p-2 bg-gray-50 rounded border text-sm">
-                    <p className="font-medium">Item {index + 1}: {item.description || "Gold Item"}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Type: {item.content} | Condition: {item.condition} | Weight: {formatWeight(item.weightGrams)}g | Karat: {item.karat}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm border-b pb-1">Transaction Summary</h4>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-muted/50 p-3 rounded">
-                <div><span className="text-muted-foreground">Total Items:</span><span className="ml-2 font-medium">{items.length}</span></div>
-                <div><span className="text-muted-foreground">Total Weight:</span><span className="ml-2 font-medium">{formatWeight(totals.weight)} g</span></div>
-                <div><span className="text-muted-foreground">Total Appraised:</span><span className="ml-2 font-medium">LKR {formatAmount(totals.appraised)}</span></div>
-                <div><span className="text-muted-foreground">Total Market:</span><span className="ml-2 font-medium">LKR {formatAmount(totals.market)}</span></div>
-                <div><span className="text-muted-foreground">Total Loan Amount:</span><span className="ml-2 font-semibold text-primary">LKR {formatAmount(totals.appraised)}</span></div>
-                <div><span className="text-muted-foreground">Period:</span><span className="ml-2 font-medium">{periodMonths} months</span></div>
-                <div className="col-span-2"><span className="text-muted-foreground">Interest Rate:</span><span className="ml-2 font-medium">{selectedRateName} ({selectedRateValue}% per annum)</span></div>
-                <div className="col-span-2"><span className="text-muted-foreground">Pattern Mode:</span><span className="ml-2 font-medium">{patternUnlocked ? "B" : "A"}</span></div>
-                {remarks && <div className="col-span-2"><span className="text-muted-foreground">Remarks:</span><span className="ml-2 font-medium">{remarks}</span></div>}
-              </div>
-            </div>
+        <div>
+          <h4 className="fs-6 fw-semibold border-bottom pb-1">Customer Information</h4>
+          <div className="row g-2 small">
+            <div className="col-6"><span className="text-muted">Name:</span> <span className="fw-medium">{customerName}</span></div>
+            <div className="col-6"><span className="text-muted">{identityLabel}:</span> <span className="fw-medium">{identityNumber}</span></div>
+            <div className="col-6"><span className="text-muted">Gender:</span> <span className="fw-medium">{gender}</span></div>
+            <div className="col-6"><span className="text-muted">Phone:</span> <span className="fw-medium">{customerPhone || "N/A"}</span></div>
+            <div className="col-12"><span className="text-muted">Address:</span> <span className="fw-medium">{customerAddress}</span></div>
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>Cancel</Button>
-            <Button onClick={confirmSubmit} disabled={loading}>
-              {loading ? "Submitting..." : "Confirm & Submit"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Manager PIN Dialog ── */}
-      <Dialog open={showPinDialog} onOpenChange={setShowPinDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Manager PIN Required</DialogTitle>
-            <DialogDescription>Enter your manager PIN to override the interest rate</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="managerPin">PIN</Label>
-              <Input
-                id="managerPin"
-                type="password"
-                value={managerPin}
-                onChange={(e) => setManagerPin(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleVerifyManagerPin();
-                  }
-                }}
-                placeholder="Enter your PIN"
-                maxLength={6}
-                autoFocus
-              />
-            </div>
+        <div>
+          <h4 className="fs-6 fw-semibold border-bottom pb-1">Items ({items.length})</h4>
+          <div className="d-flex flex-column gap-2" style={{ maxHeight: 192, overflowY: "auto" }}>
+            {items.map((item, index) => (
+              <div key={index} className="p-2 bg-body-tertiary rounded border small">
+                <p className="fw-medium mb-0">Item {index + 1}: {item.description || "Gold Item"}</p>
+                <p className="text-muted mb-0 mt-1" style={microLabel}>
+                  Type: {item.content} | Condition: {item.condition} | Weight: {formatWeight(item.weightGrams)}g | Karat: {item.karat}
+                </p>
+              </div>
+            ))}
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPinDialog(false)} disabled={pinVerifying}>
-              Cancel
-            </Button>
-            <Button onClick={handleVerifyManagerPin} disabled={pinVerifying || !managerPin.trim()}>
-              {pinVerifying ? "Verifying..." : "Verify PIN"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <div>
+          <h4 className="fs-6 fw-semibold border-bottom pb-1">Transaction Summary</h4>
+          <div className="row g-2 small bg-body-tertiary p-3 rounded">
+            <div className="col-6"><span className="text-muted">Total Items:</span> <span className="fw-medium">{items.length}</span></div>
+            <div className="col-6"><span className="text-muted">Total Weight:</span> <span className="fw-medium">{formatWeight(totals.weight)} g</span></div>
+            <div className="col-6"><span className="text-muted">Total Appraised:</span> <span className="fw-medium">LKR {formatAmount(totals.appraised)}</span></div>
+            <div className="col-6"><span className="text-muted">Total Market:</span> <span className="fw-medium">LKR {formatAmount(totals.market)}</span></div>
+            <div className="col-6"><span className="text-muted">Total Loan Amount:</span> <span className="fw-semibold text-primary">LKR {formatAmount(totals.appraised)}</span></div>
+            <div className="col-6"><span className="text-muted">Period:</span> <span className="fw-medium">{periodMonths} months</span></div>
+            <div className="col-12"><span className="text-muted">Interest Rate:</span> <span className="fw-medium">{selectedRateName} ({selectedRateValue}% per annum)</span></div>
+            <div className="col-12"><span className="text-muted">Pattern Mode:</span> <span className="fw-medium">{patternUnlocked ? "B" : "A"}</span></div>
+            {remarks && <div className="col-12"><span className="text-muted">Remarks:</span> <span className="fw-medium">{remarks}</span></div>}
+          </div>
+        </div>
+      </FormModal>
+
+      {/* Manager PIN Dialog */}
+      <FormModal
+        isOpen={showPinDialog}
+        setIsOpen={setShowPinDialog}
+        title="Manager PIN Required"
+        onSubmit={handleVerifyManagerPin}
+        isSubmitting={pinVerifying}
+        submitLabel="Verify PIN"
+      >
+        <p className="text-muted small mb-0">Enter your manager PIN to override the interest rate</p>
+        <Input
+          type="password"
+          value={managerPin}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setManagerPin(e.target.value)}
+          onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); handleVerifyManagerPin(); } }}
+          placeholder="Enter your PIN"
+          maxLength={6}
+          autoFocus
+        />
+      </FormModal>
 
       <AddItemTypeDialog
         open={showAddItemTypeDialog}
@@ -1411,6 +1110,6 @@ export default function CreatePawningSample() {
           updateDraft({ content: newItemType.name });
         }}
       />
-    </>
+    </PageWrapper>
   );
 }

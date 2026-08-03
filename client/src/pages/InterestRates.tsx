@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Power, Star } from "lucide-react";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft, SubHeaderRight } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody } from "@/vendor/facit/components/bootstrap/Card";
+import Badge from "@/vendor/facit/components/bootstrap/Badge";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import { FormModal } from "@/components/facit/FormModal";
+import FormGroup from "@/vendor/facit/components/bootstrap/forms/FormGroup";
+import Input from "@/vendor/facit/components/bootstrap/forms/Input";
+import Select from "@/vendor/facit/components/bootstrap/forms/Select";
+import Option from "@/vendor/facit/components/bootstrap/Option";
+import Checks from "@/vendor/facit/components/bootstrap/forms/Checks";
+import { DataTable, DataTableColumn } from "@/components/facit/DataTable";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
 import { t } from "@/lib/lang";
 
@@ -29,12 +33,12 @@ export default function InterestRates() {
   const [ratePercent, setRatePercent] = useState("");
   const [firstMonthRatePercent, setFirstMonthRatePercent] = useState("");
   const [isDefault, setIsDefault] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [showReplaceDialog, setShowReplaceDialog] = useState(false);
   const [targetDeactivateRate, setTargetDeactivateRate] = useState<InterestRate | null>(null);
   const [replacementDefaultRateId, setReplacementDefaultRateId] = useState("");
-
-  const { toast } = useToast();
+  const [replacing, setReplacing] = useState(false);
 
   const activeRates = useMemo(() => rates.filter((r) => r.isActive), [rates]);
   const replacementCandidates = useMemo(
@@ -46,13 +50,9 @@ export default function InterestRates() {
     try {
       const data = await apiClient.interestRates.getAll();
       setRates(data);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to fetch interest rates:", error);
-      toast({
-        title: t("ERROR"),
-        description: "Failed to fetch interest rates",
-        variant: "destructive",
-      });
+      notify({ title: t("ERROR"), description: "Failed to fetch interest rates", variant: "destructive" });
     }
   };
 
@@ -60,18 +60,13 @@ export default function InterestRates() {
     fetchRates();
   }, []);
 
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleAdd = async () => {
     if (!name || !ratePercent) {
-      toast({
-        title: t("VALIDATION_ERROR"),
-        description: t("PLEASE_FILL_IN_ALL_REQUIRED_FIELDS"),
-        variant: "destructive",
-      });
+      notify({ title: t("VALIDATION_ERROR"), description: t("PLEASE_FILL_IN_ALL_REQUIRED_FIELDS"), variant: "destructive" });
       return;
     }
 
+    setSaving(true);
     try {
       const shouldBeDefault = activeRates.length === 0 ? true : isDefault;
       await apiClient.interestRates.create({
@@ -82,11 +77,10 @@ export default function InterestRates() {
         isDefault: shouldBeDefault,
       });
 
-      toast({
+      notify({
         title: t("SUCCESS"),
-        description: shouldBeDefault
-          ? t("INTEREST_RATE_CREATED_AS_DEFAULT")
-          : t("INTEREST_RATE_CREATED_SUCCESSFULLY"),
+        description: shouldBeDefault ? t("INTEREST_RATE_CREATED_AS_DEFAULT") : t("INTEREST_RATE_CREATED_SUCCESSFULLY"),
+        variant: "success",
       });
 
       setShowDialog(false);
@@ -95,13 +89,12 @@ export default function InterestRates() {
       setFirstMonthRatePercent("");
       setIsDefault(false);
       fetchRates();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating interest rate:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create interest rate",
-        variant: "destructive",
-      });
+      const message = error instanceof Error ? error.message : "Failed to create interest rate";
+      notify({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -109,11 +102,7 @@ export default function InterestRates() {
     try {
       if (rate.isActive && rate.isDefault) {
         if (replacementCandidates.length === 0) {
-        toast({
-          title: t("CANNOT_DEACTIVATE"),
-          description: t("CREATE_OR_ACTIVATE_ANOTHER_RATE"),
-          variant: "destructive",
-        });
+          notify({ title: t("CANNOT_DEACTIVATE"), description: t("CREATE_OR_ACTIVATE_ANOTHER_RATE"), variant: "destructive" });
           return;
         }
         setTargetDeactivateRate(rate);
@@ -123,35 +112,22 @@ export default function InterestRates() {
       }
 
       await apiClient.interestRates.toggleActive(rate.id);
-      toast({
-        title: "Success",
-        description: `Interest rate ${rate.isActive ? "deactivated" : "activated"} successfully`,
-      });
+      notify({ title: "Success", description: `Interest rate ${rate.isActive ? "deactivated" : "activated"} successfully`, variant: "success" });
       fetchRates();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update interest rate status",
-        variant: "destructive",
-      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update interest rate status";
+      notify({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
   const setAsDefault = async (rate: InterestRate) => {
     if (!rate.isActive) {
-      toast({
-        title: t("CANNOT_SET_DEFAULT"),
-        description: t("ONLY_ACTIVE_RATES_CAN_BE_SET_AS_DEFAULT"),
-        variant: "destructive",
-      });
+      notify({ title: t("CANNOT_SET_DEFAULT"), description: t("ONLY_ACTIVE_RATES_CAN_BE_SET_AS_DEFAULT"), variant: "destructive" });
       return;
     }
 
     if (rate.isDefault) {
-      toast({
-        title: t("ALREADY_DEFAULT"),
-        description: t("THIS_RATE_IS_ALREADY_DEFAULT"),
-      });
+      notify({ title: t("ALREADY_DEFAULT"), description: t("THIS_RATE_IS_ALREADY_DEFAULT") });
       return;
     }
 
@@ -164,202 +140,157 @@ export default function InterestRates() {
         isDefault: true,
       });
 
-      toast({
-        title: "Success",
-        description: `${rate.name} is now the default rate`,
-      });
+      notify({ title: "Success", description: `${rate.name} is now the default rate`, variant: "success" });
       fetchRates();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to set default rate",
-        variant: "destructive",
-      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to set default rate";
+      notify({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
   const confirmDeactivateDefault = async () => {
     if (!targetDeactivateRate || !replacementDefaultRateId) {
-      toast({
-        title: t("VALIDATION_ERROR"),
-        description: "Please select another active rate as default",
-        variant: "destructive",
-      });
+      notify({ title: t("VALIDATION_ERROR"), description: "Please select another active rate as default", variant: "destructive" });
       return;
     }
 
+    setReplacing(true);
     try {
       await apiClient.interestRates.toggleActive(targetDeactivateRate.id, replacementDefaultRateId);
-      toast({
-        title: t("SUCCESS"),
-        description: t("DEFAULT_RATE_CHANGED"),
-      });
+      notify({ title: t("SUCCESS"), description: t("DEFAULT_RATE_CHANGED"), variant: "success" });
       setShowReplaceDialog(false);
       setTargetDeactivateRate(null);
       setReplacementDefaultRateId("");
       fetchRates();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to deactivate default rate",
-        variant: "destructive",
-      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to deactivate default rate";
+      notify({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setReplacing(false);
     }
   };
 
+  const columns: DataTableColumn<InterestRate>[] = [
+    { key: "name", header: t("NAME") },
+    { key: "ratePercent", header: t("RATE_PERCENT"), render: (r) => `${r.ratePercent}%` },
+    { key: "firstMonthRatePercent", header: t("FIRST_MONTH_PERCENT"), render: (r) => `${(r.firstMonthRatePercent ?? r.ratePercent / 12).toFixed(2)}%` },
+    {
+      key: "isDefault",
+      header: t("DEFAULT"),
+      render: (r) => (r.isDefault && r.isActive ? <Badge color="primary">{t("DEFAULT")}</Badge> : <Badge color="secondary" isLight>{t("NA")}</Badge>),
+    },
+    {
+      key: "isActive",
+      header: t("STATUS"),
+      render: (r) => <Badge color={r.isActive ? "success" : "secondary"} isLight>{r.isActive ? t("ACTIVE") : t("INACTIVE")}</Badge>,
+    },
+    {
+      key: "actions",
+      header: t("ACTIONS"),
+      align: "end",
+      render: (r) => (
+        <>
+          <Button color="dark" isLight icon="Power" className="me-1" onClick={() => toggleActive(r)} title={r.isActive ? "Deactivate" : "Activate"} aria-label="Toggle active" />
+          <Button
+            color={r.isDefault ? "warning" : "dark"}
+            isLight
+            icon="Star"
+            onClick={() => setAsDefault(r)}
+            isDisable={!r.isActive || r.isDefault}
+            title="Set as default"
+            aria-label="Set as default"
+          />
+        </>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold">{t("INTEREST_RATE_MANAGEMENT")}</h1>
-        <Button onClick={() => setShowDialog(true)}><Plus className="mr-2 h-4 w-4" /> {t("ADD_RATE")}</Button>
-      </div>
+    <PageWrapper title={t("INTEREST_RATE_MANAGEMENT")}>
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb list={[{ title: t("INTEREST_RATE_MANAGEMENT"), to: "/interest-rates" }]} />
+        </SubHeaderLeft>
+        <SubHeaderRight>
+          <Button color="primary" icon="Add" onClick={() => setShowDialog(true)}>
+            {t("ADD_RATE")}
+          </Button>
+        </SubHeaderRight>
+      </SubHeader>
+      <Page>
+        <Card>
+          <CardBody className="p-0">
+            <DataTable columns={columns} data={rates} keyField={(r) => r.id} emptyMessage={t("NO_INTEREST_RATES_FOUND")} />
+          </CardBody>
+        </Card>
+      </Page>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("NAME")}</TableHead>
-                <TableHead>{t("RATE_PERCENT")}</TableHead>
-                <TableHead>{t("FIRST_MONTH_PERCENT")}</TableHead>
-                <TableHead>{t("DEFAULT")}</TableHead>
-                <TableHead>{t("STATUS")}</TableHead>
-                <TableHead>{t("ACTIONS")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rates.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>{r.ratePercent}%</TableCell>
-                  <TableCell>{(r.firstMonthRatePercent ?? r.ratePercent / 12).toFixed(2)}%</TableCell>
-                  <TableCell>
-                    {r.isDefault && r.isActive ? <Badge>{t("DEFAULT")}</Badge> : <Badge variant="outline">{t("NA")}</Badge>}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? t("ACTIVE") : t("INACTIVE")}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toggleActive(r)}
-                        title={r.isActive ? "Deactivate" : "Activate"}
-                      >
-                        <Power className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setAsDefault(r)}
-                        disabled={!r.isActive || r.isDefault}
-                        title="Set as default"
-                      >
-                        <Star className={`h-3 w-3 ${r.isDefault ? "fill-yellow-500 text-yellow-500" : ""}`} />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {rates.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    {t("NO_INTEREST_RATES_FOUND")}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <FormModal
+        isOpen={showDialog}
+        setIsOpen={setShowDialog}
+        title={t("CREATE_INTEREST_RATE")}
+        onSubmit={handleAdd}
+        isSubmitting={saving}
+        submitLabel={t("CREATE_RATE")}
+      >
+        <p className="text-muted small mb-0">
+          {activeRates.length === 0
+            ? "This will be set as default automatically because this is the first active rate."
+            : "Choose whether this new rate should become the default active rate."}
+        </p>
+        <FormGroup id="rateName" label={t("RATE_NAME")} isFloating>
+          <Input value={name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)} required placeholder="e.g. Standard Rate" />
+        </FormGroup>
+        <FormGroup id="ratePercent" label={t("RATE_PERCENT_LABEL")} isFloating>
+          <Input type="number" step={0.01} value={ratePercent} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRatePercent(e.target.value)} required />
+        </FormGroup>
+        <FormGroup id="firstMonthRatePercent" label={t("FIRST_MONTH_RATE_PERCENT")} isFloating>
+          <Input
+            type="number"
+            step={0.01}
+            value={firstMonthRatePercent}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFirstMonthRatePercent(e.target.value)}
+            placeholder={t("DEFAULTS_TO_RATE_DIVIDED_12")}
+          />
+        </FormGroup>
+        {activeRates.length > 0 && (
+          <Checks
+            id="set-default"
+            label={t("SET_AS_DEFAULT_ACTIVE_RATE")}
+            checked={isDefault}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIsDefault(e.target.checked)}
+          />
+        )}
+      </FormModal>
 
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("CREATE_INTEREST_RATE")}</DialogTitle>
-            <DialogDescription>
-              {activeRates.length === 0
-                ? "This will be set as default automatically because this is the first active rate."
-                : "Choose whether this new rate should become the default active rate."}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAdd} className="space-y-4">
-            <div>
-              <Label>{t("RATE_NAME")}</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Standard Rate" />
-            </div>
-            <div>
-              <Label>{t("RATE_PERCENT_LABEL")}</Label>
-              <Input type="number" step="0.01" value={ratePercent} onChange={(e) => setRatePercent(e.target.value)} required />
-            </div>
-            <div>
-              <Label>{t("FIRST_MONTH_RATE_PERCENT")}</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={firstMonthRatePercent}
-                onChange={(e) => setFirstMonthRatePercent(e.target.value)}
-                placeholder={t("DEFAULTS_TO_RATE_DIVIDED_12")}
-              />
-            </div>
-
-            {activeRates.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <Checkbox id="set-default" checked={isDefault} onCheckedChange={(v) => setIsDefault(!!v)} />
-                <Label htmlFor="set-default">{t("SET_AS_DEFAULT_ACTIVE_RATE")}</Label>
-              </div>
-            )}
-
-            <Button type="submit" className="w-full">
-              {t("CREATE_RATE")}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("SELECT_REPLACEMENT_DEFAULT")}</DialogTitle>
-            <DialogDescription>
-              {t("DEACTIVATING_DEFAULT_RATE_MSG")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label>{t("NEW_DEFAULT_RATE")}</Label>
-              <Select value={replacementDefaultRateId} onValueChange={setReplacementDefaultRateId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("SELECT_REPLACEMENT_DEFAULT_RATE")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {replacementCandidates.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.name} - {r.ratePercent}%
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowReplaceDialog(false);
-                  setTargetDeactivateRate(null);
-                  setReplacementDefaultRateId("");
-                }}
-              >
-                {t("CANCEL")}
-              </Button>
-              <Button onClick={confirmDeactivateDefault}>{t("CONFIRM")}</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+      <FormModal
+        isOpen={showReplaceDialog}
+        setIsOpen={(open) => {
+          setShowReplaceDialog(open);
+          if (!open) {
+            setTargetDeactivateRate(null);
+            setReplacementDefaultRateId("");
+          }
+        }}
+        title={t("SELECT_REPLACEMENT_DEFAULT")}
+        onSubmit={confirmDeactivateDefault}
+        isSubmitting={replacing}
+        submitLabel={t("CONFIRM")}
+      >
+        <p className="text-muted small mb-0">{t("DEACTIVATING_DEFAULT_RATE_MSG")}</p>
+        <FormGroup id="replacementDefaultRateId" label={t("NEW_DEFAULT_RATE")}>
+          <Select
+            ariaLabel={t("NEW_DEFAULT_RATE")}
+            value={replacementDefaultRateId}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setReplacementDefaultRateId(e.target.value)}
+            placeholder={t("SELECT_REPLACEMENT_DEFAULT_RATE")}
+          >
+            {replacementCandidates.map((r) => (
+              <Option key={r.id} value={r.id}>{`${r.name} - ${r.ratePercent}%`}</Option>
+            ))}
+          </Select>
+        </FormGroup>
+      </FormModal>
+    </PageWrapper>
   );
 }

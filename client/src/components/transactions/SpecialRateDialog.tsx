@@ -1,17 +1,12 @@
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect, useId } from "react";
+import Modal, { ModalHeader, ModalTitle, ModalBody, ModalFooter } from "@/vendor/facit/components/bootstrap/Modal";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import Spinner from "@/vendor/facit/components/bootstrap/Spinner";
+import Alert from "@/vendor/facit/components/bootstrap/Alert";
+import FormGroup from "@/vendor/facit/components/bootstrap/forms/FormGroup";
+import Input from "@/vendor/facit/components/bootstrap/forms/Input";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
-import { AlertCircle, Lock, TrendingDown } from "lucide-react";
 
 interface SpecialRateDialogProps {
   transactionId: string;
@@ -25,7 +20,6 @@ interface SpecialRateDialogProps {
 
 export function SpecialRateDialog({
   transactionId,
-  customerId,
   currentRate,
   prefilledRate,
   open,
@@ -36,263 +30,172 @@ export function SpecialRateDialog({
   const [pinVerification, setPinVerification] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"rate" | "verify">(prefilledRate ? "verify" : "rate");
-  const [hasManagerPin, setHasManagerPin] = useState(false);
   const [managerUserId, setManagerUserId] = useState<string>("");
-  const { toast } = useToast();
+  const titleId = `special-rate-title-${useId()}`;
 
-  // Check if manager has PIN set
   useEffect(() => {
     if (open) {
       checkManagerPin();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const checkManagerPin = async () => {
     try {
-      // Get current manager's ID from localStorage or context
       const userId = localStorage.getItem("userId");
       if (!userId) {
-        toast({
-          title: "Error",
-          description: "Could not determine manager ID",
-          variant: "destructive",
-        });
+        notify({ title: "Error", description: "Could not determine manager ID", variant: "destructive" });
         return;
       }
 
       setManagerUserId(userId);
 
-      // Check if manager has PIN set
       const result = await apiClient.users.hasPinSet(userId);
-      setHasManagerPin(result.hasPinSet);
 
       if (!result.hasPinSet) {
-        toast({
-          title: "PIN Not Set",
-          description: "You must set a PIN before applying special rates",
-          variant: "destructive",
-        });
+        notify({ title: "PIN Not Set", description: "You must set a PIN before applying special rates", variant: "destructive" });
         onOpenChange(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to check PIN status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to check PIN status",
-        variant: "destructive",
-      });
+      notify({ title: "Error", description: "Failed to check PIN status", variant: "destructive" });
     }
   };
 
-  const handleApplyRate = async () => {
+  const handleApplyRate = () => {
     if (!specialRate || parseFloat(specialRate) < 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a valid special rate",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please enter a valid special rate", variant: "destructive" });
       return;
     }
 
     if (parseFloat(specialRate) >= 100) {
-      toast({
-        title: "Validation Error",
-        description: "Special rate cannot be 100% or higher",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Special rate cannot be 100% or higher", variant: "destructive" });
       return;
     }
 
-    // Move to PIN verification step
     setStep("verify");
   };
 
   const handleVerifyPin = async () => {
     if (!pinVerification.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter your PIN",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please enter your PIN", variant: "destructive" });
       return;
     }
 
     try {
       setLoading(true);
 
-      // Verify manager's PIN
       const result = await apiClient.users.verifyPin(managerUserId, pinVerification);
 
       if (!result.valid) {
-        toast({
-          title: "Invalid PIN",
-          description: "The PIN you entered is incorrect",
-          variant: "destructive",
-        });
+        notify({ title: "Invalid PIN", description: "The PIN you entered is incorrect", variant: "destructive" });
         return;
       }
 
-      // Apply special rate to transaction
-      await apiClient.pawnTransactions.updateSpecialRate(transactionId, {
-        specialRate: parseFloat(specialRate),
-        customerId: customerId,
+      // NOTE: this previously called a nonexistent apiClient.pawnTransactions.updateSpecialRate,
+      // which would throw at runtime — the feature was completely broken. updateDetails with
+      // interestRatePercent is the real, working endpoint (see TransactionEdit.tsx's identical use).
+      await apiClient.pawnTransactions.updateDetails(transactionId, {
+        interestRatePercent: parseFloat(specialRate),
       });
 
-      toast({
-        title: "Success",
-        description: `Special rate of ${specialRate}% applied successfully`,
-      });
+      notify({ title: "Success", description: `Special rate of ${specialRate}% applied successfully`, variant: "success" });
 
-      // Reset and close
       setSpecialRate(String(currentRate));
       setPinVerification("");
       setStep("rate");
       onOpenChange(false);
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to apply special rate:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to apply special rate",
-        variant: "destructive",
-      });
+      const message = error instanceof Error ? error.message : "Failed to apply special rate";
+      notify({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <TrendingDown className="h-5 w-5" />
-            Apply Special Rate
-          </DialogTitle>
-          <DialogDescription>
-            Set a custom interest rate for this customer
-          </DialogDescription>
-        </DialogHeader>
+    <Modal isOpen={open} setIsOpen={onOpenChange} titleId={titleId} isCentered size="sm">
+      <ModalHeader setIsOpen={onOpenChange}>
+        <ModalTitle id={titleId}>Apply Special Rate</ModalTitle>
+      </ModalHeader>
+      <ModalBody>
+        <p className="text-muted small mb-3">Set a custom interest rate for this customer</p>
 
         {step === "rate" && (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentRate">Current Rate</Label>
-              <Input
-                id="currentRate"
-                type="number"
-                value={currentRate}
-                disabled
-                className="bg-muted"
-                step="0.01"
-              />
-              <p className="text-xs text-muted-foreground">
-                Current interest rate for this transaction
-              </p>
-            </div>
+          <>
+            <FormGroup id="currentRate" label="Current Rate" isFloating className="mb-3" formText="Current interest rate for this transaction">
+              <Input type="number" value={currentRate} disabled step={0.01} />
+            </FormGroup>
 
-            <div className="space-y-2">
-              <Label htmlFor="specialRate">Special Rate (%)</Label>
+            <FormGroup id="specialRate" label="Special Rate (%)" isFloating className="mb-3" formText="Enter the new interest rate percentage (0-99.99%)">
               <Input
-                id="specialRate"
                 type="number"
                 placeholder="Enter special rate percentage"
                 value={specialRate}
-                onChange={(e) => setSpecialRate(e.target.value)}
-                step="0.01"
-                min="0"
-                max="99.99"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSpecialRate(e.target.value)}
+                step={0.01}
+                min={0}
+                max={99.99}
                 disabled={loading}
               />
-              <p className="text-xs text-muted-foreground">
-                Enter the new interest rate percentage (0-99.99%)
-              </p>
-            </div>
+            </FormGroup>
 
             {parseFloat(specialRate) < parseFloat(String(currentRate)) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex gap-2">
-                <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800">
-                  This rate is lower than the current rate. PIN verification is required to apply.
-                </p>
-              </div>
+              <Alert color="info" isLight icon="Info" className="mb-3">
+                This rate is lower than the current rate. PIN verification is required to apply.
+              </Alert>
             )}
 
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="d-flex justify-content-end gap-2">
               <Button
-                variant="outline"
-                onClick={() => {
-                  setSpecialRate(String(currentRate));
-                  onOpenChange(false);
-                }}
-                disabled={loading}
+                color="dark"
+                isLight
+                onClick={() => { setSpecialRate(String(currentRate)); onOpenChange(false); }}
+                isDisable={loading}
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleApplyRate}
-                disabled={loading}
-                className="gap-2"
-              >
+              <Button color="primary" onClick={handleApplyRate} isDisable={loading}>
                 {loading ? "Processing..." : "Next: Verify PIN"}
               </Button>
             </div>
-          </div>
+          </>
         )}
 
         {step === "verify" && (
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <p className="text-sm font-medium text-blue-900">
-                Applying Special Rate: <span className="font-bold text-lg">{specialRate}%</span>
+          <>
+            <Alert color="info" isLight className="mb-3">
+              <p className="fw-medium mb-0">
+                Applying Special Rate: <span className="fw-bold fs-5">{specialRate}%</span>
               </p>
-              <p className="text-xs text-blue-800 mt-1">
-                PIN verification required to confirm
-              </p>
-            </div>
+              <p className="small mb-0 mt-1">PIN verification required to confirm</p>
+            </Alert>
 
-            <div className="space-y-2">
-              <Label htmlFor="pin" className="flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                Enter Your PIN
-              </Label>
+            <FormGroup id="pin" label="Enter Your PIN" isFloating className="mb-3" formText="Your PIN is required to apply special rates">
               <Input
-                id="pin"
                 type="password"
                 placeholder="Enter your 4-6 digit PIN"
                 value={pinVerification}
-                onChange={(e) => setPinVerification(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPinVerification(e.target.value)}
                 maxLength={6}
                 disabled={loading}
               />
-              <p className="text-xs text-muted-foreground">
-                Your PIN is required to apply special rates
-              </p>
-            </div>
+            </FormGroup>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setPinVerification("");
-                  setStep("rate");
-                }}
-                disabled={loading}
-              >
+            <div className="d-flex justify-content-end gap-2">
+              <Button color="dark" isLight onClick={() => { setPinVerification(""); setStep("rate"); }} isDisable={loading}>
                 Back
               </Button>
-              <Button
-                onClick={handleVerifyPin}
-                disabled={loading}
-                className="gap-2"
-              >
+              <Button color="primary" onClick={handleVerifyPin} isDisable={loading} icon="Lock">
+                {loading && <Spinner isSmall inButton />}
                 {loading ? "Verifying..." : "Verify & Apply"}
               </Button>
             </div>
-          </div>
+          </>
         )}
-      </DialogContent>
-    </Dialog>
+      </ModalBody>
+    </Modal>
   );
 }
-

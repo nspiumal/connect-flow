@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody, CardHeader, CardTitle } from "@/vendor/facit/components/bootstrap/Card";
+import Badge from "@/vendor/facit/components/bootstrap/Badge";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { Image as ImageIcon, ArrowLeft } from "lucide-react";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
-import { useToast } from "@/hooks/use-toast";
 import { formatWeight } from "@/lib/utils";
+import { TColor } from "@/vendor/facit/type/color-type";
 
 interface ItemDetail {
   description: string;
@@ -47,13 +49,39 @@ interface TransactionHistory {
   createdAt?: string;
 }
 
+interface RawTransaction {
+  pawnId?: string; pawn_id?: string;
+  customerName?: string; customer_name?: string;
+  customer?: { fullName?: string; gender?: string; nic?: string; phone?: string; address?: string };
+  gender?: string;
+  idType?: string; id_type?: string;
+  customerNic?: string; customer_nic?: string;
+  customerPhone?: string; customer_phone?: string;
+  customerAddress?: string; customer_address?: string;
+  itemDetails?: unknown[]; items?: unknown[];
+  itemDescription?: string; itemContent?: string; itemCondition?: string;
+  itemWeightGrams?: number; itemKarat?: string | number; appraisedValue?: number;
+  imageUrls?: string[]; images?: string[];
+  loanAmount?: number; loan_amount?: number;
+  interestRatePercent?: number; interest_rate_percent?: number;
+  periodMonths?: number; period_months?: number;
+  pawnDate?: string; pawn_date?: string;
+  maturityDate?: string; maturity_date?: string;
+  status?: string;
+  remarks?: string;
+  blockReason?: string; block_reason?: string;
+  policeReportNumber?: string;
+  policeReportDate?: string;
+}
+
+const STATUS_COLOR: Record<string, TColor> = { Active: "primary", Completed: "secondary", Profited: "warning" };
+
 export default function TransactionInfo() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const [loadingData, setLoadingData] = useState(true);
-  const [transaction, setTransaction] = useState<any>(null);
+  const [transaction, setTransaction] = useState<RawTransaction | null>(null);
   const [items, setItems] = useState<ItemDetail[]>([]);
   const [imageBlobUrls, setImageBlobUrls] = useState<{ [key: string]: string }>({});
   const [history, setHistory] = useState<TransactionHistory[]>([]);
@@ -64,39 +92,62 @@ export default function TransactionInfo() {
       fetchTransaction(id);
       fetchHistory(id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const loadImageWithAuth = async (imageUrl: string, imageKey: string) => {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+      const token = localStorage.getItem("token");
+      let fullImageUrl = imageUrl;
+      if (!imageUrl.startsWith("http") && !imageUrl.startsWith("data:")) {
+        fullImageUrl = imageUrl.includes("pawn-transactions")
+          ? `${apiBaseUrl}/images/pawn-transactions/${imageUrl.split("pawn-transactions/")[1]}`
+          : `${apiBaseUrl}${imageUrl}`;
+      }
+      const response = await fetch(fullImageUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (response.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        return;
+      }
+      if (!response.ok) return;
+      const blob = await response.blob();
+      setImageBlobUrls((prev) => ({ ...prev, [imageKey]: URL.createObjectURL(blob) }));
+    } catch (error) {
+      console.error("Failed to load image:", error);
+    }
+  };
 
   const fetchTransaction = async (transactionId: string) => {
     try {
       setLoadingData(true);
-      const response = await apiClient.pawnTransactions.getById(transactionId);
+      const response: RawTransaction = await apiClient.pawnTransactions.getById(transactionId);
       setTransaction(response);
 
-      // Support both flat (itemDetails) and nested (items) response formats
       const rawItems = response.itemDetails || response.items;
 
       if (rawItems && Array.isArray(rawItems) && rawItems.length > 0) {
-        const itemsWithImages = rawItems.map((item: any) => {
-          // Images can be plain URL strings or objects with an imageUrl property
-          const rawImages: any[] = item.imageUrls || item.images || [];
-          const imageUrls: string[] = rawImages.map((img: any) =>
-            typeof img === "string" ? img : img.imageUrl || ""
-          ).filter(Boolean);
+        const itemsWithImages: ItemDetail[] = rawItems.map((raw) => {
+          const item = raw as Record<string, unknown>;
+          const rawImages = (item.imageUrls || item.images || []) as unknown[];
+          const imageUrls: string[] = rawImages
+            .map((img) => (typeof img === "string" ? img : (img as { imageUrl?: string })?.imageUrl || ""))
+            .filter(Boolean);
           return {
-            description: item.itemDescription || item.description || "",
-            content: item.itemContent || item.content || "",
-            condition: item.itemCondition || item.condition || "Good",
-            weightGrams: item.itemWeightGrams || item.weightGrams || 0,
-            karat: item.itemKarat ?? item.karat ?? 24,
-            appraisedValue: item.appraisedValue || 0,
+            description: (item.itemDescription || item.description || "") as string,
+            content: (item.itemContent || item.content || "") as string,
+            condition: (item.itemCondition || item.condition || "Good") as string,
+            weightGrams: (item.itemWeightGrams || item.weightGrams || 0) as number,
+            karat: (item.itemKarat ?? item.karat ?? 24) as string | number,
+            appraisedValue: (item.appraisedValue || 0) as number,
             images: imageUrls,
           };
         });
         setItems(itemsWithImages);
-        itemsWithImages.forEach((item: ItemDetail, itemIndex: number) => {
-          item.images.forEach((imageUrl: string, imageIndex: number) => {
-            loadImageWithAuth(imageUrl, `${itemIndex}-${imageIndex}`);
-          });
+        itemsWithImages.forEach((item, itemIndex) => {
+          item.images.forEach((imageUrl, imageIndex) => loadImageWithAuth(imageUrl, `${itemIndex}-${imageIndex}`));
         });
       } else {
         const singleItem: ItemDetail = {
@@ -109,13 +160,11 @@ export default function TransactionInfo() {
           images: response.imageUrls || response.images || [],
         };
         setItems([singleItem]);
-        singleItem.images.forEach((imageUrl: string, index: number) => {
-          loadImageWithAuth(imageUrl, `0-${index}`);
-        });
+        singleItem.images.forEach((imageUrl, index) => loadImageWithAuth(imageUrl, `0-${index}`));
       }
     } catch (error) {
       console.error("Failed to fetch transaction:", error);
-      toast({ title: "Error", description: "Failed to load transaction details", variant: "destructive" });
+      notify({ title: "Error", description: "Failed to load transaction details", variant: "destructive" });
       navigate("/transactions");
     } finally {
       setLoadingData(false);
@@ -135,44 +184,10 @@ export default function TransactionInfo() {
     }
   };
 
-  const loadImageWithAuth = async (imageUrl: string, imageKey: string) => {
-    try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
-      const token = localStorage.getItem("token");
-      let fullImageUrl = imageUrl;
-      if (!imageUrl.startsWith("http") && !imageUrl.startsWith("data:")) {
-        fullImageUrl = imageUrl.includes("pawn-transactions")
-          ? `${apiBaseUrl}/images/pawn-transactions/${imageUrl.split("pawn-transactions/")[1]}`
-          : `${apiBaseUrl}${imageUrl}`;
-      }
-      const response = await fetch(fullImageUrl, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (response.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-        return;
-      }
-      if (!response.ok) return;
-      const blob = await response.blob();
-      setImageBlobUrls((prev) => ({ ...prev, [imageKey]: URL.createObjectURL(blob) }));
-    } catch (error) {
-      console.error("Failed to load image:", error);
-    }
-  };
-
   const getImageSrc = (imageUrl: string, imageKey: string) => {
     if (imageBlobUrls[imageKey]) return imageBlobUrls[imageKey];
     if (imageUrl.startsWith("data:") || imageUrl.startsWith("http")) return imageUrl;
     return "";
-  };
-
-  const statusBadgeVariant = (s: string) => {
-    if (s === "Active") return "default";
-    if (s === "Completed") return "secondary";
-    if (s === "Profited") return "outline";
-    return "destructive";
   };
 
   const formatDateTime = (value?: string) => {
@@ -185,8 +200,8 @@ export default function TransactionInfo() {
   const renderChange = (label: string, previousValue?: string | number, newValue?: string | number) => {
     if (previousValue == null && newValue == null) return null;
     return (
-      <div className="text-xs text-foreground/80">
-        <span className="font-medium">{label}:</span> {previousValue ?? "—"} → {newValue ?? "—"}
+      <div className="small text-body-secondary">
+        <span className="fw-medium">{label}:</span> {previousValue ?? "—"} → {newValue ?? "—"}
       </div>
     );
   };
@@ -198,256 +213,239 @@ export default function TransactionInfo() {
   const status = transaction?.status || "Active";
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate("/transactions")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Transaction Info</h1>
-          <p className="text-sm text-muted-foreground">
-            Receipt No: {transaction?.pawnId || transaction?.pawn_id}
-          </p>
-        </div>
-      </div>
+    <PageWrapper title="Transaction Info">
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb
+            list={[
+              { title: "Pawn Transactions", to: "/transactions" },
+              { title: transaction?.pawnId || transaction?.pawn_id || "Info", to: `/transactions/info/${id}` },
+            ]}
+          />
+        </SubHeaderLeft>
+      </SubHeader>
+      <Page>
+        <div className="row g-4">
+          <div className="col-12 col-lg-6 d-flex flex-column gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Customer Information</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <div className="row g-3 small">
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Customer Name</div>
+                    <p className="fw-medium mb-0">{transaction?.customerName || transaction?.customer_name || transaction?.customer?.fullName || "N/A"}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Gender</div>
+                    <p className="fw-medium mb-0">{transaction?.gender || transaction?.customer?.gender || "N/A"}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>ID Type</div>
+                    <p className="fw-medium mb-0">{transaction?.idType || transaction?.id_type || "NIC"}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>ID Number</div>
+                    <p className="fw-medium mb-0">{transaction?.customerNic || transaction?.customer_nic || transaction?.customer?.nic || "N/A"}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Phone</div>
+                    <p className="fw-medium mb-0">{transaction?.customerPhone || transaction?.customer_phone || transaction?.customer?.phone || "N/A"}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Address</div>
+                    <p className="fw-medium text-truncate mb-0">{transaction?.customerAddress || transaction?.customer_address || transaction?.customer?.address || "N/A"}</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* ── Left Column ── */}
-        <div className="space-y-4">
-
-          {/* Customer Information */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Customer Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Customer Name</Label>
-                  <p className="font-medium">{transaction?.customerName || transaction?.customer_name || transaction?.customer?.fullName || "N/A"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Gender</Label>
-                  <p className="font-medium">{transaction?.gender || transaction?.customer?.gender || "N/A"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">ID Type</Label>
-                  <p className="font-medium">{transaction?.idType || transaction?.id_type || "NIC"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">ID Number</Label>
-                  <p className="font-medium">{transaction?.customerNic || transaction?.customer_nic || transaction?.customer?.nic || "N/A"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Phone</Label>
-                  <p className="font-medium">{transaction?.customerPhone || transaction?.customer_phone || transaction?.customer?.phone || "N/A"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Address</Label>
-                  <p className="font-medium truncate">{transaction?.customerAddress || transaction?.customer_address || transaction?.customer?.address || "N/A"}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Item Details */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Item Details ({items.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Item Details ({items.length})</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0 d-flex flex-column gap-3">
                 {items.map((item, itemIndex) => (
-                  <div key={itemIndex} className="p-3 rounded border bg-muted/30 space-y-2 text-sm">
-                    <p className="text-xs font-semibold text-muted-foreground">Item {itemIndex + 1}</p>
-                    <div className="grid grid-cols-3 gap-x-3 gap-y-2">
-                      <div className="col-span-3">
-                        <Label className="text-xs text-muted-foreground">Description</Label>
-                        <p className="font-medium">{item.description || "N/A"}</p>
+                  <div key={itemIndex} className="p-3 rounded border bg-body-tertiary small">
+                    <p className="text-muted fw-semibold" style={{ fontSize: "0.75rem" }}>Item {itemIndex + 1}</p>
+                    <div className="row g-2">
+                      <div className="col-12">
+                        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Description</div>
+                        <p className="fw-medium mb-0">{item.description || "N/A"}</p>
                       </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Weight</Label>
-                        <p className="font-medium">{formatWeight(item.weightGrams)}g</p>
+                      <div className="col-4">
+                        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Weight</div>
+                        <p className="fw-medium mb-0">{formatWeight(item.weightGrams)}g</p>
                       </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Karat</Label>
-                        <p className="font-medium">{item.karat === "N/A" || String(item.karat).includes("K") ? item.karat : `${item.karat}K`}</p>
+                      <div className="col-4">
+                        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Karat</div>
+                        <p className="fw-medium mb-0">{item.karat === "N/A" || String(item.karat).includes("K") ? item.karat : `${item.karat}K`}</p>
                       </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Condition</Label>
-                        <p className="font-medium">{item.condition}</p>
+                      <div className="col-4">
+                        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Condition</div>
+                        <p className="fw-medium mb-0">{item.condition}</p>
                       </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Content/Type</Label>
-                        <p className="font-medium">{item.content || "N/A"}</p>
+                      <div className="col-6">
+                        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Content/Type</div>
+                        <p className="fw-medium mb-0">{item.content || "N/A"}</p>
                       </div>
-                      <div className="col-span-2">
-                        <Label className="text-xs text-muted-foreground">Appraised Value</Label>
-                        <p className="font-medium">Rs. {item.appraisedValue.toLocaleString()}</p>
+                      <div className="col-6">
+                        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Appraised Value</div>
+                        <p className="fw-medium mb-0">Rs. {item.appraisedValue.toLocaleString()}</p>
                       </div>
                     </div>
 
-                    {/* Item Images */}
                     {item.images && item.images.length > 0 && (
-                      <div className="pt-2 space-y-2">
-                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                          <ImageIcon className="h-3 w-3" /> Images ({item.images.length})
-                        </Label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {item.images.map((imageUrl: string, imageIndex: number) => (
-                            <img
-                              key={imageIndex}
-                              src={getImageSrc(imageUrl, `${itemIndex}-${imageIndex}`)}
-                              alt={`Item ${itemIndex + 1} Image ${imageIndex + 1}`}
-                              className="w-full h-20 object-cover rounded border"
-                            />
+                      <div className="pt-2">
+                        <div className="text-muted d-flex align-items-center gap-1 mb-2" style={{ fontSize: "0.75rem" }}>
+                          Images ({item.images.length})
+                        </div>
+                        <div className="row g-2">
+                          {item.images.map((imageUrl, imageIndex) => (
+                            <div key={imageIndex} className="col-4">
+                              <img
+                                src={getImageSrc(imageUrl, `${itemIndex}-${imageIndex}`)}
+                                alt={`Item ${itemIndex + 1} Image ${imageIndex + 1}`}
+                                className="w-100 rounded border"
+                                style={{ height: 80, objectFit: "cover" }}
+                              />
+                            </div>
                           ))}
                         </div>
                       </div>
                     )}
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardBody>
+            </Card>
+          </div>
 
-        {/* ── Right Column ── */}
-        <div className="space-y-4">
-
-          {/* Transaction Details */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Transaction Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Loan Amount</Label>
-                  <p className="font-medium">Rs. {Number(transaction?.loanAmount || transaction?.loan_amount || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Interest Rate</Label>
-                  <p className="font-medium">{transaction?.interestRatePercent || transaction?.interest_rate_percent}%</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Period</Label>
-                  <p className="font-medium">{transaction?.periodMonths || transaction?.period_months} months</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Pawn Date</Label>
-                  <p className="font-medium">{transaction?.pawnDate || transaction?.pawn_date || "N/A"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Maturity Date</Label>
-                  <p className="font-medium">{transaction?.maturityDate || transaction?.maturity_date || "N/A"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Status</Label>
-                  <Badge
-                    variant={statusBadgeVariant(status) as any}
-                    className={status === "Profited" ? "border-purple-500 text-purple-600 bg-purple-50" : ""}
-                  >
-                    {status === "Profited" ? "Forfeited" : status}
-                  </Badge>
-                </div>
-                {transaction?.remarks && (
-                  <div className="col-span-2">
-                    <Label className="text-xs text-muted-foreground">Remarks</Label>
-                    <p className="font-medium text-sm">{transaction.remarks}</p>
+          <div className="col-12 col-lg-6 d-flex flex-column gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Transaction Details</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <div className="row g-3 small">
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Loan Amount</div>
+                    <p className="fw-medium mb-0">Rs. {Number(transaction?.loanAmount || transaction?.loan_amount || 0).toLocaleString()}</p>
                   </div>
-                )}
-                {status === "Blocked" && (
-                  <>
-                    <div className="col-span-2">
-                      <Label className="text-xs text-red-500">Block Reason</Label>
-                      <p className="font-medium text-sm text-destructive">{transaction?.blockReason || transaction?.block_reason || "—"}</p>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Interest Rate</div>
+                    <p className="fw-medium mb-0">{transaction?.interestRatePercent || transaction?.interest_rate_percent}%</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Period</div>
+                    <p className="fw-medium mb-0">{transaction?.periodMonths || transaction?.period_months} months</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Pawn Date</div>
+                    <p className="fw-medium mb-0">{transaction?.pawnDate || transaction?.pawn_date || "N/A"}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Maturity Date</div>
+                    <p className="fw-medium mb-0">{transaction?.maturityDate || transaction?.maturity_date || "N/A"}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Status</div>
+                    <div>
+                      <Badge color={status === "Blocked" ? "danger" : STATUS_COLOR[status] ?? "danger"}>
+                        {status === "Profited" ? "Forfeited" : status}
+                      </Badge>
                     </div>
-                    {transaction?.policeReportNumber && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Police Report No.</Label>
-                        <p className="font-medium">{transaction.policeReportNumber}</p>
-                      </div>
-                    )}
-                    {transaction?.policeReportDate && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Police Report Date</Label>
-                        <p className="font-medium">{transaction.policeReportDate}</p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Edit History */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Edit History (Last 10)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {historyLoading ? (
-                <p className="text-xs text-muted-foreground">Loading history...</p>
-              ) : history.length > 0 ? (
-                <div className="space-y-3">
-                  {history.map((entry) => (
-                    <div key={entry.id} className="p-3 border rounded bg-muted/30 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">{entry.editType || "EDIT"}</Badge>
-                        <span className="text-xs text-foreground/80 font-medium">
-                          {entry.editedByName || entry.editedBy || "Unknown"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
-                      </div>
-
-                      {renderChange("Status", entry.previousStatus, entry.newStatus)}
-                      {renderChange("Address", entry.previousAddress, entry.newAddress)}
-                      {renderChange("Phone", entry.previousPhone, entry.newPhone)}
-
-                      {entry.editType === "REDEMPTION" && entry.newLoanAmount != null && (
-                        <div className="text-xs text-foreground/80">
-                          <span className="font-medium">Remaining Balance:</span>{" "}
-                          <span className="text-orange-600 font-semibold">
-                            Rs. {Number(entry.newLoanAmount).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                      {entry.editType !== "REDEMPTION" && renderChange("Loan Amount", entry.previousLoanAmount, entry.newLoanAmount)}
-                      {renderChange("Period (Months)", entry.previousPeriodMonths, entry.newPeriodMonths)}
-                      {renderChange("Maturity Date", entry.previousMaturityDate, entry.newMaturityDate)}
-
-                      {entry.editType === "REDEMPTION" && entry.newRemarks && (
-                        <div className="text-xs bg-blue-50 p-2 rounded border border-blue-200">
-                          <span className="font-medium text-blue-900">Payment Details:</span>
-                          <p className="text-blue-800 mt-0.5">{entry.newRemarks}</p>
-                        </div>
-                      )}
-                      {entry.editType !== "REDEMPTION" && renderChange("Remarks", entry.previousRemarks, entry.newRemarks)}
-
-                      {entry.blockReason && (
-                        <div className="text-xs text-foreground/80">
-                          <span className="font-medium">Block Reason:</span> {entry.blockReason}
-                        </div>
-                      )}
-                      {entry.policeReportNumber && (
-                        <div className="text-xs text-foreground/80">
-                          <span className="font-medium">Police Report No.:</span> {entry.policeReportNumber}
-                        </div>
-                      )}
+                  </div>
+                  {transaction?.remarks && (
+                    <div className="col-12">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Remarks</div>
+                      <p className="fw-medium small mb-0">{transaction.remarks}</p>
                     </div>
-                  ))}
+                  )}
+                  {status === "Blocked" && (
+                    <>
+                      <div className="col-12">
+                        <div className="text-danger" style={{ fontSize: "0.75rem" }}>Block Reason</div>
+                        <p className="fw-medium small text-danger mb-0">{transaction?.blockReason || transaction?.block_reason || "—"}</p>
+                      </div>
+                      {transaction?.policeReportNumber && (
+                        <div className="col-6">
+                          <div className="text-muted" style={{ fontSize: "0.75rem" }}>Police Report No.</div>
+                          <p className="fw-medium mb-0">{transaction.policeReportNumber}</p>
+                        </div>
+                      )}
+                      {transaction?.policeReportDate && (
+                        <div className="col-6">
+                          <div className="text-muted" style={{ fontSize: "0.75rem" }}>Police Report Date</div>
+                          <p className="fw-medium mb-0">{transaction.policeReportDate}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No edit history found.</p>
-              )}
-            </CardContent>
-          </Card>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Edit History (Last 10)</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                {historyLoading ? (
+                  <p className="small text-muted mb-0">Loading history...</p>
+                ) : history.length > 0 ? (
+                  <div className="d-flex flex-column gap-3">
+                    {history.map((entry) => (
+                      <div key={entry.id} className="p-3 border rounded bg-body-tertiary">
+                        <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                          <Badge color="secondary" isLight>{entry.editType || "EDIT"}</Badge>
+                          <span className="small fw-medium">{entry.editedByName || entry.editedBy || "Unknown"}</span>
+                          <span className="small text-muted">{formatDateTime(entry.createdAt)}</span>
+                        </div>
+
+                        {renderChange("Status", entry.previousStatus, entry.newStatus)}
+                        {renderChange("Address", entry.previousAddress, entry.newAddress)}
+                        {renderChange("Phone", entry.previousPhone, entry.newPhone)}
+
+                        {entry.editType === "REDEMPTION" && entry.newLoanAmount != null && (
+                          <div className="small text-body-secondary">
+                            <span className="fw-medium">Remaining Balance:</span>{" "}
+                            <span className="text-warning fw-semibold">Rs. {Number(entry.newLoanAmount).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {entry.editType !== "REDEMPTION" && renderChange("Loan Amount", entry.previousLoanAmount, entry.newLoanAmount)}
+                        {renderChange("Period (Months)", entry.previousPeriodMonths, entry.newPeriodMonths)}
+                        {renderChange("Maturity Date", entry.previousMaturityDate, entry.newMaturityDate)}
+
+                        {entry.editType === "REDEMPTION" && entry.newRemarks && (
+                          <div className="small bg-l10-info p-2 rounded border mt-1">
+                            <span className="fw-medium">Payment Details:</span>
+                            <p className="mt-0.5 mb-0">{entry.newRemarks}</p>
+                          </div>
+                        )}
+                        {entry.editType !== "REDEMPTION" && renderChange("Remarks", entry.previousRemarks, entry.newRemarks)}
+
+                        {entry.blockReason && (
+                          <div className="small text-body-secondary">
+                            <span className="fw-medium">Block Reason:</span> {entry.blockReason}
+                          </div>
+                        )}
+                        {entry.policeReportNumber && (
+                          <div className="small text-body-secondary">
+                            <span className="fw-medium">Police Report No.:</span> {entry.policeReportNumber}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="small text-muted mb-0">No edit history found.</p>
+                )}
+              </CardBody>
+            </Card>
+          </div>
         </div>
-      </div>
-    </div>
+      </Page>
+    </PageWrapper>
   );
 }

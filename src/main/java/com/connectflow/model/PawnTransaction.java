@@ -44,10 +44,12 @@ public class PawnTransaction {
     private Customer customer;
 
     @Column(name = "id_type")
+    @Builder.Default
     private String idType = "NIC";
 
 
     @Column(name = "pattern_mode", nullable = false, length = 1)
+    @Builder.Default
     private String patternMode = "A";
 
     @Column(name = "loan_amount", nullable = false, precision = 18, scale = 2)
@@ -67,6 +69,7 @@ public class PawnTransaction {
     private BigDecimal firstMonthInterestRatePercent;
 
     @Column(name = "period_months", nullable = false)
+    @Builder.Default
     private Integer periodMonths = 6;
 
     @Column(name = "pawn_date", nullable = false)
@@ -79,6 +82,7 @@ public class PawnTransaction {
     private LocalDate lastRedemptionDate;
 
     @Column(nullable = false)
+    @Builder.Default
     private String status = "Active";
 
     @Column(columnDefinition = "TEXT")

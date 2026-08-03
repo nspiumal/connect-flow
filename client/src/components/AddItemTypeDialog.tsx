@@ -1,106 +1,84 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { FormModal } from "@/components/facit/FormModal";
+import FormGroup from "@/vendor/facit/components/bootstrap/forms/FormGroup";
+import Input from "@/vendor/facit/components/bootstrap/forms/Input";
+import Textarea from "@/vendor/facit/components/bootstrap/forms/Textarea";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
+
+interface ItemTypeResult {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 interface AddItemTypeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: (newItemType: any) => void;
+  onSuccess: (newItemType: ItemTypeResult) => void;
 }
 
 export function AddItemTypeDialog({ open, onOpenChange, onSuccess }: AddItemTypeDialogProps) {
-  const { toast } = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async () => {
     if (!name.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Item type name is required",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Item type name is required", variant: "destructive" });
       return;
     }
 
     try {
       setLoading(true);
-      const newItemType = await apiClient.itemTypes.create({
+      const newItemType: ItemTypeResult = await apiClient.itemTypes.create({
         name: name.trim(),
         description: description.trim() || null,
       });
 
-      toast({
-        title: "Success",
-        description: `Item type "${name}" created successfully`,
-      });
+      notify({ title: "Success", description: `Item type "${name}" created successfully`, variant: "success" });
 
       setName("");
       setDescription("");
       onSuccess(newItemType);
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to create item type:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create item type",
-        variant: "destructive",
-      });
+      const message = error instanceof Error ? error.message : "Failed to create item type";
+      notify({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Add New Item Type</DialogTitle>
-          <DialogDescription>
-            Create a new gold item type that will be available for all transactions.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="item-type-name">Name *</Label>
-            <Input
-              id="item-type-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Bracelet, Pendant, etc."
-              disabled={loading}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="item-type-description">Description (Optional)</Label>
-            <Textarea
-              id="item-type-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this item type"
-              disabled={loading}
-              rows={3}
-            />
-          </div>
-          <DialogFooter className="pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Item Type"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormModal
+      isOpen={open}
+      setIsOpen={onOpenChange}
+      title="Add New Item Type"
+      onSubmit={handleSubmit}
+      isSubmitting={loading}
+      submitLabel="Create Item Type"
+    >
+      <p className="text-muted small mb-0">Create a new gold item type that will be available for all transactions.</p>
+      <FormGroup id="newItemTypeName" label="Name *" isFloating>
+        <Input
+          value={name}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+          placeholder="e.g., Bracelet, Pendant, etc."
+          disabled={loading}
+          autoFocus
+        />
+      </FormGroup>
+      <FormGroup id="newItemTypeDescription" label="Description (Optional)" isFloating>
+        <Textarea
+          value={description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+          placeholder="Describe this item type"
+          disabled={loading}
+          rows={3}
+        />
+      </FormGroup>
+    </FormModal>
   );
 }

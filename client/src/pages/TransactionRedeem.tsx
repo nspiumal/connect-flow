@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import NumberInput from "@/components/ui/number-input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody, CardHeader, CardTitle } from "@/vendor/facit/components/bootstrap/Card";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import Spinner from "@/vendor/facit/components/bootstrap/Spinner";
+import Checks from "@/vendor/facit/components/bootstrap/forms/Checks";
+import FormGroup from "@/vendor/facit/components/bootstrap/forms/FormGroup";
+import Textarea from "@/vendor/facit/components/bootstrap/forms/Textarea";
+import NumberInput from "@/components/facit/NumberInput";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { ArrowLeft } from "lucide-react";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
-import { useToast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/usePermission";
 import { formatWeight } from "@/lib/utils";
 
@@ -25,7 +29,6 @@ interface ItemDetail {
 export default function TransactionRedeem() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const has = usePermission();
 
   const [loadingData, setLoadingData] = useState(true);
@@ -48,9 +51,7 @@ export default function TransactionRedeem() {
   const documentationValue = Number(documentationAmount) || 0;
   const effectiveCharges = fixedCharges + documentationValue;
   const computedOutstandingTotal = ceilToNearest10(
-    toNumber(outstandingBalance?.principal) +
-    toNumber(outstandingBalance?.accrualInterest) +
-    effectiveCharges
+    toNumber(outstandingBalance?.principal) + toNumber(outstandingBalance?.accrualInterest) + effectiveCharges
   );
 
   useEffect(() => {
@@ -108,11 +109,7 @@ export default function TransactionRedeem() {
         }
       } catch (error) {
         console.error("Failed to load redemption data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load redemption details",
-          variant: "destructive",
-        });
+        notify({ title: "Error", description: "Failed to load redemption details", variant: "destructive" });
         navigate("/transactions");
       } finally {
         setLoadingData(false);
@@ -121,7 +118,7 @@ export default function TransactionRedeem() {
 
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, navigate, toast]);
+  }, [id]);
 
   const isFirstPeriodRender = useRef(true);
   useEffect(() => {
@@ -137,35 +134,24 @@ export default function TransactionRedeem() {
         setOutstandingBalance(balance);
       } catch (error) {
         console.error("Failed to refresh outstanding balance:", error);
-        toast({
-          title: "Error",
-          description: "Failed to refresh outstanding balance",
-          variant: "destructive",
-        });
+        notify({ title: "Error", description: "Failed to refresh outstanding balance", variant: "destructive" });
       }
     };
 
     refreshBalance();
-  }, [calculationPeriod, id, toast]);
+  }, [calculationPeriod, id]);
 
-  const handleRedeemTransaction = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRedeemTransaction = async () => {
     if (!id) return;
 
     if (!redemptionAmount || parseFloat(redemptionAmount) <= 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a valid redemption amount",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please enter a valid redemption amount", variant: "destructive" });
       return;
     }
 
     try {
       setRedemptionLoading(true);
-      const notesWithDoc = `${redemptionNotes || ""}${
-        redemptionNotes ? " | " : ""
-      }Documentation: Rs. ${documentationValue.toLocaleString()}`;
+      const notesWithDoc = `${redemptionNotes || ""}${redemptionNotes ? " | " : ""}Documentation: Rs. ${documentationValue.toLocaleString()}`;
 
       const result = await apiClient.pawnRedemptions.processRedemption(id, {
         redemptionAmount: parseFloat(redemptionAmount),
@@ -175,26 +161,16 @@ export default function TransactionRedeem() {
       });
 
       if (result.isFullRedemption) {
-        toast({
-          title: "✓ Full Redemption Completed!",
-          description: "Transaction marked as CLOSED. Gold will be released.",
-        });
+        notify({ title: "✓ Full Redemption Completed!", description: "Transaction marked as CLOSED. Gold will be released.", variant: "success" });
       } else {
-        toast({
-          title: "✓ Partial Payment Recorded!",
-          description: `Remaining Principal: Rs. ${result.remainingPrincipal?.toLocaleString() || 0}`,
-        });
+        notify({ title: "✓ Partial Payment Recorded!", description: `Remaining Principal: Rs. ${result.remainingPrincipal?.toLocaleString() || 0}`, variant: "success" });
       }
 
       navigate("/transactions");
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Failed to process redemption:", error);
       const message = error instanceof Error ? error.message : "Failed to process redemption";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+      notify({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setRedemptionLoading(false);
     }
@@ -205,247 +181,181 @@ export default function TransactionRedeem() {
   }
 
   return (
-    <div className="space-y-4">
+    <PageWrapper title="Process Gold Redemption">
       <LoadingOverlay isLoading={redemptionLoading} />
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb
+            list={[
+              { title: "Pawn Transactions", to: "/transactions" },
+              { title: `Redeem ${String(transaction?.pawnId || transaction?.pawn_id || "")}`, to: `/transactions/redeem/${id}` },
+            ]}
+          />
+        </SubHeaderLeft>
+      </SubHeader>
+      <Page>
+        <div className="row g-4">
+          <div className="col-12 col-lg-6 d-flex flex-column gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Customer Information</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <div className="row g-3 small">
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Customer Name</div>
+                    <p className="fw-medium mb-0">{String(transaction?.customerName || transaction?.customer_name || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>NIC</div>
+                    <p className="fw-medium mb-0">{String(transaction?.customerNic || transaction?.customer_nic || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Phone</div>
+                    <p className="fw-medium mb-0">{String(transaction?.customerPhone || transaction?.customer_phone || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Address</div>
+                    <p className="fw-medium text-truncate mb-0">{String(transaction?.customerAddress || transaction?.customer_address || "N/A")}</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate("/transactions")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Process Gold Redemption</h1>
-          <p className="text-sm text-muted-foreground">
-            Receipt No: {String(transaction?.pawnId || transaction?.pawn_id || "")}
-          </p>
-        </div>
-      </div>
-
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left Column */}
-        <div className="space-y-4">
-          {/* Customer Information */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Customer Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Customer Name</Label>
-                  <p className="font-medium">{String(transaction?.customerName || transaction?.customer_name || "N/A")}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">NIC</Label>
-                  <p className="font-medium">{String(transaction?.customerNic || transaction?.customer_nic || "N/A")}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Phone</Label>
-                  <p className="font-medium">{String(transaction?.customerPhone || transaction?.customer_phone || "N/A")}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Address</Label>
-                  <p className="font-medium truncate">{String(transaction?.customerAddress || transaction?.customer_address || "N/A")}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Item Details */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Item Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Item Details</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0 d-flex flex-column gap-3">
                 {items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-x-3 gap-y-2 p-3 rounded border bg-muted/30 text-sm">
-                    <div className="col-span-3">
-                      <Label className="text-xs text-muted-foreground">Description</Label>
-                      <p className="font-medium">{item.description}</p>
+                  <div key={index} className="row g-2 p-3 rounded border bg-body-tertiary small">
+                    <div className="col-12">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Description</div>
+                      <p className="fw-medium mb-0">{item.description}</p>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Weight</Label>
-                      <p className="font-medium">{formatWeight(item.weightGrams)}g</p>
+                    <div className="col-4">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Weight</div>
+                      <p className="fw-medium mb-0">{formatWeight(item.weightGrams)}g</p>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Karat</Label>
-                      <p className="font-medium">{item.karat}K</p>
+                    <div className="col-4">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Karat</div>
+                      <p className="fw-medium mb-0">{item.karat}K</p>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Condition</Label>
-                      <p className="font-medium">{item.condition}</p>
+                    <div className="col-4">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Condition</div>
+                      <p className="fw-medium mb-0">{item.condition}</p>
                     </div>
-                    <div className="col-span-2">
-                      <Label className="text-xs text-muted-foreground">Appraised Value</Label>
-                      <p className="font-medium">Rs. {item.appraisedValue.toLocaleString()}</p>
+                    <div className="col-6">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Appraised Value</div>
+                      <p className="fw-medium mb-0">Rs. {item.appraisedValue.toLocaleString()}</p>
                     </div>
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardBody>
+            </Card>
+          </div>
 
-        {/* Right Column - Redemption Form */}
-        <div className="space-y-4">
-          {/* Calculation Period */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Calculation Period</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup
-                value={calculationPeriod}
-                onValueChange={(value) => setCalculationPeriod(value as "MONTHLY" | "TWO_WEEKS")}
-                className="grid grid-cols-2 gap-3"
-              >
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="MONTHLY" id="period-monthly" />
-                  <Label htmlFor="period-monthly" className="text-sm font-normal cursor-pointer">Monthly</Label>
+          <div className="col-12 col-lg-6 d-flex flex-column gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Calculation Period</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0 d-flex gap-4">
+                <Checks type="radio" name="calcPeriod" id="period-monthly" label="Monthly" value="MONTHLY" checked={calculationPeriod === "MONTHLY"} onChange={() => setCalculationPeriod("MONTHLY")} />
+                <Checks type="radio" name="calcPeriod" id="period-two-weeks" label="2 Weeks" value="TWO_WEEKS" checked={calculationPeriod === "TWO_WEEKS"} onChange={() => setCalculationPeriod("TWO_WEEKS")} />
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Outstanding Balance Breakdown</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <div className="d-flex justify-content-between small mb-2">
+                  <span className="text-muted">Principal:</span>
+                  <span className="fw-medium">Rs. {toNumber(outstandingBalance?.principal).toLocaleString()}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="TWO_WEEKS" id="period-two-weeks" />
-                  <Label htmlFor="period-two-weeks" className="text-sm font-normal cursor-pointer">2 Weeks</Label>
+                <div className="d-flex justify-content-between small mb-2">
+                  <span className="text-muted">{calculationPeriod === "MONTHLY" ? "Accrued Interest (Monthly):" : "Accrued Interest (2 Weeks):"}</span>
+                  <span className="fw-medium">Rs. {toNumber(outstandingBalance?.accrualInterest).toLocaleString()}</span>
                 </div>
-              </RadioGroup>
-            </CardContent>
-          </Card>
+                <div className="d-flex justify-content-between text-muted mb-1" style={{ fontSize: "0.75rem" }}>
+                  <span>Monthly Portion:</span>
+                  <span>Rs. {toNumber(outstandingBalance?.monthlyInterest).toLocaleString()}</span>
+                </div>
+                <div className="d-flex justify-content-between text-muted mb-2" style={{ fontSize: "0.75rem" }}>
+                  <span>Weekly Portion ({toNumber(outstandingBalance?.weeklyPeriodsCharged)} weeks):</span>
+                  <span>Rs. {toNumber(outstandingBalance?.weeklyInterest).toLocaleString()}</span>
+                </div>
+                <div className="d-flex justify-content-between small mb-2">
+                  <span className="text-muted">Charges:</span>
+                  <span className="fw-medium">Rs. {fixedCharges.toLocaleString()}</span>
+                </div>
+                <div className="d-flex justify-content-between align-items-center small mb-2">
+                  <span className="text-muted">Documentation:</span>
+                  <div style={{ width: 120 }}>
+                    <NumberInput value={documentationAmount} onChange={setDocumentationAmount} placeholder="0" />
+                  </div>
+                </div>
+                <hr className="my-2" />
+                <div className="d-flex justify-content-between fw-bold">
+                  <span>Total Outstanding:</span>
+                  <span>Rs. {computedOutstandingTotal.toLocaleString()}</span>
+                </div>
+              </CardBody>
+            </Card>
 
-          {/* Outstanding Balance Breakdown */}
-          <Card className="border-border bg-muted/40">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base text-amber-900">Outstanding Balance Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Principal:</span>
-                <span className="font-medium">Rs. {toNumber(outstandingBalance?.principal).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {calculationPeriod === "MONTHLY" ? "Accrued Interest (Monthly):" : "Accrued Interest (2 Weeks):"}
-                </span>
-                <span className="font-medium">Rs. {toNumber(outstandingBalance?.accrualInterest).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Monthly Portion:</span>
-                <span>Rs. {toNumber(outstandingBalance?.monthlyInterest).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Weekly Portion ({toNumber(outstandingBalance?.weeklyPeriodsCharged)} weeks):</span>
-                <span>Rs. {toNumber(outstandingBalance?.weeklyInterest).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Charges:</span>
-                <span className="font-medium">Rs. {fixedCharges.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Documentation:</span>
-                <NumberInput
-                  value={documentationAmount}
-                  onChange={setDocumentationAmount}
-                  className="w-28 h-7 text-right text-sm"
-                  placeholder="0"
-                />
-              </div>
-              <hr className="my-2 border-border" />
-              <div className="flex justify-between font-bold text-foreground">
-                <span>Total Outstanding:</span>
-                <span>Rs. {computedOutstandingTotal.toLocaleString()}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Redemption Form */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Redemption Payment</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleRedeemTransaction} className="space-y-4">
-                <div>
-                  <Label htmlFor="redemptionAmount" className="text-sm">Redemption Amount (LKR) *</Label>
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Redemption Payment</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <FormGroup id="redemptionAmount" label="Redemption Amount (LKR) *" formText="Payment allocation: Interest → Charges → Principal" className="mb-3">
                   <NumberInput
                     id="redemptionAmount"
                     value={redemptionAmount}
-                    onChange={(value) => {
-                      setRedemptionAmountEdited(true);
-                      setRedemptionAmount(value);
-                    }}
+                    onChange={(value) => { setRedemptionAmountEdited(true); setRedemptionAmount(value); }}
                     placeholder="Enter amount to pay"
-                    className="mt-1"
                     required
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Payment allocation: Interest → Charges → Principal
-                  </p>
-                </div>
+                </FormGroup>
 
-                {redemptionAmount && computedOutstandingTotal > 0 && (
-                  <div className="p-3 rounded border bg-muted/40">
+                {redemptionAmount && computedOutstandingTotal > 0 ? (
+                  <div className="p-3 rounded border bg-body-tertiary mb-3">
                     {parseFloat(redemptionAmount) === computedOutstandingTotal ? (
-                      <div className="flex items-center gap-2 text-green-700">
-                        <div className="h-2 w-2 rounded-full bg-green-700" />
-                        <p className="text-sm font-semibold">Full Redemption (Complete Settlement)</p>
-                      </div>
+                      <p className="small fw-semibold text-success mb-0">● Full Redemption (Complete Settlement)</p>
                     ) : parseFloat(redemptionAmount) < computedOutstandingTotal ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-blue-700">
-                          <div className="h-2 w-2 rounded-full bg-blue-700" />
-                          <p className="text-sm font-semibold">Partial Payment</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground ml-4">
-                          Remaining Principal: Rs. {(
-                            toNumber(outstandingBalance?.principal) -
-                            (parseFloat(redemptionAmount) - toNumber(outstandingBalance?.accrualInterest) - effectiveCharges)
-                          ).toLocaleString()}
+                      <>
+                        <p className="small fw-semibold text-info mb-1">● Partial Payment</p>
+                        <p className="text-muted mb-0" style={{ fontSize: "0.75rem" }}>
+                          Remaining Principal: Rs.{" "}
+                          {(toNumber(outstandingBalance?.principal) - (parseFloat(redemptionAmount) - toNumber(outstandingBalance?.accrualInterest) - effectiveCharges)).toLocaleString()}
                         </p>
-                      </div>
+                      </>
                     ) : (
-                      <div className="flex items-center gap-2 text-red-700">
-                        <div className="h-2 w-2 rounded-full bg-red-700" />
-                        <p className="text-sm font-semibold">Amount exceeds outstanding balance</p>
-                      </div>
+                      <p className="small fw-semibold text-danger mb-0">● Amount exceeds outstanding balance</p>
                     )}
                   </div>
-                )}
+                ) : null}
 
-                <div>
-                  <Label htmlFor="redemptionNotes" className="text-sm">Notes (Optional)</Label>
-                  <Textarea
-                    id="redemptionNotes"
-                    value={redemptionNotes}
-                    onChange={(e) => setRedemptionNotes(e.target.value)}
-                    placeholder="Add any notes about this redemption"
-                    rows={4}
-                    className="mt-1 text-sm"
-                  />
-                </div>
+                <FormGroup id="redemptionNotes" label="Notes (Optional)" className="mb-3">
+                  <Textarea value={redemptionNotes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRedemptionNotes(e.target.value)} placeholder="Add any notes about this redemption" rows={4} />
+                </FormGroup>
 
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/transactions")}
-                    className="flex-1"
-                  >
+                <div className="d-flex gap-2">
+                  <Button color="dark" isLight className="flex-grow-1" onClick={() => navigate("/transactions")}>
                     Cancel
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={redemptionLoading || !redemptionAmount}
-                    className="flex-1"
-                  >
+                  <Button color="primary" className="flex-grow-1" onClick={handleRedeemTransaction} isDisable={redemptionLoading || !redemptionAmount}>
+                    {redemptionLoading && <Spinner isSmall inButton />}
                     {redemptionLoading ? "Processing..." : "Confirm Redemption"}
                   </Button>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+              </CardBody>
+            </Card>
+          </div>
         </div>
-      </div>
-    </div>
+      </Page>
+    </PageWrapper>
   );
 }

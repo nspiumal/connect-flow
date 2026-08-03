@@ -43,12 +43,14 @@ public class PawnTransactionItem {
     private String content; // Ring, Chain, Bracelet, etc.
 
     @Column(name = "item_condition")
+    @Builder.Default
     private String condition = "Good"; // Excellent, Good, Fair, Poor
 
     @Column(name = "weight_grams", precision = 10, scale = 2)
     private BigDecimal weightGrams;
 
     @Column(name = "karat", length = 10)
+    @Builder.Default
     private String karat = "N/A"; // Changed from Integer to String to support "N/A", "22K", etc.
 
     @Column(name = "appraised_value", precision = 18, scale = 2)
@@ -58,6 +60,7 @@ public class PawnTransactionItem {
     private BigDecimal marketValue; // New field: market/replacement value
 
     @Column(name = "item_order")
+    @Builder.Default
     private Integer itemOrder = 0; // Order of item in the transaction
 
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)

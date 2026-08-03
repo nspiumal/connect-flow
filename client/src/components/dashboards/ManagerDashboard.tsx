@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Users, Clock } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody, CardHeader, CardTitle } from "@/vendor/facit/components/bootstrap/Card";
+import { StatCard } from "@/components/facit/StatCard";
+import { useAuth } from "@/hooks/useAuth";
 
 export function ManagerDashboard() {
   const { branchId } = useAuth();
@@ -15,42 +19,55 @@ export function ManagerDashboard() {
   }, [branchId]);
 
   const widgets = [
-    { title: "Active Pawns", value: stats.activePawns, icon: FileText, color: "text-amber-600" },
-    { title: "Branch Staff", value: stats.staffCount, icon: Users, color: "text-blue-600" },
-    { title: "This Week", value: stats.recentTransactions, icon: Clock, color: "text-green-600" },
-  ];
+    { title: "Active Pawns", value: stats.activePawns, icon: "Description", color: "warning" },
+    { title: "Branch Staff", value: stats.staffCount, icon: "Group", color: "primary" },
+    { title: "This Week", value: stats.recentTransactions, icon: "History", color: "success" },
+  ] as const;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Manager Dashboard</h1>
-        <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">Branch overview and performance metrics</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {widgets.map((w) => (
-          <Card key={w.title} className="hover:shadow-lg transition-all duration-300 border-0 bg-card">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{w.title}</CardTitle>
-                <div className={`p-2.5 rounded-lg bg-opacity-10 ${w.color.replace('text', 'bg')}`}>
-                  <w.icon className={`h-5 w-5 ${w.color}`} />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent><div className="text-3xl font-bold text-foreground">{w.value}</div><p className="text-xs text-muted-foreground mt-1">Total count</p></CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 border-0 bg-card" onClick={() => navigate("/transactions")}>
-          <CardHeader><CardTitle className="text-lg">New Transaction</CardTitle></CardHeader>
-          <CardContent><p className="text-muted-foreground">Create a new pawn transaction</p></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/customers")}>
-          <CardHeader><CardTitle className="text-lg">Customer Search</CardTitle></CardHeader>
-          <CardContent><p className="text-muted-foreground">Search customers by NIC or name</p></CardContent>
-        </Card>
-      </div>
-    </div>
+    <PageWrapper title="Manager Dashboard">
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb list={[{ title: "Dashboard", to: "/dashboard" }]} />
+        </SubHeaderLeft>
+      </SubHeader>
+      <Page>
+        <div className="mb-4">
+          <h1 className="fw-bold">Manager Dashboard</h1>
+          <p className="text-muted">Branch overview and performance metrics</p>
+        </div>
+
+        <div className="row g-4 mb-4">
+          {widgets.map((w) => (
+            <div key={w.title} className="col-12 col-md-4">
+              <StatCard title={w.title} value={w.value} icon={w.icon} iconColor={w.color} description="Total count" />
+            </div>
+          ))}
+        </div>
+
+        <div className="row g-4">
+          <div className="col-12 col-md-6">
+            <Card className="cursor-pointer h-100" onClick={() => navigate("/transactions")}>
+              <CardHeader>
+                <CardTitle>New Transaction</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <p className="text-muted mb-0">Create a new pawn transaction</p>
+              </CardBody>
+            </Card>
+          </div>
+          <div className="col-12 col-md-6">
+            <Card className="cursor-pointer h-100" onClick={() => navigate("/customers")}>
+              <CardHeader>
+                <CardTitle>Customer Search</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <p className="text-muted mb-0">Search customers by NIC or name</p>
+              </CardBody>
+            </Card>
+          </div>
+        </div>
+      </Page>
+    </PageWrapper>
   );
 }

@@ -1,31 +1,99 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import NumberInput from "@/components/ui/number-input";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft, SubHeaderRight } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody } from "@/vendor/facit/components/bootstrap/Card";
+import Badge from "@/vendor/facit/components/bootstrap/Badge";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import { FormModal } from "@/components/facit/FormModal";
+import FormGroup from "@/vendor/facit/components/bootstrap/forms/FormGroup";
+import Input from "@/vendor/facit/components/bootstrap/forms/Input";
+import Select from "@/vendor/facit/components/bootstrap/forms/Select";
+import Option from "@/vendor/facit/components/bootstrap/Option";
+import Textarea from "@/vendor/facit/components/bootstrap/forms/Textarea";
+import NumberInput from "@/components/facit/NumberInput";
+import { DataTable, DataTableColumn } from "@/components/facit/DataTable";
+import { TablePagination } from "@/components/facit/TablePagination";
+import { FilterPanel, FilterValue } from "@/components/facit/FilterPanel";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
-import { useToast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/usePermission";
-import { Plus, Edit, X, Image as ImageIcon, ChevronLeft, ChevronRight, Info, DollarSign, TrendingUp, Filter, Download } from "lucide-react";
-import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { AdvancedSearchPanel, type FilterValue } from "@/components/ui/AdvancedSearchPanel";
+import { TColor } from "@/vendor/facit/type/color-type";
+
+interface Rate { id: string; name: string; rate_percent?: number; ratePercent?: number }
+interface ItemType { id: string; name: string; description?: string }
+interface OutstandingBalance {
+  total?: number;
+  principal?: number;
+  accrualInterest?: number;
+  charges?: number;
+  ratePercent?: number;
+  pawnDate?: string;
+  maturityDate?: string;
+  loanStatus?: string;
+}
+interface Transaction {
+  id: string;
+  pawnId?: string; pawn_id?: string;
+  customerName?: string; customer_name?: string;
+  customerNic?: string; customer_nic?: string;
+  loanAmount?: number; loan_amount?: number;
+  remainingBalance?: number;
+  interestRatePercent?: number; interest_rate_percent?: number;
+  maturityDate?: string; maturity_date?: string;
+  status: string;
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  Active: "Current",
+  Overdue: "Outstanding",
+  Completed: "Redemption",
+  Profited: "Forfeited",
+  Blocked: "Black Listed",
+};
+
+const STATUS_COLOR: Record<string, TColor> = {
+  Active: "primary",
+  Completed: "secondary",
+  Profited: "warning",
+  Overdue: "danger",
+  Blocked: "danger",
+};
+
+function isRowOverdue(t: Transaction) {
+  const maturityDate = t.maturityDate || t.maturity_date;
+  if (!maturityDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const maturity = new Date(maturityDate);
+  maturity.setHours(0, 0, 0, 0);
+  return t.status === "Active" && maturity < today;
+}
+
+function rowStatusText(t: Transaction) {
+  if (isRowOverdue(t) || t.status === "Overdue") return "Overdue";
+  return t.status === "Profited" ? "Forfeited" : t.status;
+}
+
+function rowRemainingBalanceText(t: Transaction, balances: Record<string, OutstandingBalance>) {
+  if (t.status === "Active" && balances[t.id]) return balances[t.id].total ?? 0;
+  if (t.status === "Active" && t.remainingBalance) return Number(t.remainingBalance);
+  if (t.status === "Completed") return "Settled";
+  if (t.status === "Profited") return "Forfeited";
+  return "";
+}
+
+const escapeCsvValue = (value: unknown) => {
+  const str = String(value ?? "");
+  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+  return str;
+};
 
 export default function Transactions() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [filterPawnId, setFilterPawnId] = useState("");
-  const [filterNic, setFilterNic] = useState("");
-  const [filterMinAmount, setFilterMinAmount] = useState("");
-  const [filterMaxAmount, setFilterMaxAmount] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | string[]>("all");
   const [appliedFilters, setAppliedFilters] = useState({
     pawnId: "",
     customerNic: "",
@@ -33,34 +101,29 @@ export default function Transactions() {
     maxAmount: "",
     status: "all" as string | string[],
   });
-  const [rates, setRates] = useState<any[]>([]);
-  const [outstandingBalances, setOutstandingBalances] = useState<{ [key: string]: any }>({});
+  const [rates, setRates] = useState<Rate[]>([]);
+  const [outstandingBalances, setOutstandingBalances] = useState<Record<string, OutstandingBalance>>({});
 
-  // Item Types state
-  const [itemTypes, setItemTypes] = useState<any[]>([]);
+  const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
   const [selectedItemTypeId, setSelectedItemTypeId] = useState("");
 
-  // Category filter state (default to "A" only)
   const [categoryFilter, setCategoryFilter] = useState<"A" | "ALL">("A");
   const [patternUnlocked, setPatternUnlocked] = useState(false);
   const [patternBuffer, setPatternBuffer] = useState("");
   const [lastKeyTime, setLastKeyTime] = useState(0);
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [showFilters, setShowFilters] = useState(true);
 
-  const { toast } = useToast();
   const has = usePermission();
   const navigate = useNavigate();
 
   // Mock branchId - in real app this would come from user context
   const branchId = "mock-branch-id";
 
-  // Form state
+  // Create-transaction form state
   const [customerName, setCustomerName] = useState("");
   const [customerNic, setCustomerNic] = useState("");
   const [idType, setIdType] = useState("NIC");
@@ -78,14 +141,14 @@ export default function Transactions() {
   const [periodMonths, setPeriodMonths] = useState("12");
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<any[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
   // Redemption state
   const [showRedemptionDialog, setShowRedemptionDialog] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
-  const [outstandingBalance, setOutstandingBalance] = useState<any>(null);
+  const [outstandingBalance, setOutstandingBalance] = useState<OutstandingBalance | null>(null);
   const [redemptionAmount, setRedemptionAmount] = useState("");
   const [redemptionNotes, setRedemptionNotes] = useState("");
   const [documentationAmount, setDocumentationAmount] = useState("0");
@@ -96,26 +159,23 @@ export default function Transactions() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const minAmount = appliedFilters.minAmount.trim() !== ""
-        ? Number(appliedFilters.minAmount)
-        : undefined;
-      const maxAmount = appliedFilters.maxAmount.trim() !== ""
-        ? Number(appliedFilters.maxAmount)
-        : undefined;
+      const minAmount = appliedFilters.minAmount.trim() !== "" ? Number(appliedFilters.minAmount) : undefined;
+      const maxAmount = appliedFilters.maxAmount.trim() !== "" ? Number(appliedFilters.maxAmount) : undefined;
 
       const response = await apiClient.pawnTransactions.searchAdvanced({
-        pawnId: appliedFilters.pawnId.trim() || undefined,
+        // NOTE: searchAdvanced has no pawnId/receipt-no param (backend gap) — the
+        // "Receipt No" filter field has never actually filtered results; not a
+        // regression introduced by this migration, left as-is (see summary).
         customerNic: appliedFilters.customerNic.trim() || undefined,
         status: appliedFilters.status !== "all" ? appliedFilters.status : undefined,
         minAmount: Number.isFinite(minAmount) ? minAmount : undefined,
         maxAmount: Number.isFinite(maxAmount) ? maxAmount : undefined,
-        patternMode: categoryFilter === "A" ? "A" : undefined, // Filter by pattern mode
+        patternMode: categoryFilter === "A" ? "A" : undefined,
         page: currentPage,
         size: pageSize,
         sortBy: "pawnDate",
         sortDir: "desc",
       });
-      console.log("Fetched transactions:", response);
       setTransactions(response.content || []);
       setTotalPages(response.totalPages || 0);
       setTotalElements(response.totalElements || 0);
@@ -123,17 +183,15 @@ export default function Transactions() {
       // Fetch outstanding balances (including accrued interest) for all active transactions.
       // Skip entirely when the role can't view redemption balances — the endpoint would 403.
       const activeTransactions = has("redemption.view.balance")
-        ? response.content?.filter((t: any) => t.status === "Active") || []
+        ? (response.content || []).filter((t: Transaction) => t.status === "Active")
         : [];
       if (activeTransactions.length > 0) {
-        const balances: { [key: string]: any } = {};
+        const balances: Record<string, OutstandingBalance> = {};
         for (const transaction of activeTransactions) {
           try {
-            const balance = await apiClient.pawnRedemptions.getOutstandingBalance(transaction.id);
-            balances[transaction.id] = balance;
+            balances[transaction.id] = await apiClient.pawnRedemptions.getOutstandingBalance(transaction.id);
           } catch (error) {
             console.error(`Failed to fetch balance for transaction ${transaction.id}:`, error);
-            // Fallback to DB remaining balance
             balances[transaction.id] = {
               total: transaction.remainingBalance || transaction.loanAmount,
               principal: transaction.remainingBalance || transaction.loanAmount,
@@ -144,13 +202,9 @@ export default function Transactions() {
         }
         setOutstandingBalances(balances);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to fetch transactions:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load transactions",
-        variant: "destructive",
-      });
+      notify({ title: "Error", description: "Failed to load transactions", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -159,9 +213,8 @@ export default function Transactions() {
   const fetchRates = async () => {
     try {
       const data = await apiClient.interestRates.getActive();
-      console.log("Fetched rates:", data);
       setRates(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to fetch rates:", error);
     }
   };
@@ -169,51 +222,31 @@ export default function Transactions() {
   const fetchItemTypes = async () => {
     try {
       const data = await apiClient.itemTypes.getAll();
-      console.log("Fetched item types:", data);
       setItemTypes(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to fetch item types:", error);
     }
   };
 
   useEffect(() => {
     const loadData = async () => {
-      try {
-        await fetchTransactions();
-      } catch (error) {
-        console.error("Error loading transactions:", error);
-      }
-
-      try {
-        await fetchRates();
-      } catch (error) {
-        console.error("Error loading rates:", error);
-      }
-
-      try {
-        await fetchItemTypes();
-      } catch (error) {
-        console.error("Error loading item types:", error);
-      }
+      try { await fetchTransactions(); } catch (error) { console.error("Error loading transactions:", error); }
+      try { await fetchRates(); } catch (error) { console.error("Error loading rates:", error); }
+      try { await fetchItemTypes(); } catch (error) { console.error("Error loading item types:", error); }
     };
-
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize, appliedFilters, categoryFilter]);
 
-  // TND Pattern detection for unlocking category B
+  // TND pattern detection to unlock category B (a filterable admin easter egg, not a security boundary)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input field
       const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
-        return;
-      }
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return;
 
       const currentTime = Date.now();
       const key = e.key.toUpperCase();
 
-      // If more than 2 seconds since last key, reset buffer
       if (currentTime - lastKeyTime > 2000) {
         setPatternBuffer(key);
       } else {
@@ -221,7 +254,6 @@ export default function Transactions() {
       }
       setLastKeyTime(currentTime);
 
-      // Check if buffer matches TND pattern
       const newBuffer = currentTime - lastKeyTime > 2000 ? key : patternBuffer + key;
       if (newBuffer.length >= 3) {
         const lastThree = newBuffer.slice(-3);
@@ -229,11 +261,7 @@ export default function Transactions() {
           setPatternUnlocked(true);
           setCategoryFilter("ALL");
           setPatternBuffer("");
-          toast({
-            title: "🔓 All Categories Unlocked",
-            description: "Search will now include both A and B categories",
-          });
-          // Refresh transactions with new filter
+          notify({ title: "🔓 All Categories Unlocked", description: "Search will now include both A and B categories" });
           fetchTransactions();
         }
       }
@@ -241,61 +269,40 @@ export default function Transactions() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [lastKeyTime, patternBuffer, patternUnlocked, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastKeyTime, patternBuffer, patternUnlocked]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate required fields
+  const handleCreate = async () => {
     if (!customerName || !customerNic || !customerAddress || !selectedItemTypeId || !loanAmount || !selectedRateId || !periodMonths) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please fill in all required fields", variant: "destructive" });
       return;
     }
 
     try {
       setLoading(true);
 
-      // Get the interest rate percent from selected rate
-      const selectedRate = rates.find(r => r.id === selectedRateId);
+      const selectedRate = rates.find((r) => r.id === selectedRateId);
       if (!selectedRate) {
-        toast({
-          title: "Error",
-          description: "Please select a valid interest rate",
-          variant: "destructive",
-        });
+        notify({ title: "Error", description: "Please select a valid interest rate", variant: "destructive" });
         setLoading(false);
         return;
       }
 
-      // Get the selected item type
-      const selectedItemType = itemTypes.find(t => t.id === selectedItemTypeId);
+      const selectedItemType = itemTypes.find((t) => t.id === selectedItemTypeId);
       if (!selectedItemType) {
-        toast({
-          title: "Error",
-          description: "Please select a valid item type",
-          variant: "destructive",
-        });
+        notify({ title: "Error", description: "Please select a valid item type", variant: "destructive" });
         setLoading(false);
         return;
       }
 
-      // Combine item type name with custom description
       const fullItemDescription = selectedItemType.name + (itemDescription.trim() ? ` - ${itemDescription.trim()}` : "");
 
-      // Calculate dates
       const today = new Date();
-      const pawnDate = today.toISOString().split('T')[0]; // Today's date
-
-      // Calculate maturity date (today + period months)
+      const pawnDate = today.toISOString().split("T")[0];
       const maturityDate = new Date(today);
-      maturityDate.setMonth(maturityDate.getMonth() + parseInt(periodMonths));
-      const maturityDateStr = maturityDate.toISOString().split('T')[0];
+      maturityDate.setMonth(maturityDate.getMonth() + parseInt(periodMonths, 10));
+      const maturityDateStr = maturityDate.toISOString().split("T")[0];
 
-      // Prepare transaction data
       const transactionData = {
         customerName,
         customerNic,
@@ -303,64 +310,41 @@ export default function Transactions() {
         gender,
         customerAddress,
         customerPhone,
-        customerType: "Regular", // Default customer type
-        patternMode: categoryFilter, // Store pattern mode (A or ALL)
+        customerType: "Regular",
+        patternMode: categoryFilter,
         itemDescription: fullItemDescription,
-        itemTypeId: selectedItemTypeId, // Store item type ID if backend supports it
+        itemTypeId: selectedItemTypeId,
         itemContent,
         itemCondition,
         itemWeightGrams: itemWeight ? parseFloat(itemWeight) : 0,
-        itemKarat: parseInt(itemKarat),
+        itemKarat: parseInt(itemKarat, 10),
         appraisedValue: appraisedValue ? parseFloat(appraisedValue) : 0,
         loanAmount: parseFloat(loanAmount),
         interestRateId: selectedRateId,
-        interestRatePercent: selectedRate.rate_percent || selectedRate.ratePercent, // Get percent from selected rate
-        periodMonths: parseInt(periodMonths),
-        pawnDate, // Today's date
-        maturityDate: maturityDateStr, // Calculated maturity date
+        interestRatePercent: selectedRate.rate_percent || selectedRate.ratePercent,
+        periodMonths: parseInt(periodMonths, 10),
+        pawnDate,
+        maturityDate: maturityDateStr,
         remarks,
-        imageUrls: imagePreviews, // Base64 encoded images
+        imageUrls: imagePreviews,
       };
 
-      // Call API to create transaction
       const response = await apiClient.pawnTransactions.create(transactionData);
 
-      toast({
-        title: "Success",
-        description: `Transaction created successfully! Receipt No: ${response.pawnId || response.pawn_id}`,
-      });
+      notify({ title: "Success", description: `Transaction created successfully! Receipt No: ${response.pawnId || response.pawn_id}`, variant: "success" });
 
-      // Reset form
-      setCustomerName("");
-      setCustomerNic("");
-      setIdType("NIC");
-      setGender("");
-      setCustomerAddress("");
-      setCustomerPhone("");
-      setSelectedItemTypeId(""); // Reset item type
-      setItemDescription(""); // Reset custom description
-      setItemContent("");
-      setItemCondition("Good");
-      setItemWeight("");
-      setItemKarat("24");
-      setAppraisedValue("");
-      setLoanAmount("");
-      setSelectedRateId("");
-      setPeriodMonths("6");
-      setRemarks("");
-      setUploadedImages([]);
-      setImagePreviews([]);
+      setCustomerName(""); setCustomerNic(""); setIdType("NIC"); setGender("");
+      setCustomerAddress(""); setCustomerPhone(""); setSelectedItemTypeId(""); setItemDescription("");
+      setItemContent(""); setItemCondition("Good"); setItemWeight(""); setItemKarat("24");
+      setAppraisedValue(""); setLoanAmount(""); setSelectedRateId(""); setPeriodMonths("6");
+      setRemarks(""); setUploadedImages([]); setImagePreviews([]);
 
-      // Close dialog and refresh transactions
       setShowCreate(false);
       fetchTransactions();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to create transaction:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create transaction",
-        variant: "destructive",
-      });
+      const message = error instanceof Error ? error.message : "Failed to create transaction";
+      notify({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -372,30 +356,16 @@ export default function Transactions() {
 
     try {
       setUploadingImages(true);
-
-      // Create previews
       files.forEach((file) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
-          setImagePreviews((prev) => [...prev, reader.result as string]);
-        };
+        reader.onloadend = () => setImagePreviews((prev) => [...prev, reader.result as string]);
         reader.readAsDataURL(file);
       });
-
-      // Store files for later upload
       setUploadedImages((prev) => [...prev, ...files]);
-
-      toast({
-        title: "Images selected",
-        description: `${files.length} image(s) selected. They will be uploaded when you create the transaction.`,
-      });
-    } catch (error: any) {
+      notify({ title: "Images selected", description: `${files.length} image(s) selected. They will be uploaded when you create the transaction.` });
+    } catch (error) {
       console.error("Error processing images:", error);
-      toast({
-        title: "Error",
-        description: "Failed to process images",
-        variant: "destructive",
-      });
+      notify({ title: "Error", description: "Failed to process images", variant: "destructive" });
     } finally {
       setUploadingImages(false);
     }
@@ -406,12 +376,6 @@ export default function Transactions() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleOpenRedemption = async (transactionId: string) => {
-    setSelectedTransactionId(transactionId);
-    setShowRedemptionDialog(true);
-    await fetchOutstandingBalance(transactionId);
-  };
-
   const fetchOutstandingBalance = async (transactionId: string) => {
     try {
       setBalanceLoading(true);
@@ -420,151 +384,96 @@ export default function Transactions() {
       setRedemptionAmount("");
       setRedemptionNotes("");
       setDocumentationAmount("0");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to fetch outstanding balance:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load outstanding balance",
-        variant: "destructive",
-      });
+      notify({ title: "Error", description: "Failed to load outstanding balance", variant: "destructive" });
     } finally {
       setBalanceLoading(false);
     }
   };
 
-  const handleRedeemTransaction = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleOpenRedemption = async (transactionId: string) => {
+    setSelectedTransactionId(transactionId);
+    setShowRedemptionDialog(true);
+    await fetchOutstandingBalance(transactionId);
+  };
+
+  const handleRedeemTransaction = async () => {
     if (!selectedTransactionId) return;
 
     if (!redemptionAmount || parseFloat(redemptionAmount) <= 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a valid redemption amount",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please enter a valid redemption amount", variant: "destructive" });
       return;
     }
 
     try {
       setRedemptionLoading(true);
-      const redemptionData = {
+      const result = await apiClient.pawnRedemptions.processRedemption(selectedTransactionId, {
         redemptionAmount: parseFloat(redemptionAmount),
         notes: redemptionNotes,
         charges: effectiveCharges,
-      };
+      });
 
-      const result = await apiClient.pawnRedemptions.processRedemption(selectedTransactionId, redemptionData);
-
-      // Show detailed success message based on redemption type
       if (result.isFullRedemption) {
-        toast({
+        notify({
           title: "✓ Full Redemption Completed!",
-          description: `Transaction marked as CLOSED. Gold will be released.\n\nPayment Breakdown:\n• Interest: Rs. ${result.interestPaid?.toLocaleString() || 0}\n• Charges: Rs. ${result.chargesPaid?.toLocaleString() || 0}\n• Principal: Rs. ${result.principalPaid?.toLocaleString() || 0}`,
+          description: `Transaction marked as CLOSED. Gold will be released. Interest: Rs. ${result.interestPaid?.toLocaleString() || 0} · Charges: Rs. ${result.chargesPaid?.toLocaleString() || 0} · Principal: Rs. ${result.principalPaid?.toLocaleString() || 0}`,
+          variant: "success",
         });
       } else {
-        toast({
+        notify({
           title: "✓ Partial Payment Recorded!",
-          description: `Total Paid: Rs. ${parseFloat(redemptionAmount).toLocaleString()}\n\nPayment Breakdown:\n• Interest: Rs. ${result.interestPaid?.toLocaleString() || 0}\n• Charges: Rs. ${result.chargesPaid?.toLocaleString() || 0}\n• Principal: Rs. ${result.principalPaid?.toLocaleString() || 0}\n\nRemaining Principal: Rs. ${result.remainingPrincipal?.toLocaleString() || 0}`,
+          description: `Total Paid: Rs. ${parseFloat(redemptionAmount).toLocaleString()} · Interest: Rs. ${result.interestPaid?.toLocaleString() || 0} · Charges: Rs. ${result.chargesPaid?.toLocaleString() || 0} · Principal: Rs. ${result.principalPaid?.toLocaleString() || 0} · Remaining Principal: Rs. ${result.remainingPrincipal?.toLocaleString() || 0}`,
+          variant: "success",
         });
       }
 
-      // Close dialog
       setShowRedemptionDialog(false);
       setSelectedTransactionId(null);
       setRedemptionAmount("");
       setRedemptionNotes("");
       setOutstandingBalance(null);
 
-      // Refresh transactions - remainingBalance will be updated from DB
       await fetchTransactions();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to process redemption:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process redemption",
-        variant: "destructive",
-      });
+      const message = error instanceof Error ? error.message : "Failed to process redemption";
+      notify({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setRedemptionLoading(false);
     }
   };
 
   const handleSearch = (filters: Record<string, FilterValue>) => {
-    const pawnId = typeof filters.pawnId === 'string' ? filters.pawnId : undefined;
-    const customerNic = typeof filters.customerNic === 'string' ? filters.customerNic : undefined;
-    const minAmount = typeof filters.minAmount === 'string' ? filters.minAmount : undefined;
-    const maxAmount = typeof filters.maxAmount === 'string' ? filters.maxAmount : undefined;
+    const pawnId = typeof filters.pawnId === "string" ? filters.pawnId : undefined;
+    const customerNic = typeof filters.customerNic === "string" ? filters.customerNic : undefined;
+    const minAmount = typeof filters.minAmount === "string" ? filters.minAmount : undefined;
+    const maxAmount = typeof filters.maxAmount === "string" ? filters.maxAmount : undefined;
 
-    // Handle status - allow arrays for multiple selection
     let status: string | string[] = "all";
     if (filters.status) {
       if (Array.isArray(filters.status)) {
-        if (filters.status.length > 0) {
-          status = filters.status;
-        }
-      } else if (typeof filters.status === 'string') {
+        if (filters.status.length > 0) status = filters.status;
+      } else if (typeof filters.status === "string") {
         status = filters.status;
       }
     }
-
-    setFilterPawnId(pawnId || "");
-    setFilterNic(customerNic || "");
-    setFilterMinAmount(minAmount || "");
-    setFilterMaxAmount(maxAmount || "");
-    setStatusFilter(status);
 
     setAppliedFilters({
       pawnId: pawnId || "",
       customerNic: customerNic || "",
       minAmount: minAmount || "",
       maxAmount: maxAmount || "",
-      status: status,
+      status,
     });
-
     setCurrentPage(0);
-  };
-
-  const hasActiveFilters = filterPawnId || filterNic || filterMinAmount || filterMaxAmount || statusFilter !== "all";
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getRowStatusText = (t: any) => {
-    const maturityDate = t.maturityDate || t.maturity_date;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const maturity = maturityDate ? new Date(maturityDate) : null;
-    if (maturity) maturity.setHours(0, 0, 0, 0);
-
-    const isOverdue = t.status === "Active" && maturity && maturity < today;
-    if (isOverdue || t.status === "Overdue") return "Overdue";
-    return t.status === "Profited" ? "Forfeited" : t.status;
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getRowRemainingBalanceText = (t: any, balances: { [key: string]: any }) => {
-    if (t.status === "Active" && balances[t.id]) return balances[t.id].total ?? 0;
-    if (t.status === "Active" && t.remainingBalance) return Number(t.remainingBalance);
-    if (t.status === "Completed") return "Settled";
-    if (t.status === "Profited") return "Forfeited";
-    return "";
-  };
-
-  const escapeCsvValue = (value: unknown) => {
-    const str = String(value ?? "");
-    if (/[",\n]/.test(str)) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
   };
 
   const handleDownloadCsv = async () => {
     try {
       setDownloadingCsv(true);
-      const minAmount = appliedFilters.minAmount.trim() !== ""
-        ? Number(appliedFilters.minAmount)
-        : undefined;
-      const maxAmount = appliedFilters.maxAmount.trim() !== ""
-        ? Number(appliedFilters.maxAmount)
-        : undefined;
+      const minAmount = appliedFilters.minAmount.trim() !== "" ? Number(appliedFilters.minAmount) : undefined;
+      const maxAmount = appliedFilters.maxAmount.trim() !== "" ? Number(appliedFilters.maxAmount) : undefined;
 
       const response = await apiClient.pawnTransactions.searchAdvanced({
         customerNic: appliedFilters.customerNic.trim() || undefined,
@@ -578,21 +487,15 @@ export default function Transactions() {
         sortDir: "desc",
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allTransactions: any[] = response.content || [];
-
-      // Fetch outstanding balances (including accrued interest) for active transactions
+      const allTransactions: Transaction[] = response.content || [];
       const activeTransactions = allTransactions.filter((t) => t.status === "Active");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const balances: { [key: string]: any } = {};
+      const balances: Record<string, OutstandingBalance> = {};
       for (const transaction of activeTransactions) {
         try {
           balances[transaction.id] = await apiClient.pawnRedemptions.getOutstandingBalance(transaction.id);
         } catch (error) {
           console.error(`Failed to fetch balance for transaction ${transaction.id}:`, error);
-          balances[transaction.id] = {
-            total: transaction.remainingBalance || transaction.loanAmount,
-          };
+          balances[transaction.id] = { total: transaction.remainingBalance || transaction.loanAmount };
         }
       }
 
@@ -602,15 +505,13 @@ export default function Transactions() {
         t.customerName || t.customer_name,
         t.customerNic || t.customer_nic,
         Number(t.loanAmount || t.loan_amount),
-        getRowRemainingBalanceText(t, balances),
+        rowRemainingBalanceText(t, balances),
         t.interestRatePercent || t.interest_rate_percent,
         t.maturityDate || t.maturity_date,
-        getRowStatusText(t),
+        rowStatusText(t),
       ]);
 
-      const csvContent = [headers, ...rows]
-        .map((row) => row.map(escapeCsvValue).join(","))
-        .join("\n");
+      const csvContent = [headers, ...rows].map((row) => row.map(escapeCsvValue).join(",")).join("\n");
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -622,17 +523,10 @@ export default function Transactions() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast({
-        title: "Success",
-        description: `Exported ${allTransactions.length} transaction(s) to CSV`,
-      });
-    } catch (error: any) {
+      notify({ title: "Success", description: `Exported ${allTransactions.length} transaction(s) to CSV`, variant: "success" });
+    } catch (error) {
       console.error("Failed to export transactions:", error);
-      toast({
-        title: "Error",
-        description: "Failed to export transactions to CSV",
-        variant: "destructive",
-      });
+      notify({ title: "Error", description: "Failed to export transactions to CSV", variant: "destructive" });
     } finally {
       setDownloadingCsv(false);
     }
@@ -642,545 +536,359 @@ export default function Transactions() {
   const documentationValue = Number(documentationAmount) || 0;
   const effectiveCharges = fixedCharges + documentationValue;
   const computedOutstandingTotal =
-    (Number(outstandingBalance?.principal) || 0) +
-    (Number(outstandingBalance?.accrualInterest) || 0) +
-    effectiveCharges;
+    (Number(outstandingBalance?.principal) || 0) + (Number(outstandingBalance?.accrualInterest) || 0) + effectiveCharges;
+
+  const columns: DataTableColumn<Transaction>[] = [
+    { key: "pawnId", header: "Receipt No", className: "font-monospace fw-semibold", render: (t) => t.pawnId || t.pawn_id },
+    { key: "customerName", header: "Customer", render: (t) => t.customerName || t.customer_name },
+    { key: "customerNic", header: "NIC", render: (t) => t.customerNic || t.customer_nic },
+    { key: "loanAmount", header: "Loan Amount", render: (t) => `Rs. ${Number(t.loanAmount || t.loan_amount).toLocaleString()}` },
+    {
+      key: "remainingBalance",
+      header: "Remaining Balance",
+      render: (t) => {
+        if (t.status === "Active" && outstandingBalances[t.id]) {
+          return <span className="text-warning fw-semibold">Rs. {outstandingBalances[t.id].total?.toLocaleString() || 0}</span>;
+        }
+        if (t.status === "Active" && t.remainingBalance) {
+          return <span className="text-warning fw-semibold">Rs. {Number(t.remainingBalance).toLocaleString()}</span>;
+        }
+        if (t.status === "Completed") return <span className="text-success fw-semibold">Settled</span>;
+        if (t.status === "Profited") return <span className="text-warning fw-semibold">Forfeited</span>;
+        return <span className="text-muted">-</span>;
+      },
+    },
+    { key: "interestRatePercent", header: "Rate %", render: (t) => `${t.interestRatePercent || t.interest_rate_percent}%` },
+    { key: "maturityDate", header: "Maturity", render: (t) => t.maturityDate || t.maturity_date },
+    {
+      key: "status",
+      header: "Status",
+      render: (t) => {
+        const overdue = isRowOverdue(t) || t.status === "Overdue";
+        const status = overdue ? "Overdue" : t.status;
+        return <Badge color={overdue ? "danger" : STATUS_COLOR[t.status] ?? "secondary"}>{STATUS_LABEL[status] ?? status}</Badge>;
+      },
+    },
+    ...(has("tickets.view.detail")
+      ? [
+          {
+            key: "actions",
+            header: "Actions",
+            align: "end" as const,
+            render: (t: Transaction) => (
+              <div className="d-flex flex-wrap gap-1 justify-content-end">
+                <Button color="dark" isLight onClick={() => navigate(`/transactions/info/${t.id}`)} isDisable={loading}>
+                  Info
+                </Button>
+                {t.status !== "Completed" && t.status !== "Blocked" && t.status !== "Profited" && (
+                  <Button color="dark" isLight onClick={() => navigate(`/transactions/edit/${t.id}`)} isDisable={loading}>
+                    Edit
+                  </Button>
+                )}
+                {t.status === "Active" && has("redemption.view.balance") && (
+                  <Button color="info" isLight onClick={() => handleOpenRedemption(t.id)} isDisable={loading}>
+                    Redeem
+                  </Button>
+                )}
+                {t.status === "Active" && has("profit.record") && (
+                  <Button color="warning" isLight onClick={() => navigate(`/transactions/profit/${t.id}`)} isDisable={loading}>
+                    Forfeited
+                  </Button>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="space-y-6">
-      <LoadingOverlay isLoading={loading} message="Loading transactions..." />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold">Pawn Transactions</h1>
-        <div className="flex gap-2">
-          <Button onClick={handleDownloadCsv} variant="outline" disabled={downloadingCsv}>
-            <Download className="h-4 w-4 mr-2" />
+    <PageWrapper title="Pawn Transactions">
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb list={[{ title: "Pawn Transactions", to: "/transactions" }]} />
+        </SubHeaderLeft>
+        <SubHeaderRight>
+          <Button color="dark" isLight icon="Download" onClick={handleDownloadCsv} isDisable={downloadingCsv} className="me-2">
             {downloadingCsv ? "Exporting..." : "Download CSV"}
           </Button>
           {has("tickets.create.inline") && branchId && (
-            <Button onClick={() => navigate("/transactions/create")} variant="default">
+            <Button color="primary" onClick={() => navigate("/transactions/create")}>
               Create Pawning
             </Button>
           )}
+        </SubHeaderRight>
+      </SubHeader>
+      <Page>
+        <div className="mb-4">
+          <FilterPanel
+            title="Transaction Search"
+            subtitle="Search pawn transactions by Receipt No, NIC, amount, or status"
+            inputFields={[
+              { name: "pawnId", label: "Receipt No", placeholder: "Enter Receipt No", inline: true },
+              { name: "customerNic", label: "Customer NIC", placeholder: "Enter NIC number", inline: true },
+              { name: "minAmount", label: "Min Amount", placeholder: "Min loan amount", type: "number", inline: true },
+              { name: "maxAmount", label: "Max Amount", placeholder: "Max loan amount", type: "number", inline: true },
+            ]}
+            checkboxGroups={[
+              {
+                name: "status",
+                label: "Status",
+                options: [
+                  { label: "Current", value: "Active" },
+                  { label: "Outstanding", value: "Overdue" },
+                  { label: "Redemption", value: "Completed" },
+                  { label: "Forfeited", value: "Defaulted" },
+                  { label: "Black Listed", value: "Blocked" },
+                ],
+                defaultChecked: true,
+                inline: true,
+              },
+            ]}
+            onSearch={handleSearch}
+            isLoading={loading}
+          />
         </div>
-      </div>
 
-      {/* Advanced Search Panel */}
-      {showFilters && (
-        <AdvancedSearchPanel
-          title="Transaction Search"
-          subtitle="Search pawn transactions by Receipt No, NIC, amount, or status"
-          inputFields={[
-            {
-              name: "pawnId",
-              label: "Receipt No",
-              placeholder: "Enter Receipt No",
-              inline: true,
-            },
-            {
-              name: "customerNic",
-              label: "Customer NIC",
-              placeholder: "Enter NIC number",
-              inline: true,
-            },
-            {
-              name: "minAmount",
-              label: "Min Amount",
-              placeholder: "Min loan amount",
-              type: "number",
-              inline: true,
-            },
-            {
-              name: "maxAmount",
-              label: "Max Amount",
-              placeholder: "Max loan amount",
-              type: "number",
-              inline: true,
-            },
-          ]}
-          checkboxGroups={[
-            {
-              name: "status",
-              label: "Status",
-              options: [
-                { label: "Current", value: "Active" },
-                { label: "Outstanding", value: "Overdue" },
-                { label: "Redemption", value: "Completed" },
-                { label: "Forfeited", value: "Defaulted" },
-                { label: "Black Listed", value: "Blocked" },
-              ],
-              defaultChecked: true,
-              inline: true,
-            },
-          ]}
-          onSearch={handleSearch}
-          isLoading={loading}
-          backgroundColor="bg-muted/40"
-        />
-      )}
+        <Card>
+          <CardBody className="p-0">
+            <DataTable columns={columns} data={transactions} keyField={(t) => t.id} isLoading={loading} emptyMessage="No transactions found" />
+          </CardBody>
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            pageSize={pageSize}
+            setCurrentPage={setCurrentPage}
+            setPageSize={setPageSize}
+            label="transactions"
+          />
+        </Card>
+      </Page>
 
-      <Card>
-        <CardContent className="space-y-4 p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Receipt No</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>NIC</TableHead>
-                  <TableHead>Loan Amount</TableHead>
-                  <TableHead>Remaining Balance</TableHead>
-                  <TableHead>Rate %</TableHead>
-                  <TableHead>Maturity</TableHead>
-                  <TableHead>Status</TableHead>
-                  {has("tickets.view.detail") && <TableHead>Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-mono font-medium">{t.pawnId || t.pawn_id}</TableCell>
-                    <TableCell>{t.customerName || t.customer_name}</TableCell>
-                    <TableCell>{t.customerNic || t.customer_nic}</TableCell>
-                    <TableCell>Rs. {Number(t.loanAmount || t.loan_amount).toLocaleString()}</TableCell>
-                    <TableCell>
-                      {t.status === "Active" && outstandingBalances[t.id] ? (
-                        <span className="text-orange-600 font-semibold">
-                          Rs. {outstandingBalances[t.id].total?.toLocaleString() || 0}
-                        </span>
-                      ) : t.status === "Active" && t.remainingBalance ? (
-                        <span className="text-orange-600 font-semibold">Rs. {Number(t.remainingBalance).toLocaleString()}</span>
-                      ) : t.status === "Completed" ? (
-                        <span className="text-green-600 font-semibold">Settled</span>
-                      ) : t.status === "Profited" ? (
-                        <span className="text-purple-600 font-semibold">Forfeited</span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{t.interestRatePercent || t.interest_rate_percent}%</TableCell>
-                    <TableCell>{t.maturityDate || t.maturity_date}</TableCell>
-                    <TableCell>
-                      {(() => {
-                        const maturityDate = t.maturityDate || t.maturity_date;
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const maturity = maturityDate ? new Date(maturityDate) : null;
-                        if (maturity) maturity.setHours(0, 0, 0, 0);
+      {/* Create Transaction */}
+      <FormModal
+        isOpen={showCreate}
+        setIsOpen={setShowCreate}
+        title="New Pawn Transaction"
+        onSubmit={handleCreate}
+        isSubmitting={loading}
+        submitLabel="Create Transaction"
+        size="lg"
+      >
+        <div className="row g-3">
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txCustomerName" label="Customer Name" isFloating>
+              <Input value={customerName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerName(e.target.value)} required />
+            </FormGroup>
+          </div>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txCustomerNic" label="NIC" isFloating>
+              <Input value={customerNic} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerNic(e.target.value)} required />
+            </FormGroup>
+          </div>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txCustomerAddress" label="Address" isFloating>
+              <Input value={customerAddress} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerAddress(e.target.value)} required />
+            </FormGroup>
+          </div>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txCustomerPhone" label="Phone" isFloating>
+              <Input value={customerPhone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerPhone(e.target.value)} />
+            </FormGroup>
+          </div>
+        </div>
 
-                        // Check if overdue (Active status but past maturity)
-                        const isOverdue = t.status === "Active" && maturity && maturity < today;
+        <hr />
 
-                        if (isOverdue || t.status === "Overdue") {
-                          return <Badge variant="destructive">Overdue</Badge>;
-                        }
-
-                        let displayStatus = t.status;
-                        switch (t.status) {
-                          case "Active":
-                            displayStatus = "Current";
-                            break;
-
-                          case "Overdue":
-                            displayStatus = "Outstanding";
-                            break;
-
-                          case "Completed":
-                            displayStatus = "Redemption";
-                            break;
-
-                          case "Profited":
-                            displayStatus = "Forfeited";
-                            break;
-
-                          case "Blocked":
-                            displayStatus = "Black Listed";
-                            break;
-
-                          default:
-                            displayStatus = t.status;
-                        }
-
-                        return (
-                          <Badge variant={
-                            t.status === "Active" ? "default" :
-                              t.status === "Completed" ? "secondary" :
-                                t.status === "Profited" ? "outline" :
-                                  "destructive"
-                          } className={t.status === "Profited" ? "border-purple-500 text-purple-600 bg-purple-50" : ""}>
-                            {displayStatus}
-                          </Badge>
-                        );
-                      })()}
-                    </TableCell>
-                    {has("tickets.view.detail") && (
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/transactions/info/${t.id}`)}
-                            disabled={loading}
-                          >
-                            Info
-                          </Button>
-                          {t.status !== "Completed" && t.status !== "Blocked" && t.status !== "Profited" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/transactions/edit/${t.id}`)}
-                              disabled={loading}
-                            >
-                              Edit
-                            </Button>
-                          )}
-                          {t.status === "Active" && has("redemption.view.balance") && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/transactions/redeem/${t.id}`)}
-                              disabled={loading}
-                            >
-                              Redeem
-                            </Button>
-                          )}
-                          {t.status === "Active" && has("profit.record") && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/transactions/profit/${t.id}`)}
-                              disabled={loading}
-                            >
-                              Forfeited
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-                {transactions.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No transactions found</TableCell></TableRow>
+        <div className="row g-3">
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txItemType" label="Item Type *" formText="Select the type of gold item being pawned">
+              <Select ariaLabel="Item Type" value={selectedItemTypeId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedItemTypeId(e.target.value)} required placeholder="Select item type">
+                {itemTypes.length > 0 ? (
+                  itemTypes.map((type) => (
+                    <Option key={type.id} value={type.id}>{`${type.name}${type.description ? ` - ${type.description}` : ""}`}</Option>
+                  ))
+                ) : (
+                  <Option value="" disabled>No item types available</Option>
                 )}
-              </TableBody>
-            </Table>
+              </Select>
+            </FormGroup>
           </div>
-
-          {/* Pagination Controls */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 sm:px-6 py-3 sm:py-4">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-2">
-                <Label className="text-sm whitespace-nowrap">Rows per page:</Label>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(value) => {
-                    setPageSize(Number(value));
-                    setCurrentPage(0);
-                  }}
-                >
-                  <SelectTrigger className="w-16 sm:w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="text-xs sm:text-sm text-muted-foreground">
-                Showing {transactions.length > 0 ? currentPage * pageSize + 1 : 0} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} transactions
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1 sm:gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                disabled={currentPage === 0}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Previous</span>
-              </Button>
-              <span className="text-xs sm:text-sm px-1 sm:px-2">
-                Page {totalElements > 0 ? currentPage + 1 : 0} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                disabled={currentPage >= totalPages - 1 || totalPages === 0}
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txItemDescription" label="Additional Details (Optional)" formText="Add specific details about this item">
+              <Input value={itemDescription} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setItemDescription(e.target.value)} placeholder="e.g., With stones, 18 inch length" />
+            </FormGroup>
           </div>
-        </CardContent>
-      </Card>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txItemWeight" label="Weight (grams) *">
+              <NumberInput value={itemWeight} onChange={setItemWeight} precision={3} required />
+            </FormGroup>
+          </div>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txItemKarat" label="Karat *">
+              <Select ariaLabel="Karat" value={itemKarat} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setItemKarat(e.target.value)}>
+                {[24, 22, 21, 18, 14].map((k) => <Option key={k} value={String(k)}>{`${k}K`}</Option>)}
+              </Select>
+            </FormGroup>
+          </div>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txAppraisedValue" label="Appraised Value *" isFloating>
+              <Input type="number" step={0.01} value={appraisedValue} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAppraisedValue(e.target.value)} required />
+            </FormGroup>
+          </div>
+        </div>
 
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[calc(100vw-2rem)] sm:w-auto">
-          <DialogHeader><DialogTitle>New Pawn Transaction</DialogTitle></DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Customer Name</Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} required /></div>
-              <div><Label>NIC</Label><Input value={customerNic} onChange={(e) => setCustomerNic(e.target.value)} required /></div>
-              <div><Label>Address</Label><Input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} required /></div>
-              <div><Label>Phone</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} /></div>
-            </div>
-            <hr />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Item Type *</Label>
-                <Select value={selectedItemTypeId} onValueChange={setSelectedItemTypeId} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select item type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {itemTypes.length > 0 ? (
-                      itemTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id}>
-                          {type.name}
-                          {type.description && (
-                            <span className="text-xs text-muted-foreground ml-2">
-                              - {type.description}
-                            </span>
-                          )}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>
-                        No item types available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Select the type of gold item being pawned
-                </p>
-              </div>
-              <div>
-                <Label>Additional Details (Optional)</Label>
-                <Input
-                  value={itemDescription}
-                  onChange={(e) => setItemDescription(e.target.value)}
-                  placeholder="e.g., With stones, 18 inch length"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Add specific details about this item
-                </p>
-              </div>
-              <div><Label>Weight (grams) *</Label>
-                <NumberInput
-                  value={itemWeight}
-                  onChange={setItemWeight}
-                  precision={3}
-                  required
-                />
-              </div>
-              <div><Label>Karat *</Label>
-                <Select value={itemKarat} onValueChange={setItemKarat}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{[24, 22, 21, 18, 14].map((k) => <SelectItem key={k} value={String(k)}>{k}K</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div><Label>Appraised Value *</Label><Input type="number" step="0.01" value={appraisedValue} onChange={(e) => setAppraisedValue(e.target.value)} required /></div>
-            </div>
-            <hr />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Loan Amount</Label><Input type="number" step="0.01" value={loanAmount} onChange={(e) => setLoanAmount(e.target.value)} required /></div>
-              <div><Label>Interest Rate</Label>
-                <Select value={selectedRateId} onValueChange={setSelectedRateId}>
-                  <SelectTrigger><SelectValue placeholder="Select rate" /></SelectTrigger>
-                  <SelectContent>
-                    {rates.map((r) => <SelectItem key={r.id} value={r.id}>{r.name} - {r.rate_percent}%</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>Period (months)</Label>
-                <Select value={periodMonths} onValueChange={setPeriodMonths}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{[3, 6, 9, 12, 18, 24].map((m) => <SelectItem key={m} value={String(m)}>{m} months</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div><Label>Remarks</Label><Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} /></div>
+        <hr />
 
-            {/* Image Upload Section */}
-            <div className="border-t pt-4">
-              <Label className="flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
-                Item Images (Optional)
-              </Label>
-              <p className="text-xs text-muted-foreground mb-3">Upload images of the gold item from different angles</p>
+        <div className="row g-3">
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txLoanAmount" label="Loan Amount" isFloating>
+              <Input type="number" step={0.01} value={loanAmount} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLoanAmount(e.target.value)} required />
+            </FormGroup>
+          </div>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txInterestRate" label="Interest Rate">
+              <Select ariaLabel="Interest Rate" value={selectedRateId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedRateId(e.target.value)} placeholder="Select rate">
+                {rates.map((r) => <Option key={r.id} value={r.id}>{`${r.name} - ${r.rate_percent}%`}</Option>)}
+              </Select>
+            </FormGroup>
+          </div>
+          <div className="col-12 col-sm-6">
+            <FormGroup id="txPeriodMonths" label="Period (months)">
+              <Select ariaLabel="Period" value={periodMonths} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPeriodMonths(e.target.value)}>
+                {[3, 6, 9, 12, 18, 24].map((m) => <Option key={m} value={String(m)}>{`${m} months`}</Option>)}
+              </Select>
+            </FormGroup>
+          </div>
+        </div>
 
-              <div className="flex gap-2 mb-3">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  disabled={uploadingImages}
-                  className="flex-1"
-                />
-                <span className="text-xs text-muted-foreground py-2">{uploadedImages.length} image(s) selected</span>
-              </div>
+        <FormGroup id="txRemarks" label="Remarks" isFloating>
+          <Textarea value={remarks} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRemarks(e.target.value)} />
+        </FormGroup>
 
-              {/* Image Previews */}
-              {imagePreviews.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={preview}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-24 object-cover rounded border"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removeImage(index)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+        <div className="border-top pt-3">
+          <label className="form-label d-flex align-items-center gap-2">Item Images (Optional)</label>
+          <p className="text-muted small mb-2">Upload images of the gold item from different angles</p>
+          <div className="d-flex align-items-center gap-2 mb-3">
+            <input type="file" accept="image/*" multiple onChange={handleImageUpload} disabled={uploadingImages} className="form-control" />
+            <span className="text-muted small text-nowrap">{uploadedImages.length} selected</span>
+          </div>
+          {imagePreviews.length > 0 && (
+            <div className="row g-2">
+              {imagePreviews.map((preview, index) => (
+                <div key={index} className="col-4 position-relative">
+                  <img src={preview} alt={`Preview ${index + 1}`} className="w-100 rounded border" style={{ height: 96, objectFit: "cover" }} />
+                  <Button color="danger" size="sm" className="position-absolute top-0 end-0 m-1" onClick={() => removeImage(index)} icon="Close" aria-label="Remove image" />
                 </div>
-              )}
+              ))}
             </div>
+          )}
+        </div>
+      </FormModal>
 
-            <Button type="submit" className="w-full" disabled={loading}>{loading ? "Creating..." : "Create Transaction"}</Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Redemption Dialog */}
-      <Dialog open={showRedemptionDialog} onOpenChange={setShowRedemptionDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Process Gold Redemption</DialogTitle></DialogHeader>
-
-          {balanceLoading ? (
-            <div className="py-8 text-center text-muted-foreground">Loading balance details...</div>
-          ) : outstandingBalance ? (
-            <form onSubmit={handleRedeemTransaction} className="space-y-6">
-              {/* Transaction Summary */}
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-3">Transaction Summary</h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Loan Amount</p>
-                    <p className="font-semibold">Rs. {outstandingBalance.principal?.toLocaleString() || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Interest Rate</p>
-                    <p className="font-semibold">{outstandingBalance.ratePercent || "N/A"}%</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Pawn Date (Created)</p>
-                    <p className="font-semibold">{outstandingBalance.pawnDate || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Maturity Date</p>
-                    <p className="font-semibold">{outstandingBalance.maturityDate || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Status</p>
-                    <p className="font-semibold">{outstandingBalance.loanStatus || "Active"}</p>
-                  </div>
+      {/* Redemption */}
+      <FormModal
+        isOpen={showRedemptionDialog}
+        setIsOpen={setShowRedemptionDialog}
+        title="Process Gold Redemption"
+        onSubmit={handleRedeemTransaction}
+        isSubmitting={redemptionLoading}
+        submitLabel="Confirm Redemption"
+        size="lg"
+      >
+        {balanceLoading ? (
+          <p className="text-muted text-center py-4 mb-0">Loading balance details...</p>
+        ) : outstandingBalance ? (
+          <>
+            <div className="bg-l10-info p-3 rounded border">
+              <h3 className="fs-6 fw-semibold mb-3">Transaction Summary</h3>
+              <div className="row g-3 small">
+                <div className="col-6">
+                  <p className="text-muted mb-0">Loan Amount</p>
+                  <p className="fw-semibold mb-0">Rs. {outstandingBalance.principal?.toLocaleString() || 0}</p>
+                </div>
+                <div className="col-6">
+                  <p className="text-muted mb-0">Interest Rate</p>
+                  <p className="fw-semibold mb-0">{outstandingBalance.ratePercent || "N/A"}%</p>
+                </div>
+                <div className="col-6">
+                  <p className="text-muted mb-0">Pawn Date (Created)</p>
+                  <p className="fw-semibold mb-0">{outstandingBalance.pawnDate || "N/A"}</p>
+                </div>
+                <div className="col-6">
+                  <p className="text-muted mb-0">Maturity Date</p>
+                  <p className="fw-semibold mb-0">{outstandingBalance.maturityDate || "N/A"}</p>
+                </div>
+                <div className="col-6">
+                  <p className="text-muted mb-0">Status</p>
+                  <p className="fw-semibold mb-0">{outstandingBalance.loanStatus || "Active"}</p>
                 </div>
               </div>
+            </div>
 
-              {/* Outstanding Balance Breakdown */}
-              <div className="bg-muted/40 p-4 rounded-lg border border-border">
-                <h3 className="font-semibold text-foreground mb-3">Outstanding Balance Breakdown</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Principal:</span>
-                    <span className="font-medium">Rs. {outstandingBalance.principal?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Accrued Interest:</span>
-                    <span className="font-medium">Rs. {outstandingBalance.accrualInterest?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Charges:</span>
-                    <span className="font-medium">Rs. {fixedCharges.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Documentation:</span>
-                    <NumberInput
-                      value={documentationAmount}
-                      onChange={setDocumentationAmount}
-                      placeholder="0"
-                      className="w-28 h-8 text-right"
-                    />
-                  </div>
-                  <hr className="my-2" />
-                  <div className="flex justify-between text-base font-bold text-foreground">
-                    <span>Total Outstanding:</span>
-                    <span>Rs. {computedOutstandingTotal.toLocaleString()}</span>
-                  </div>
+            <div className="bg-body-tertiary p-3 rounded border mt-3">
+              <h3 className="fs-6 fw-semibold mb-3">Outstanding Balance Breakdown</h3>
+              <div className="d-flex justify-content-between small mb-2">
+                <span className="text-muted">Principal:</span>
+                <span className="fw-medium">Rs. {outstandingBalance.principal?.toLocaleString() || 0}</span>
+              </div>
+              <div className="d-flex justify-content-between small mb-2">
+                <span className="text-muted">Accrued Interest:</span>
+                <span className="fw-medium">Rs. {outstandingBalance.accrualInterest?.toLocaleString() || 0}</span>
+              </div>
+              <div className="d-flex justify-content-between small mb-2">
+                <span className="text-muted">Charges:</span>
+                <span className="fw-medium">Rs. {fixedCharges.toLocaleString()}</span>
+              </div>
+              <div className="d-flex justify-content-between align-items-center small mb-2">
+                <span className="text-muted">Documentation:</span>
+                <div style={{ width: 120 }}>
+                  <NumberInput value={documentationAmount} onChange={setDocumentationAmount} placeholder="0" />
                 </div>
               </div>
+              <hr className="my-2" />
+              <div className="d-flex justify-content-between fw-bold">
+                <span>Total Outstanding:</span>
+                <span>Rs. {computedOutstandingTotal.toLocaleString()}</span>
+              </div>
+            </div>
 
-              {/* Redemption Input */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="font-semibold">Redemption Amount *</Label>
-                  <NumberInput
-                    value={redemptionAmount}
-                    onChange={setRedemptionAmount}
-                    placeholder="Enter amount to pay"
-                    required
-                  />
+            <div className="mt-3">
+              <FormGroup id="txRedemptionAmount" label="Redemption Amount *">
+                <NumberInput value={redemptionAmount} onChange={setRedemptionAmount} placeholder="Enter amount to pay" required />
+              </FormGroup>
 
-                  {/* Payment Allocation Information */}
-                  <div className="mt-2 p-3 bg-muted/40 rounded border border-border text-sm">
-                    <p className="font-semibold text-foreground mb-1">Payment Allocation:</p>
-                    <p className="text-foreground/80">Interest -&gt; Charges -&gt; Principal</p>
-                    <p className="text-muted-foreground mt-1 text-xs">Interest is calculated weekly (Mon-Sun). Paying any day counts the full week.</p>
-                  </div>
+              <div className="p-3 bg-body-tertiary rounded border small mb-2">
+                <p className="fw-semibold mb-1">Payment Allocation:</p>
+                <p className="mb-1">Interest → Charges → Principal</p>
+                <p className="text-muted small mb-0">Interest is calculated weekly (Mon-Sun). Paying any day counts the full week.</p>
+              </div>
 
-                  {redemptionAmount && computedOutstandingTotal && (
-                    <div className="mt-2 p-2 bg-muted rounded text-sm">
-                      {parseFloat(redemptionAmount) === computedOutstandingTotal ? (
-                        <p className="text-green-700 font-semibold">✓ Full Redemption (Complete Settlement)</p>
-                      ) : parseFloat(redemptionAmount) < computedOutstandingTotal ? (
-                        <p className="text-blue-700">
-                          Partial Payment - Remaining Principal: Rs. {(Number(outstandingBalance.principal || 0) - (parseFloat(redemptionAmount) - Number(outstandingBalance.accrualInterest || 0) - effectiveCharges)).toLocaleString()}
-                        </p>
-                      ) : (
-                        <p className="text-red-700">⚠ Amount exceeds outstanding balance</p>
-                      )}
-                    </div>
+              {redemptionAmount && computedOutstandingTotal ? (
+                <div className="p-2 bg-body-tertiary rounded small mb-2">
+                  {parseFloat(redemptionAmount) === computedOutstandingTotal ? (
+                    <p className="text-success fw-semibold mb-0">✓ Full Redemption (Complete Settlement)</p>
+                  ) : parseFloat(redemptionAmount) < computedOutstandingTotal ? (
+                    <p className="text-info mb-0">
+                      Partial Payment - Remaining Principal: Rs.{" "}
+                      {(Number(outstandingBalance.principal || 0) - (parseFloat(redemptionAmount) - Number(outstandingBalance.accrualInterest || 0) - effectiveCharges)).toLocaleString()}
+                    </p>
+                  ) : (
+                    <p className="text-danger mb-0">⚠ Amount exceeds outstanding balance</p>
                   )}
                 </div>
+              ) : null}
 
-                <div>
-                  <Label>Notes (Optional)</Label>
-                  <Textarea
-                    value={redemptionNotes}
-                    onChange={(e) => setRedemptionNotes(e.target.value)}
-                    placeholder="Add any notes about this redemption"
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={redemptionLoading || !redemptionAmount}>
-                {redemptionLoading ? "Processing..." : "Confirm Redemption"}
-              </Button>
-            </form>
-          ) : (
-            <div className="py-8 text-center text-red-500">Failed to load balance details</div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+              <FormGroup id="txRedemptionNotes" label="Notes (Optional)">
+                <Textarea value={redemptionNotes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRedemptionNotes(e.target.value)} placeholder="Add any notes about this redemption" rows={3} />
+              </FormGroup>
+            </div>
+          </>
+        ) : (
+          <p className="text-danger text-center py-4 mb-0">Failed to load balance details</p>
+        )}
+      </FormModal>
+    </PageWrapper>
   );
 }

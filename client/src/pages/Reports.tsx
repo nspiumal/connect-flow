@@ -1,15 +1,17 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import type { ApexOptions } from "apexcharts";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft, SubHeaderRight } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody, CardHeader, CardTitle } from "@/vendor/facit/components/bootstrap/Card";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import Select from "@/vendor/facit/components/bootstrap/forms/Select";
+import Option from "@/vendor/facit/components/bootstrap/Option";
+import Chart from "@/vendor/facit/components/extras/Chart";
 import apiClient from "@/integrations/api";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { usePermission } from "@/hooks/usePermission";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { t } from "@/lib/lang";
 
 // ─── local types ───────────────────────────────────────────────────────────
@@ -26,11 +28,6 @@ interface ProfitItem {
   profitAmount?: number;
 }
 interface Branch { id: string; name: string }
-interface TooltipProps {
-  active?: boolean;
-  payload?: Array<{ value: number }>;
-  label?: string;
-}
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -48,9 +45,7 @@ const monthLabel = (ym: string) => {
 const daysOfMonth = (ym: string): string[] => {
   const [y, m] = ym.split("-").map(Number);
   const count = new Date(y, m, 0).getDate();
-  return Array.from({ length: count }, (_, i) =>
-    `${ym}-${String(i + 1).padStart(2, "0")}`
-  );
+  return Array.from({ length: count }, (_, i) => `${ym}-${String(i + 1).padStart(2, "0")}`);
 };
 
 const formatCurrency = (v: number) =>
@@ -60,29 +55,6 @@ const formatShort = (v: number) => {
   if (v >= 1_000_000) return `Rs.${(v / 1_000_000).toFixed(1)}M`;
   if (v >= 1_000) return `Rs.${(v / 1_000).toFixed(0)}K`;
   return `Rs.${v}`;
-};
-
-// ─── custom tooltips ───────────────────────────────────────────────────────
-
-const LoanTooltip = ({ active, payload, label, view }: TooltipProps & { view: string }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border rounded p-2 shadow text-xs space-y-0.5">
-      <p className="font-semibold">{view === "daily" ? `Day ${label}` : `Month ${label}`}</p>
-      <p className="text-orange-600">{formatCurrency(Number(payload[0].value))}</p>
-      {payload[1] && <p className="text-muted-foreground">{payload[1].value} transactions</p>}
-    </div>
-  );
-};
-
-const ProfitTooltip = ({ active, payload, label }: TooltipProps) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border rounded p-2 shadow text-xs space-y-0.5">
-      <p className="font-semibold">Day {label}</p>
-      <p className="text-green-600">{formatCurrency(Number(payload[0].value))}</p>
-    </div>
-  );
 };
 
 // ─── component ─────────────────────────────────────────────────────────────
@@ -100,22 +72,14 @@ export default function Reports() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // ── derived date range ──────────────────────────────────────────────────
   const [selYear, selMonth] = selectedMonth.split("-").map(Number);
 
   const { fetchStart, fetchEnd } = useMemo(() => {
     if (selectedView === "daily") {
       const lastDay = new Date(selYear, selMonth, 0).getDate();
-      return {
-        fetchStart: `${selectedMonth}-01`,
-        fetchEnd: `${selectedMonth}-${String(lastDay).padStart(2, "0")}`,
-      };
+      return { fetchStart: `${selectedMonth}-01`, fetchEnd: `${selectedMonth}-${String(lastDay).padStart(2, "0")}` };
     }
-    // monthly view → full selected year
-    return {
-      fetchStart: `${selYear}-01-01`,
-      fetchEnd: `${selYear}-12-31`,
-    };
+    return { fetchStart: `${selYear}-01-01`, fetchEnd: `${selYear}-12-31` };
   }, [selectedView, selectedMonth, selYear, selMonth]);
 
   const effectiveBranchId = useMemo(() => {
@@ -126,14 +90,12 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranch, myBranchId]);
 
-  // ── load branches once ──────────────────────────────────────────────────
   useEffect(() => {
     apiClient.branches.getActive()
       .then((data: Branch[]) => setBranches(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
-  // ── load transactions + profits ─────────────────────────────────────────
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -160,190 +122,174 @@ export default function Reports() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── KPI — always scoped to selectedMonth ──────────────────────────────
-  const kpiTx = useMemo(() =>
-    selectedView === "daily"
-      ? transactions
-      : transactions.filter(t => String(t.pawnDate ?? "").startsWith(selectedMonth)),
+  const kpiTx = useMemo(
+    () => (selectedView === "daily" ? transactions : transactions.filter((tx) => String(tx.pawnDate ?? "").startsWith(selectedMonth))),
     [transactions, selectedView, selectedMonth]
   );
 
-  const totalTx       = kpiTx.length;
-  const totalLoan     = kpiTx.reduce((s, t) => s + Number(t.loanAmount ?? 0), 0);
-  const totalAppraised = kpiTx.reduce((s, t) =>
-    s + (t.itemDetails ?? []).reduce((si: number, item: TxItem) => si + Number(item.appraisedValue ?? 0), 0), 0
+  const totalTx = kpiTx.length;
+  const totalLoan = kpiTx.reduce((s, tx) => s + Number(tx.loanAmount ?? 0), 0);
+  const totalAppraised = kpiTx.reduce(
+    (s, tx) => s + (tx.itemDetails ?? []).reduce((si: number, item: TxItem) => si + Number(item.appraisedValue ?? 0), 0),
+    0
   );
 
-  // ── profit for selectedMonth ───────────────────────────────────────────
-  const monthProfits = useMemo(() =>
-    profitedItems.filter(p =>
-      String(p.profitRecordedDate ?? "").startsWith(selectedMonth)
-    ),
+  const monthProfits = useMemo(
+    () => profitedItems.filter((p) => String(p.profitRecordedDate ?? "").startsWith(selectedMonth)),
     [profitedItems, selectedMonth]
   );
   const totalProfit = monthProfits.reduce((s, p) => s + Number(p.profitAmount ?? 0), 0);
 
-  // ── loan volume chart ─────────────────────────────────────────────────
-  const loanChartData = useMemo(() => {
+  const loanChart = useMemo(() => {
+    let labels: string[];
+    let amounts: number[];
     if (selectedView === "daily") {
       const map: Record<string, number> = {};
-      transactions.forEach(t => {
-        const d = String(t.pawnDate ?? "").slice(0, 10);
-        map[d] = (map[d] ?? 0) + Number(t.loanAmount ?? 0);
+      transactions.forEach((tx) => {
+        const d = String(tx.pawnDate ?? "").slice(0, 10);
+        map[d] = (map[d] ?? 0) + Number(tx.loanAmount ?? 0);
       });
-      return daysOfMonth(selectedMonth).map(d => ({
-        label: String(parseInt(d.slice(8))),   // "01" → "1"
-        amount: map[d] ?? 0,
-      }));
+      const days = daysOfMonth(selectedMonth);
+      labels = days.map((d) => String(parseInt(d.slice(8), 10)));
+      amounts = days.map((d) => map[d] ?? 0);
+    } else {
+      const map: Record<string, number> = {};
+      transactions.forEach((tx) => {
+        const m = String(tx.pawnDate ?? "").slice(0, 7);
+        if (m) map[m] = (map[m] ?? 0) + Number(tx.loanAmount ?? 0);
+      });
+      labels = Array.from({ length: 12 }, (_, i) => String(i + 1));
+      amounts = Array.from({ length: 12 }, (_, i) => map[`${selYear}-${String(i + 1).padStart(2, "0")}`] ?? 0);
     }
-    // monthly → 12 bars for the year
-    const map: Record<string, number> = {};
-    transactions.forEach(t => {
-      const m = String(t.pawnDate ?? "").slice(0, 7);
-      if (m) map[m] = (map[m] ?? 0) + Number(t.loanAmount ?? 0);
-    });
-    return Array.from({ length: 12 }, (_, i) => {
-      const key = `${selYear}-${String(i + 1).padStart(2, "0")}`;
-      return { label: String(i + 1), amount: map[key] ?? 0 };
-    });
+    return { labels, amounts };
   }, [transactions, selectedView, selectedMonth, selYear]);
 
-  // ── profit daily chart (always current month) ─────────────────────────
-  const profitChartData = useMemo(() => {
+  const profitChart = useMemo(() => {
     const map: Record<string, number> = {};
-    monthProfits.forEach(p => {
+    monthProfits.forEach((p) => {
       const d = String(p.profitRecordedDate ?? "").slice(0, 10);
       map[d] = (map[d] ?? 0) + Number(p.profitAmount ?? 0);
     });
-    return daysOfMonth(selectedMonth).map(d => ({
-      label: String(parseInt(d.slice(8))),
-      profit: map[d] ?? 0,
-    }));
+    const days = daysOfMonth(selectedMonth);
+    return { labels: days.map((d) => String(parseInt(d.slice(8), 10))), amounts: days.map((d) => map[d] ?? 0) };
   }, [monthProfits, selectedMonth]);
 
   const label = monthLabel(selectedMonth);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  return (
-    <div className="space-y-6">
-      <LoadingOverlay isLoading={loading} />
+  const barOptions = (labels: string[], color: string, unitLabel: string): ApexOptions => ({
+    chart: { toolbar: { show: false } },
+    xaxis: { categories: labels, labels: { style: { fontSize: "11px" } } },
+    yaxis: { labels: { formatter: (v: number) => formatShort(v), style: { fontSize: "10px" } } },
+    colors: [color],
+    plotOptions: { bar: { borderRadius: 4, columnWidth: "60%" } },
+    dataLabels: { enabled: false },
+    tooltip: { y: { formatter: (v: number) => `${formatCurrency(v)}${unitLabel ? ` (${unitLabel})` : ""}` } },
+    grid: { strokeDashArray: 3 },
+  });
 
-      {/* Header + Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold">{t("REPORTS")}</h1>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+  return (
+    <PageWrapper title={t("REPORTS")}>
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb list={[{ title: t("REPORTS"), to: "/reports" }]} />
+        </SubHeaderLeft>
+        <SubHeaderRight>
           <input
             type="month"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="border rounded px-3 py-1.5 text-sm h-9 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+            className="form-control form-control-sm"
+            style={{ width: 160 }}
           />
           {has("reports.filter.branch") && (
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Branches" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("ALL_BRANCHES")}</SelectItem>
-                {branches.map((b: Branch) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
+            <Select ariaLabel="Branch" value={selectedBranch} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedBranch(e.target.value)} size="sm" className="ms-2" style={{ width: 200 }}>
+              <Option value="all">{t("ALL_BRANCHES")}</Option>
+              {branches.map((b) => (
+                <Option key={b.id} value={b.id}>{b.name}</Option>
+              ))}
             </Select>
           )}
+        </SubHeaderRight>
+      </SubHeader>
+      <Page>
+        <div className="row g-4 mb-4">
+          {[
+            { title: t("TOTAL_TRANSACTIONS"), value: totalTx.toLocaleString() },
+            { title: t("TOTAL_LOAN_AMOUNT"), value: formatCurrency(totalLoan) },
+            { title: t("TOTAL_APPRAISED_VALUE"), value: formatCurrency(totalAppraised) },
+          ].map(({ title, value }) => (
+            <div key={title} className="col-12 col-md-4">
+              <Card>
+                <CardBody>
+                  <div className="text-muted text-uppercase small fw-bold">{title}</div>
+                  <div className="fs-3 fw-bold">{loading ? "—" : value}</div>
+                  <p className="text-muted small mb-0">{label}</p>
+                </CardBody>
+              </Card>
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { title: t("TOTAL_TRANSACTIONS"),    value: totalTx.toLocaleString() },
-          { title: t("TOTAL_LOAN_AMOUNT"),     value: formatCurrency(totalLoan) },
-          { title: t("TOTAL_APPRAISED_VALUE"), value: formatCurrency(totalAppraised) },
-        ].map(({ title, value }) => (
-          <Card key={title}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{loading ? "—" : value}</div>
-              <p className="text-xs text-muted-foreground mt-1">{label}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        {/* Loan Volume */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>
-                {selectedView === "daily" ? t("DAILY") : t("MONTHLY")} {t("LOAN_VOLUME")}
-              </CardTitle>
-              <div className="flex gap-1">
-                {(["daily", "monthly"] as const).map((v) => (
-                  <Button
-                    key={v}
-                    size="sm"
-                    variant={selectedView === v ? "default" : "outline"}
-                  className="capitalize h-7 text-xs px-3"
-                  onClick={() => setSelectedView(v)}
-                >
-                  {v === "daily" ? t("DAILY") : t("MONTHLY")}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {selectedView === "daily" ? label : String(selYear)}
-              {loading ? " · loading…" : ` · ${transactions.length} records`}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={loanChartData} margin={{ left: 10, right: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={formatShort} tick={{ fontSize: 10 }} width={80} />
-                <Tooltip content={<LoanTooltip view={selectedView} />} />
-                <Bar dataKey="amount" fill="hsl(38, 92%, 50%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Profit Overview */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>{t("PROFIT_OVERVIEW")}</CardTitle>
-              <div className="text-right">
-                <p className="text-base font-bold text-green-600">
-                  {loading ? "—" : formatCurrency(totalProfit)}
+        <div className="row g-4">
+          <div className="col-12 col-lg-6">
+            <Card>
+              <CardHeader>
+                <div className="d-flex align-items-center justify-content-between w-100">
+                  <CardTitle>{selectedView === "daily" ? t("DAILY") : t("MONTHLY")} {t("LOAN_VOLUME")}</CardTitle>
+                  <div className="d-flex gap-1">
+                    {(["daily", "monthly"] as const).map((v) => (
+                      <Button
+                        key={v}
+                        size="sm"
+                        color={selectedView === v ? "primary" : "dark"}
+                        isLight={selectedView !== v}
+                        className="text-capitalize"
+                        onClick={() => setSelectedView(v)}
+                      >
+                        {v === "daily" ? t("DAILY") : t("MONTHLY")}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardBody>
+                <p className="text-muted small mb-2">
+                  {selectedView === "daily" ? label : String(selYear)}
+                  {loading ? " · loading…" : ` · ${transactions.length} records`}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {monthProfits.length} forfeited · {label}
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={profitChartData} margin={{ left: 10, right: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={formatShort} tick={{ fontSize: 10 }} width={80} />
-                <Tooltip content={<ProfitTooltip />} />
-                <Bar dataKey="profit" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+                <Chart
+                  type="bar"
+                  height={280}
+                  series={[{ name: "Loan Amount", data: loanChart.amounts }]}
+                  options={barOptions(loanChart.labels, "#ffcf52", "")}
+                />
+              </CardBody>
+            </Card>
+          </div>
 
-      </div>
-    </div>
+          <div className="col-12 col-lg-6">
+            <Card>
+              <CardHeader>
+                <div className="d-flex align-items-center justify-content-between w-100">
+                  <CardTitle>{t("PROFIT_OVERVIEW")}</CardTitle>
+                  <div className="text-end">
+                    <p className="fw-bold text-success mb-0">{loading ? "—" : formatCurrency(totalProfit)}</p>
+                    <p className="text-muted small mb-0">{monthProfits.length} forfeited · {label}</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardBody>
+                <Chart
+                  type="bar"
+                  height={280}
+                  series={[{ name: "Profit", data: profitChart.amounts }]}
+                  options={barOptions(profitChart.labels, "#46bcaa", "")}
+                />
+              </CardBody>
+            </Card>
+          </div>
+        </div>
+      </Page>
+    </PageWrapper>
   );
 }

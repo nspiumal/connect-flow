@@ -147,7 +147,6 @@ public class ItemTypeService {
         ItemType itemType = itemTypeRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Item type not found with ID: " + id));
 
-        // TODO: Check if item type is used in any transactions before deleting
         // For now, we'll just soft delete by marking as inactive
         itemType.setIsActive(false);
         itemTypeRepository.save(itemType);

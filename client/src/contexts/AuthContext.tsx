@@ -1,34 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import apiClient from "@/integrations/api";
-
-// Widened from the old 4-value union: Super Admin can create custom roles now,
-// so any role name the backend returns must be accepted here.
-export type AppRole = string;
-
-interface UserProfile {
-  id: string;
-  fullName: string;
-  email: string;
-  phone?: string;
-  role?: AppRole;
-  branchId?: string;
-  branch?: string;
-}
-
-interface AuthContextType {
-  user: UserProfile | null;
-  role: AppRole | null;
-  branchId: string | null;
-  permissions: string[];
-  profile: { full_name: string; email: string } | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  /** True if the current role has this permission key. SUPERADMIN always passes. */
-  has: (permission: string) => boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext, AppRole, UserProfile } from "@/hooks/useAuth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -138,10 +110,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
-  return context;
 }

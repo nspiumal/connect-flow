@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody, CardHeader, CardTitle } from "@/vendor/facit/components/bootstrap/Card";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import Spinner from "@/vendor/facit/components/bootstrap/Spinner";
+import FormGroup from "@/vendor/facit/components/bootstrap/forms/FormGroup";
+import Input from "@/vendor/facit/components/bootstrap/forms/Input";
+import Textarea from "@/vendor/facit/components/bootstrap/forms/Textarea";
 import { LoadingOverlay } from "@/components/LoadingOverlay";
-import { ArrowLeft } from "lucide-react";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
-import { useToast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/usePermission";
 import { formatWeight } from "@/lib/utils";
 
@@ -24,7 +28,6 @@ interface ItemDetail {
 export default function TransactionProfit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const has = usePermission();
 
   const [loadingData, setLoadingData] = useState(true);
@@ -37,13 +40,8 @@ export default function TransactionProfit() {
   const toNumber = (value: unknown) => Number(value) || 0;
 
   useEffect(() => {
-    // Check permission
     if (!has("profit.record")) {
-      toast({
-        title: "Access Denied",
-        description: "Only Admin and Branch Manager can access this page",
-        variant: "destructive",
-      });
+      notify({ title: "Access Denied", description: "Only Admin and Branch Manager can access this page", variant: "destructive" });
       navigate("/transactions");
       return;
     }
@@ -82,11 +80,7 @@ export default function TransactionProfit() {
         }
       } catch (error) {
         console.error("Failed to load transaction data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load transaction details",
-          variant: "destructive",
-        });
+        notify({ title: "Error", description: "Failed to load transaction details", variant: "destructive" });
         navigate("/transactions");
       } finally {
         setLoadingData(false);
@@ -95,18 +89,13 @@ export default function TransactionProfit() {
 
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, navigate, toast]);
+  }, [id]);
 
-  const handleSetProfit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSetProfit = async () => {
     if (!id) return;
 
     if (!profitAmount || parseFloat(profitAmount) <= 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a valid forfeit amount",
-        variant: "destructive",
-      });
+      notify({ title: "Validation Error", description: "Please enter a valid forfeit amount", variant: "destructive" });
       return;
     }
 
@@ -118,20 +107,13 @@ export default function TransactionProfit() {
         notes: profitNotes,
       });
 
-      toast({
-        title: "✓ Forfeit Recorded!",
-        description: `Transaction marked as forfeited. Amount: Rs. ${parseFloat(profitAmount).toLocaleString()}`,
-      });
+      notify({ title: "✓ Forfeit Recorded!", description: `Transaction marked as forfeited. Amount: Rs. ${parseFloat(profitAmount).toLocaleString()}`, variant: "success" });
 
       navigate("/transactions");
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Failed to record profit:", error);
       const message = error instanceof Error ? error.message : "Failed to record forfeit";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
+      notify({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setProfitLoading(false);
     }
@@ -142,187 +124,140 @@ export default function TransactionProfit() {
   }
 
   return (
-    <div className="space-y-4">
+    <PageWrapper title="Set Transaction as Forfeited">
       <LoadingOverlay isLoading={profitLoading} />
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb
+            list={[
+              { title: "Pawn Transactions", to: "/transactions" },
+              { title: `Forfeit ${String(transaction?.pawnId || transaction?.pawn_id || "")}`, to: `/transactions/profit/${id}` },
+            ]}
+          />
+        </SubHeaderLeft>
+      </SubHeader>
+      <Page>
+        <div className="row g-4">
+          <div className="col-12 col-lg-6 d-flex flex-column gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Customer Information</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <div className="row g-3 small">
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Customer Name</div>
+                    <p className="fw-medium mb-0">{String(transaction?.customerName || transaction?.customer_name || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>NIC</div>
+                    <p className="fw-medium mb-0">{String(transaction?.customerNic || transaction?.customer_nic || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Phone</div>
+                    <p className="fw-medium mb-0">{String(transaction?.customerPhone || transaction?.customer_phone || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Address</div>
+                    <p className="fw-medium text-truncate mb-0">{String(transaction?.customerAddress || transaction?.customer_address || "N/A")}</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate("/transactions")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Set Transaction as Forfeited</h1>
-          <p className="text-sm text-muted-foreground">
-            Receipt No: {String(transaction?.pawnId || transaction?.pawn_id || "")}
-          </p>
-        </div>
-      </div>
-
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left Column */}
-        <div className="space-y-4">
-          {/* Customer Information */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Customer Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Customer Name</Label>
-                  <p className="font-medium">{String(transaction?.customerName || transaction?.customer_name || "N/A")}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">NIC</Label>
-                  <p className="font-medium">{String(transaction?.customerNic || transaction?.customer_nic || "N/A")}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Phone</Label>
-                  <p className="font-medium">{String(transaction?.customerPhone || transaction?.customer_phone || "N/A")}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Address</Label>
-                  <p className="font-medium truncate">{String(transaction?.customerAddress || transaction?.customer_address || "N/A")}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Item Details */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Item Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Item Details</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0 d-flex flex-column gap-3">
                 {items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-x-3 gap-y-2 p-3 rounded border bg-gray-50 text-sm">
-                    <div className="col-span-3">
-                      <Label className="text-xs text-muted-foreground">Description</Label>
-                      <p className="font-medium">{item.description}</p>
+                  <div key={index} className="row g-2 p-3 rounded border bg-body-tertiary small">
+                    <div className="col-12">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Description</div>
+                      <p className="fw-medium mb-0">{item.description}</p>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Weight</Label>
-                      <p className="font-medium">{formatWeight(item.weightGrams)}g</p>
+                    <div className="col-4">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Weight</div>
+                      <p className="fw-medium mb-0">{formatWeight(item.weightGrams)}g</p>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Karat</Label>
-                      <p className="font-medium">{item.karat}K</p>
+                    <div className="col-4">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Karat</div>
+                      <p className="fw-medium mb-0">{item.karat}K</p>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Condition</Label>
-                      <p className="font-medium">{item.condition}</p>
+                    <div className="col-4">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Condition</div>
+                      <p className="fw-medium mb-0">{item.condition}</p>
                     </div>
-                    <div className="col-span-2">
-                      <Label className="text-xs text-muted-foreground">Appraised Value</Label>
-                      <p className="font-medium">Rs. {item.appraisedValue.toLocaleString()}</p>
+                    <div className="col-6">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Appraised Value</div>
+                      <p className="fw-medium mb-0">Rs. {item.appraisedValue.toLocaleString()}</p>
                     </div>
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
+              </CardBody>
+            </Card>
+          </div>
 
-        </div>
+          <div className="col-12 col-lg-6 d-flex flex-column gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Transaction Details</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <div className="row g-3 small">
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Loan Amount</div>
+                    <p className="fw-medium mb-0">Rs. {toNumber(transaction?.loanAmount).toLocaleString()}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Interest Rate</div>
+                    <p className="fw-medium mb-0">{toNumber(transaction?.interestRatePercent)}%</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Pawn Date</div>
+                    <p className="fw-medium mb-0">{String(transaction?.pawnDate || transaction?.pawn_date || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Maturity Date</div>
+                    <p className="fw-medium mb-0">{String(transaction?.maturityDate || transaction?.maturity_date || "N/A")}</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
 
-        {/* Right Column - Transaction Details + Profit Form */}
-        <div className="space-y-4">
-          {/* Transaction Details */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Transaction Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Loan Amount</Label>
-                  <p className="font-medium">Rs. {toNumber(transaction?.loanAmount).toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Interest Rate</Label>
-                  <p className="font-medium">{toNumber(transaction?.interestRatePercent)}%</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Pawn Date</Label>
-                  <p className="font-medium">{String(transaction?.pawnDate || transaction?.pawn_date || "N/A")}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Maturity Date</Label>
-                  <p className="font-medium">{String(transaction?.maturityDate || transaction?.maturity_date || "N/A")}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Set Profit Form */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Set Forfeit</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSetProfit} className="space-y-4">
-                <div>
-                  <Label htmlFor="profitAmount" className="text-sm">Forfeit Amount (LKR) *</Label>
-                  <Input
-                    id="profitAmount"
-                    type="number"
-                    step="0.01"
-                    value={profitAmount}
-                    onChange={(e) => setProfitAmount(e.target.value)}
-                    placeholder="Enter forfeit amount"
-                    className="mt-1"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Enter the forfeit amount for this transaction
-                  </p>
-                </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="fs-6">Set Forfeit</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <FormGroup id="profitAmount" label="Forfeit Amount (LKR) *" formText="Enter the forfeit amount for this transaction" className="mb-3">
+                  <Input type="number" step={0.01} value={profitAmount} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfitAmount(e.target.value)} placeholder="Enter forfeit amount" required />
+                </FormGroup>
 
                 {profitAmount && (
-                  <div className="p-3 rounded border bg-gray-50">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-blue-700" />
-                      <p className="text-sm font-semibold text-blue-700">Forfeit Amount: Rs. {parseFloat(profitAmount).toLocaleString()}</p>
-                    </div>
+                  <div className="p-3 rounded border bg-body-tertiary mb-3">
+                    <p className="small fw-semibold text-info mb-0">● Forfeit Amount: Rs. {parseFloat(profitAmount).toLocaleString()}</p>
                   </div>
                 )}
 
-                <div>
-                  <Label htmlFor="profitNotes" className="text-sm">Notes (Optional)</Label>
-                  <Textarea
-                    id="profitNotes"
-                    value={profitNotes}
-                    onChange={(e) => setProfitNotes(e.target.value)}
-                    placeholder="Add any notes about this forfeit"
-                    rows={4}
-                    className="mt-1 text-sm"
-                  />
-                </div>
+                <FormGroup id="profitNotes" label="Notes (Optional)" className="mb-3">
+                  <Textarea value={profitNotes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setProfitNotes(e.target.value)} placeholder="Add any notes about this forfeit" rows={4} />
+                </FormGroup>
 
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/transactions")}
-                    className="flex-1"
-                  >
+                <div className="d-flex gap-2">
+                  <Button color="dark" isLight className="flex-grow-1" onClick={() => navigate("/transactions")}>
                     Cancel
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={profitLoading || !profitAmount}
-                    className="flex-1"
-                  >
+                  <Button color="primary" className="flex-grow-1" onClick={handleSetProfit} isDisable={profitLoading || !profitAmount}>
+                    {profitLoading && <Spinner isSmall inButton />}
                     {profitLoading ? "Processing..." : "Set Forfeit"}
                   </Button>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+              </CardBody>
+            </Card>
+          </div>
         </div>
-      </div>
-    </div>
+      </Page>
+    </PageWrapper>
   );
 }
-

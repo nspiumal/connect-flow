@@ -1,20 +1,28 @@
 import {
   LayoutDashboard, Building2, Users, FileText, Search, ShieldAlert,
-  Percent, BarChart3, ClipboardList, LogOut, ChevronDown, Menu, X, FilePlus, Package, Activity, KeyRound,
+  Percent, BarChart3, ClipboardList, FilePlus, Package, Activity, KeyRound,
 } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
-import { useAuth } from "@/contexts/AuthContext";
-import { usePermission } from "@/hooks/usePermission";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { NavLink } from "@/components/NavLink";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermission } from "@/hooks/usePermission";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import Badge from "@/vendor/facit/components/bootstrap/Badge";
+import Icon from "@/vendor/facit/components/icon/Icon";
+import OffCanvas, {
+  OffCanvasHeader,
+  OffCanvasTitle,
+  OffCanvasBody,
+} from "@/vendor/facit/components/bootstrap/OffCanvas";
+import useDarkMode from "@/vendor/facit/hooks/useDarkMode";
+import { cn } from "@/lib/utils";
 
-const ROLE_COLORS: Record<string, string> = {
-  SUPERADMIN: "bg-red-500 shadow-red-500/20",
-  ADMIN: "bg-orange-500 shadow-orange-500/20",
-  MANAGER: "bg-blue-500 shadow-blue-500/20",
-  STAFF: "bg-green-500 shadow-green-500/20",
+const ROLE_COLORS: Record<string, "danger" | "warning" | "info" | "success"> = {
+  SUPERADMIN: "danger",
+  ADMIN: "warning",
+  MANAGER: "info",
+  STAFF: "success",
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -41,6 +49,7 @@ export function AppHeader() {
   const { role, profile, signOut } = useAuth();
   const has = usePermission();
   const location = useLocation();
+  const { darkModeStatus, setDarkModeStatus } = useDarkMode();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -122,144 +131,149 @@ export function AppHeader() {
     } else if (filteredCategories.length > 0 && !activeCategory) {
       setActiveCategory(filteredCategories[0].id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, role]);
 
   const activeCategoryData = filteredCategories.find((cat) => cat.id === activeCategory);
 
   return (
-    <header className="w-full bg-background border-b z-50 flex flex-col transition-all duration-300">
+    <header className="w-100 border-bottom shadow-sm" style={{ position: "relative", zIndex: 50 }}>
       {/* Top Navbar */}
-      <div className="flex items-center justify-between px-3 sm:px-4 md:px-6 py-2 sm:py-3 bg-sidebar text-sidebar-foreground min-h-[52px] sm:min-h-[60px] md:h-16 shadow-md relative z-20">
+      <div
+        className="d-flex align-items-center justify-content-between px-3 px-md-4 py-2 text-white"
+        style={{ background: "var(--bs-dark)", minHeight: 60 }}
+      >
         {/* Logo and Brand */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-xs sm:text-sm">KHJ</span>
+        <div className="d-flex align-items-center gap-2 flex-shrink-0">
+          <div
+            className="d-flex align-items-center justify-content-center rounded shadow"
+            style={{
+              width: 36,
+              height: 36,
+              background: "linear-gradient(135deg, var(--bs-primary), var(--bs-info))",
+            }}
+          >
+            <span className="fw-bold text-white small">KHJ</span>
           </div>
-          <div className="hidden sm:block">
-            <span className="font-bold text-sm block leading-none">Kalyani House of Jewellers</span>
-            <span className="text-[10px] text-sidebar-foreground/60">Gold Pawn</span>
+          <div className="d-none d-sm-block lh-sm">
+            <span className="fw-bold small d-block">Kalyani House of Jewellers</span>
+            <span className="text-white-50" style={{ fontSize: "0.6875rem" }}>Gold Pawn</span>
           </div>
         </div>
 
         {/* Desktop Top Menu Tabs */}
-        <nav className="hidden md:flex items-center h-full px-2 lg:px-4 overflow-x-auto scrollbar-none flex-1 justify-center">
+        <nav className="d-none d-md-flex align-items-center h-100 flex-grow-1 justify-content-center overflow-auto px-3">
           {filteredCategories.map((cat) => (
             <button
               key={cat.id}
+              type="button"
               onClick={() => setActiveCategory(cat.id)}
               className={cn(
-                "relative px-2 lg:px-4 py-2 mx-0.5 lg:mx-1 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-300 flex items-center gap-1 whitespace-nowrap",
-                activeCategory === cat.id
-                  ? "bg-primary text-white shadow-md shadow-primary/20"
-                  : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-white"
+                "btn btn-sm mx-1 text-uppercase fw-bold d-flex align-items-center gap-1 text-nowrap",
+                activeCategory === cat.id ? "btn-primary text-white shadow-sm" : "btn-link text-white-50"
               )}
+              style={{ fontSize: "0.75rem", letterSpacing: "0.03em" }}
             >
-              <span>{cat.title}</span>
-              <ChevronDown
-                className={cn(
-                  "w-3 h-3 lg:w-3.5 lg:h-3.5 opacity-55 transition-transform duration-200",
-                  activeCategory === cat.id && "rotate-180"
-                )}
-              />
+              {cat.title}
             </button>
           ))}
         </nav>
 
         {/* User profile & Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 shrink-0">
+        <div className="d-flex align-items-center gap-2 gap-lg-3 flex-shrink-0">
           {role && (
-            <div className="hidden lg:flex flex-col items-end border-r border-sidebar-border/50 pr-4">
-              <div className="flex items-center gap-1.5">
-                <span className={cn("w-2 h-2 rounded-full", ROLE_COLORS[role] || "bg-gray-400")} />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/80">
+            <div className="d-none d-lg-flex flex-column align-items-end border-end pe-3" style={{ borderColor: "rgba(255,255,255,.15) !important" }}>
+              <div className="d-flex align-items-center gap-2">
+                <Badge color={ROLE_COLORS[role] || "secondary"} rounded="pill" className="text-uppercase" style={{ fontSize: "0.625rem" }}>
                   {ROLE_LABELS[role] || role}
-                </span>
+                </Badge>
               </div>
-              <span className="text-xs text-sidebar-foreground/60 max-w-[120px] truncate font-medium mt-0.5">
+              <span className="text-white-50 small mt-1 text-truncate" style={{ maxWidth: 140 }}>
                 {profile?.full_name}
               </span>
             </div>
           )}
 
+          {/* Dark mode toggle */}
+          <Button
+            className="d-none d-md-inline-flex text-white"
+            onClick={() => setDarkModeStatus((prev) => !prev)}
+            aria-label="Toggle dark mode"
+          >
+            <Icon icon={darkModeStatus ? "LightMode" : "DarkMode"} size="lg" />
+          </Button>
+
           {/* Quick Sign Out (Desktop) */}
           <Button
-            variant="ghost"
-            size="sm"
+            className="d-none d-md-inline-flex text-danger fw-semibold"
             onClick={signOut}
-            className="hidden md:flex items-center gap-1.5 lg:gap-2 hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors font-semibold text-xs px-2 lg:px-3 h-8 lg:h-9"
+            icon="Logout"
           >
-            <LogOut className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
-            <span className="hidden lg:inline">Sign Out</span>
+            Sign Out
           </Button>
 
           {/* Mobile Menu Button */}
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8"
+            className="d-md-none text-white"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open menu"
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <Icon icon="Menu" size="lg" />
           </Button>
         </div>
       </div>
 
-      {/* Desktop Submenu Bar (Expands / slides open from the top) */}
-      <div
-        className={cn(
-          "w-full bg-muted/30 border-b border-border/50 overflow-hidden transition-all duration-300 hidden md:block z-10",
-          activeCategoryData && activeCategoryData.items.length > 0
-            ? "max-h-16 opacity-100 py-2 sm:py-3"
-            : "max-h-0 opacity-0 py-0 border-b-0"
-        )}
-      >
-        <div className="px-3 sm:px-4 md:px-6 lg:px-8 flex flex-wrap items-center gap-1 sm:gap-2 md:gap-3">
-          {activeCategoryData?.items.map((item) => (
-            <NavLink
-              key={item.url}
-              to={item.url}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-md text-xs font-semibold text-muted-foreground transition-all duration-200 border border-transparent hover:bg-background hover:text-foreground hover:shadow-sm whitespace-nowrap"
-              activeClassName="bg-primary text-white hover:bg-primary hover:text-white shadow-sm border-primary/20"
-            >
-              <item.icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-              <span>{item.title}</span>
-            </NavLink>
-          ))}
+      {/* Desktop Submenu Bar */}
+      {activeCategoryData && activeCategoryData.items.length > 0 && (
+        <div className="d-none d-md-block border-bottom bg-body-tertiary px-3 px-md-4 py-2">
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            {activeCategoryData.items.map((item) => (
+              <NavLink
+                key={item.url}
+                to={item.url}
+                className="d-flex align-items-center gap-2 px-3 py-2 rounded fw-semibold text-muted small text-decoration-none"
+                activeClassName="bg-primary text-white shadow-sm"
+              >
+                <item.icon size={14} className="flex-shrink-0" />
+                <span>{item.title}</span>
+              </NavLink>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Mobile Drawer/Menu Overlay */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-sidebar text-sidebar-foreground border-b border-sidebar-border/50 flex flex-col p-4 space-y-4 animate-accordion-down z-30">
+      {/* Mobile Drawer */}
+      <OffCanvas isOpen={mobileMenuOpen} setOpen={setMobileMenuOpen} placement="end" titleId="mobile-menu-title">
+        <OffCanvasHeader setOpen={setMobileMenuOpen}>
+          <OffCanvasTitle id="mobile-menu-title">Menu</OffCanvasTitle>
+        </OffCanvasHeader>
+        <OffCanvasBody>
           {role && (
-            <div className="flex items-center justify-between border-b border-sidebar-border/50 pb-3 bg-sidebar-accent/10 px-2 py-1.5 rounded-md">
+            <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/60 block">Logged in as</span>
-                <span className="text-sm font-semibold">{profile?.full_name}</span>
+                <span className="text-muted text-uppercase d-block" style={{ fontSize: "0.625rem" }}>Logged in as</span>
+                <span className="fw-semibold small">{profile?.full_name}</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-sidebar-accent px-2.5 py-1 rounded-full">
-                <span className={cn("w-2 h-2 rounded-full", ROLE_COLORS[role] || "bg-gray-400")} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">{ROLE_LABELS[role] || role}</span>
-              </div>
+              <Badge color={ROLE_COLORS[role] || "secondary"} rounded="pill">{ROLE_LABELS[role] || role}</Badge>
             </div>
           )}
 
-          <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-1">
+          <div className="d-flex flex-column gap-3">
             {filteredCategories.map((cat) => (
-              <div key={cat.id} className="space-y-1.5">
-                <span className="text-[10px] font-extrabold tracking-widest text-sidebar-foreground/40 block px-2 uppercase">
+              <div key={cat.id}>
+                <span className="text-muted fw-bold text-uppercase d-block mb-1 px-1" style={{ fontSize: "0.625rem", letterSpacing: "0.05em" }}>
                   {cat.title}
                 </span>
-                <div className="grid grid-cols-1 gap-1 pl-2">
+                <div className="d-flex flex-column gap-1">
                   {cat.items.map((item) => (
                     <NavLink
                       key={item.url}
                       to={item.url}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md text-xs text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white transition-colors font-semibold"
-                      activeClassName="bg-primary text-white hover:bg-primary"
+                      className="d-flex align-items-center gap-2 px-3 py-2 rounded text-body fw-semibold small text-decoration-none"
+                      activeClassName="bg-primary text-white"
                     >
-                      <item.icon className="h-4 w-4 shrink-0" />
+                      <item.icon size={16} className="flex-shrink-0" />
                       <span>{item.title}</span>
                     </NavLink>
                   ))}
@@ -268,20 +282,29 @@ export function AppHeader() {
             ))}
           </div>
 
-          <div className="border-t border-sidebar-border/50 pt-3">
-            <button
+          <div className="border-top mt-3 pt-3 d-flex flex-column gap-2">
+            <Button
+              color="dark"
+              isLight
+              icon={darkModeStatus ? "LightMode" : "DarkMode"}
+              onClick={() => setDarkModeStatus((prev) => !prev)}
+            >
+              {darkModeStatus ? "Light Mode" : "Dark Mode"}
+            </Button>
+            <Button
+              color="danger"
+              isLight
+              icon="Logout"
               onClick={() => {
                 setMobileMenuOpen(false);
                 signOut();
               }}
-              className="flex items-center gap-3 px-4 py-2.5 rounded-md text-xs w-full hover:bg-red-500/10 transition-colors text-red-400 hover:text-red-300 font-bold"
             >
-              <LogOut className="h-4 w-4 shrink-0" />
-              <span>Sign Out</span>
-            </button>
+              Sign Out
+            </Button>
           </div>
-        </div>
-      )}
+        </OffCanvasBody>
+      </OffCanvas>
     </header>
   );
 }

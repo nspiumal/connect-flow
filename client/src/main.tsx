@@ -1,11 +1,9 @@
-import "./index.css";
+import "./vendor/facit/styles/styles.scss";
+import "animate.css";
+import "react-notifications-component/dist/theme.css";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { initializeThemeListener } from "./lib/theme";
 import { initLang } from "./lib/lang";
-
-// Initialize theme colors from environment variables
-initializeThemeListener();
 
 // Load language strings from /en.json before rendering the app
 initLang().then(() => {

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { FormModal } from "@/components/facit/FormModal";
+import FormGroup from "@/vendor/facit/components/bootstrap/forms/FormGroup";
+import Input from "@/vendor/facit/components/bootstrap/forms/Input";
+import Select from "@/vendor/facit/components/bootstrap/forms/Select";
+import Option from "@/vendor/facit/components/bootstrap/Option";
+import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
 
 type AppRole = string;
@@ -33,26 +33,21 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [roleOptions, setRoleOptions] = useState<{ name: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const fetchBranches = async () => {
     try {
-      const data = await apiClient.branches.getActive();
-      const normalized = data.map((b: any) => ({
-        id: b.id,
-        name: b.name,
-      }));
-      setBranches(normalized);
-    } catch (error: any) {
+      const data: { id: string; name: string }[] = await apiClient.branches.getActive();
+      setBranches(data.map((b) => ({ id: b.id, name: b.name })));
+    } catch (error) {
       console.error("Failed to fetch branches:", error);
     }
   };
 
   const fetchRoleOptions = async () => {
     try {
-      const data = await apiClient.roles.getAll();
-      const active = data.filter((r: any) => r.isActive);
-      setRoleOptions(active.map((r: any) => ({ name: r.name, label: r.label })));
+      const data: { name: string; label: string; isActive: boolean }[] = await apiClient.roles.getAll();
+      const active = data.filter((r) => r.isActive);
+      setRoleOptions(active.map((r) => ({ name: r.name, label: r.label })));
     } catch (error) {
       console.error("Failed to fetch roles:", error);
     }
@@ -72,109 +67,86 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
     }
   }, [open, user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      const userData: any = {
+      const userData: { fullName: string; email: string; role: AppRole; branchId: string | null; password?: string } = {
         fullName,
         email,
         role,
         branchId: branchId === "none" ? null : branchId,
       };
-      
+
       if (password) {
         userData.password = password;
       }
 
       await apiClient.users.update(user.id, userData);
 
-      toast({
-        title: "Success",
-        description: "User updated successfully",
-      });
+      notify({ title: "Success", description: "User updated successfully", variant: "success" });
 
       onSuccess();
       onOpenChange(false);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update user",
-        variant: "destructive",
-      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update user";
+      notify({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
+  const needsBranch = role === "MANAGER" || role === "STAFF";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Full Name</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-          </div>
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled />
-            <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-          </div>
-          <div className="space-y-2">
-            <Label>New Password (Optional)</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} placeholder="Leave blank to keep unchanged" />
-          </div>
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {roleOptions.length === 0 ? (
-                  <SelectItem value={role} disabled>Loading roles...</SelectItem>
-                ) : (
-                  roleOptions.map((r) => (
-                    <SelectItem key={r.name} value={r.name}>{r.label}</SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          {(role === "MANAGER" || role === "STAFF") && (
-            <div className="space-y-2">
-              <Label>Assign to Branch *</Label>
-              <Select value={branchId} onValueChange={setBranchId} required>
-                <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none" disabled>Select branch</SelectItem>
-                  {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+    <FormModal
+      isOpen={open}
+      setIsOpen={onOpenChange}
+      title="Edit User"
+      onSubmit={handleSubmit}
+      isSubmitting={loading}
+      submitLabel="Update User"
+    >
+      <FormGroup id="editFullName" label="Full Name" isFloating>
+        <Input value={fullName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFullName(e.target.value)} required />
+      </FormGroup>
+      <FormGroup id="editEmail" label="Email" isFloating formText="Email cannot be changed">
+        <Input type="email" value={email} disabled />
+      </FormGroup>
+      <FormGroup id="editPassword" label="New Password (Optional)" isFloating>
+        <Input
+          type="password"
+          value={password}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+          minLength={6}
+          placeholder="Leave blank to keep unchanged"
+        />
+      </FormGroup>
+      <FormGroup id="editRole" label="Role">
+        <Select ariaLabel="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value)}>
+          {roleOptions.length === 0 ? (
+            <Option value={role} disabled>Loading roles...</Option>
+          ) : (
+            roleOptions.map((r) => (
+              <Option key={r.name} value={r.name}>{r.label}</Option>
+            ))
           )}
-          {role !== "MANAGER" && role !== "STAFF" && (
-            <div className="space-y-2">
-              <Label>Assign to Branch (Optional)</Label>
-              <Select value={branchId} onValueChange={setBranchId}>
-                <SelectTrigger><SelectValue placeholder="Select branch (optional)" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Branch</SelectItem>
-                  {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Updating..." : "Update User"}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </Select>
+      </FormGroup>
+      <FormGroup id="editBranchId" label={needsBranch ? "Assign to Branch *" : "Assign to Branch (Optional)"}>
+        <Select
+          ariaLabel="Branch"
+          value={branchId}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setBranchId(e.target.value)}
+          required={needsBranch}
+        >
+          <Option value="none" disabled={needsBranch}>{needsBranch ? "Select branch" : "No Branch"}</Option>
+          {branches.map((b) => (
+            <Option key={b.id} value={b.id}>{b.name}</Option>
+          ))}
+        </Select>
+      </FormGroup>
+    </FormModal>
   );
 }

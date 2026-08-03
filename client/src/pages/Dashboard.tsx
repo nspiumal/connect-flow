@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { SuperAdminDashboard } from "@/components/dashboards/SuperAdminDashboard";
 import { AdminDashboard } from "@/components/dashboards/AdminDashboard";
 import { ManagerDashboard } from "@/components/dashboards/ManagerDashboard";
@@ -15,8 +15,8 @@ export default function Dashboard() {
     case "STAFF": return <StaffDashboard />;
     default:
       return (
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">{t("LOADING_DASHBOARD")}</p>
+        <div className="d-flex align-items-center justify-content-center" style={{ height: 256 }}>
+          <p className="text-muted">{t("LOADING_DASHBOARD")}</p>
         </div>
       );
   }

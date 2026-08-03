@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Building2, Users, ClipboardList, CheckCircle, UserPlus } from "lucide-react";
-import apiClient from "@/integrations/api";
 import { useNavigate } from "react-router-dom";
+import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
+import SubHeader, { SubHeaderLeft, SubHeaderRight } from "@/vendor/facit/layout/SubHeader/SubHeader";
+import Breadcrumb from "@/vendor/facit/components/bootstrap/Breadcrumb";
+import Page from "@/vendor/facit/layout/Page/Page";
+import Card, { CardBody, CardHeader, CardTitle } from "@/vendor/facit/components/bootstrap/Card";
+import Button from "@/vendor/facit/components/bootstrap/Button";
+import { StatCard } from "@/components/facit/StatCard";
+import apiClient from "@/integrations/api";
 import { CreateUserDialog } from "@/components/users/CreateUserDialog";
 
 export function SuperAdminDashboard() {
@@ -18,7 +22,7 @@ export function SuperAdminDashboard() {
           apiClient.branches.getAll(),
           apiClient.users.getAll(),
         ]);
-        const activeBranches = branches.filter((b: any) => (b.isActive ?? b.is_active) === true).length;
+        const activeBranches = branches.filter((b: { isActive?: boolean; is_active?: boolean }) => (b.isActive ?? b.is_active) === true).length;
         setStats({
           totalBranches: branches.length || 0,
           pendingRequests: 0,
@@ -33,57 +37,63 @@ export function SuperAdminDashboard() {
   }, []);
 
   const widgets = [
-    { title: "Total Branches", value: stats.totalBranches, icon: Building2, color: "text-blue-600" },
-    { title: "Pending Requests", value: stats.pendingRequests, icon: ClipboardList, color: "text-orange-600" },
-    { title: "Total Users", value: stats.totalUsers, icon: Users, color: "text-green-600" },
-    { title: "Active Branches", value: stats.activeBranches, icon: CheckCircle, color: "text-emerald-600" },
-  ];
+    { title: "Total Branches", value: stats.totalBranches, icon: "AccountBalance", color: "primary" },
+    { title: "Pending Requests", value: stats.pendingRequests, icon: "PendingActions", color: "warning" },
+    { title: "Total Users", value: stats.totalUsers, icon: "Group", color: "success" },
+    { title: "Active Branches", value: stats.activeBranches, icon: "CheckCircle", color: "info" },
+  ] as const;
 
   return (
-    <div className="space-y-8">
-      {/* Header Section */}
-      <div className="flex flex-wrap items-start sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">System overview, management, and analytics</p>
+    <PageWrapper title="Super Admin Dashboard">
+      <SubHeader>
+        <SubHeaderLeft>
+          <Breadcrumb list={[{ title: "Dashboard", to: "/dashboard" }]} />
+        </SubHeaderLeft>
+        <SubHeaderRight>
+          <Button color="primary" icon="PersonAdd" onClick={() => setShowCreateUser(true)}>
+            Create User
+          </Button>
+        </SubHeaderRight>
+      </SubHeader>
+      <Page>
+        <div className="mb-4">
+          <h1 className="fw-bold">Super Admin Dashboard</h1>
+          <p className="text-muted">System overview, management, and analytics</p>
         </div>
-        <Button onClick={() => setShowCreateUser(true)} className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg shrink-0">
-          <UserPlus className="mr-2 h-4 w-4" /> Create User
-        </Button>
-      </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {widgets.map((w) => (
-          <Card key={w.title} className="hover:shadow-lg transition-all duration-300 cursor-pointer border-0 bg-card">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{w.title}</CardTitle>
-                <div className={`p-2.5 rounded-lg bg-opacity-10 ${w.color.replace('text', 'bg')}`}>
-                  <w.icon className={`h-5 w-5 ${w.color}`} />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{w.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total count</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        <div className="row g-4 mb-4">
+          {widgets.map((w) => (
+            <div key={w.title} className="col-12 col-md-6 col-lg-3">
+              <StatCard title={w.title} value={w.value} icon={w.icon} iconColor={w.color} description="Total count" />
+            </div>
+          ))}
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/branches")}>
-          <CardHeader><CardTitle className="text-lg">Branch Management</CardTitle></CardHeader>
-          <CardContent><p className="text-muted-foreground">Manage all branches, assign managers</p></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/branch-requests")}>
-          <CardHeader><CardTitle className="text-lg">Branch Requests</CardTitle></CardHeader>
-          <CardContent><p className="text-muted-foreground">Review pending branch requests</p></CardContent>
-        </Card>
-      </div>
+        <div className="row g-4">
+          <div className="col-12 col-md-6">
+            <Card className="cursor-pointer h-100" onClick={() => navigate("/branches")}>
+              <CardHeader>
+                <CardTitle>Branch Management</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <p className="text-muted mb-0">Manage all branches, assign managers</p>
+              </CardBody>
+            </Card>
+          </div>
+          <div className="col-12 col-md-6">
+            <Card className="cursor-pointer h-100" onClick={() => navigate("/branch-requests")}>
+              <CardHeader>
+                <CardTitle>Branch Requests</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <p className="text-muted mb-0">Review pending branch requests</p>
+              </CardBody>
+            </Card>
+          </div>
+        </div>
+      </Page>
 
       <CreateUserDialog open={showCreateUser} onOpenChange={setShowCreateUser} />
-    </div>
+    </PageWrapper>
   );
 }

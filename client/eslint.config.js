@@ -5,7 +5,10 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  // src/vendor/facit is vendored third-party (Facit) source, kept close to
+  // upstream so patches stay diffable — it isn't written to this project's
+  // stricter lint rules and is intentionally excluded, the same as `dist`.
+  { ignores: ["dist", "src/vendor/**"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
