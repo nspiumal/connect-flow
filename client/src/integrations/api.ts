@@ -647,11 +647,11 @@ export const apiClient = {
       await throwIfError(response, 'Failed to create transaction');
       return response.json();
     },
-    updateStatus: async (id: string, status: string) => {
+    updateStatus: async (id: string, status: string, reason?: string) => {
       const response = await authFetch(`${API_BASE_URL}/pawn-transactions/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, reason }),
       });
       await throwIfError(response, 'Failed to update transaction status');
       return response.json();

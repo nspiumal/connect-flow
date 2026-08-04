@@ -17,6 +17,8 @@ import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
 import { usePermission } from "@/hooks/usePermission";
 import { t } from "@/lib/lang";
+import { useAppDispatch } from "@/store/hooks";
+import { branchesLookup } from "@/store/lookupSlices";
 
 interface Branch {
   id: string;
@@ -33,6 +35,7 @@ interface ManagerOption {
 }
 
 export default function Branches() {
+  const dispatch = useAppDispatch();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -87,6 +90,14 @@ export default function Branches() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize, sortBy, sortDir]);
 
+  // This page manages the full paginated branch list, a different endpoint
+  // from the shared "active branches" cache other pages/dialogs read from.
+  // Any mutation here must also invalidate that cache so it doesn't wait out its TTL.
+  const refreshActiveBranchesCache = () => {
+    dispatch(branchesLookup.invalidate());
+    dispatch(branchesLookup.thunk());
+  };
+
   const handleSort = (key: string) => {
     if (sortBy === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -111,6 +122,7 @@ export default function Branches() {
       setEditing(null);
       setName(""); setAddress(""); setPhone(""); setManagerId("");
       fetchBranches();
+      refreshActiveBranchesCache();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save branch";
       notify({ title: "Error", description: message, variant: "destructive" });
@@ -123,6 +135,7 @@ export default function Branches() {
     try {
       await apiClient.branches.update(branch.id, { isActive: !branch.is_active });
       fetchBranches();
+      refreshActiveBranchesCache();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to update branch";
       notify({ title: "Error", description: message, variant: "destructive" });

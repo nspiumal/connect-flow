@@ -6,6 +6,7 @@ import Select from "@/vendor/facit/components/bootstrap/forms/Select";
 import Option from "@/vendor/facit/components/bootstrap/Option";
 import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
+import { useActiveRoleOptions, useBranchOptions } from "@/hooks/useLookups";
 
 type AppRole = string;
 
@@ -30,40 +31,17 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<AppRole>("STAFF");
   const [branchId, setBranchId] = useState("none");
-  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
-  const [roleOptions, setRoleOptions] = useState<{ name: string; label: string }[]>([]);
+  const branches = useBranchOptions();
+  const roleOptions = useActiveRoleOptions();
   const [loading, setLoading] = useState(false);
 
-  const fetchBranches = async () => {
-    try {
-      const data: { id: string; name: string }[] = await apiClient.branches.getActive();
-      setBranches(data.map((b) => ({ id: b.id, name: b.name })));
-    } catch (error) {
-      console.error("Failed to fetch branches:", error);
-    }
-  };
-
-  const fetchRoleOptions = async () => {
-    try {
-      const data: { name: string; label: string; isActive: boolean }[] = await apiClient.roles.getAll();
-      const active = data.filter((r) => r.isActive);
-      setRoleOptions(active.map((r) => ({ name: r.name, label: r.label })));
-    } catch (error) {
-      console.error("Failed to fetch roles:", error);
-    }
-  };
-
   useEffect(() => {
-    if (open) {
-      fetchBranches();
-      fetchRoleOptions();
-      if (user) {
-        setFullName(user.full_name);
-        setEmail(user.email);
-        setRole((user.roles[0] as AppRole) || "STAFF");
-        setBranchId(user.branchId || "none");
-        setPassword(""); // don't pre-fill password
-      }
+    if (open && user) {
+      setFullName(user.full_name);
+      setEmail(user.email);
+      setRole((user.roles[0] as AppRole) || "STAFF");
+      setBranchId(user.branchId || "none");
+      setPassword(""); // don't pre-fill password
     }
   }, [open, user]);
 

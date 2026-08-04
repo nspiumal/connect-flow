@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import type { ApexOptions } from "apexcharts";
 import PageWrapper from "@/vendor/facit/layout/PageWrapper/PageWrapper";
 import SubHeader, { SubHeaderLeft, SubHeaderRight } from "@/vendor/facit/layout/SubHeader/SubHeader";
@@ -12,6 +12,7 @@ import Chart from "@/vendor/facit/components/extras/Chart";
 import apiClient from "@/integrations/api";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermission } from "@/hooks/usePermission";
+import { useBranchOptions } from "@/hooks/useLookups";
 import { t } from "@/lib/lang";
 
 // ─── local types ───────────────────────────────────────────────────────────
@@ -27,7 +28,6 @@ interface ProfitItem {
   profitRecordedDate?: string;
   profitAmount?: number;
 }
-interface Branch { id: string; name: string }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ export default function Reports() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [profitedItems, setProfitedItems] = useState<ProfitItem[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const branches = useBranchOptions();
   const [loading, setLoading] = useState(false);
 
   const [selYear, selMonth] = selectedMonth.split("-").map(Number);
@@ -90,13 +90,13 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranch, myBranchId]);
 
-  useEffect(() => {
-    apiClient.branches.getActive()
-      .then((data: Branch[]) => setBranches(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
+  // Guards against out-of-order responses: rapid date-range/branch clicking can
+  // fire several overlapping requests, and without this a slower, superseded
+  // response could land after (and overwrite) the latest one.
+  const latestRequestIdRef = useRef(0);
 
   const loadData = useCallback(async () => {
+    const requestId = ++latestRequestIdRef.current;
     setLoading(true);
     try {
       const [txRes, profitRes] = await Promise.all([
@@ -111,12 +111,14 @@ export default function Reports() {
         }),
         apiClient.profitedTransactions.getPaginated(0, 1000),
       ]);
+      if (latestRequestIdRef.current !== requestId) return; // a newer request has superseded this one
       setTransactions(txRes.content ?? []);
       setProfitedItems(profitRes.content ?? []);
     } catch (e) {
+      if (latestRequestIdRef.current !== requestId) return;
       console.error("Reports load error", e);
     } finally {
-      setLoading(false);
+      if (latestRequestIdRef.current === requestId) setLoading(false);
     }
   }, [fetchStart, fetchEnd, effectiveBranchId]);
 

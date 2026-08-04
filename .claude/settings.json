@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node smoke.mjs http://localhost:3001/login)",
+      "Bash(npx playwright *)"
+    ]
+  }
+}

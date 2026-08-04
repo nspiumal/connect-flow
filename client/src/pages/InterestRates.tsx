@@ -16,6 +16,8 @@ import { DataTable, DataTableColumn } from "@/components/facit/DataTable";
 import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
 import { t } from "@/lib/lang";
+import { useAppDispatch } from "@/store/hooks";
+import { interestRatesLookup } from "@/store/lookupSlices";
 
 type InterestRate = {
   id: string;
@@ -27,6 +29,7 @@ type InterestRate = {
 };
 
 export default function InterestRates() {
+  const dispatch = useAppDispatch();
   const [rates, setRates] = useState<InterestRate[]>([]);
   const [showDialog, setShowDialog] = useState(false);
   const [name, setName] = useState("");
@@ -54,6 +57,14 @@ export default function InterestRates() {
       console.error("Failed to fetch interest rates:", error);
       notify({ title: t("ERROR"), description: "Failed to fetch interest rates", variant: "destructive" });
     }
+  };
+
+  // This page manages the full rate list (getAll), a different endpoint from
+  // the shared "active rates" cache (getActive) other pages read from. Any
+  // mutation here must also invalidate that cache so it doesn't wait out its TTL.
+  const refreshActiveRatesCache = () => {
+    dispatch(interestRatesLookup.invalidate());
+    dispatch(interestRatesLookup.thunk());
   };
 
   useEffect(() => {
@@ -89,6 +100,7 @@ export default function InterestRates() {
       setFirstMonthRatePercent("");
       setIsDefault(false);
       fetchRates();
+      refreshActiveRatesCache();
     } catch (error) {
       console.error("Error creating interest rate:", error);
       const message = error instanceof Error ? error.message : "Failed to create interest rate";
@@ -114,6 +126,7 @@ export default function InterestRates() {
       await apiClient.interestRates.toggleActive(rate.id);
       notify({ title: "Success", description: `Interest rate ${rate.isActive ? "deactivated" : "activated"} successfully`, variant: "success" });
       fetchRates();
+      refreshActiveRatesCache();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to update interest rate status";
       notify({ title: "Error", description: message, variant: "destructive" });
@@ -142,6 +155,7 @@ export default function InterestRates() {
 
       notify({ title: "Success", description: `${rate.name} is now the default rate`, variant: "success" });
       fetchRates();
+      refreshActiveRatesCache();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to set default rate";
       notify({ title: "Error", description: message, variant: "destructive" });
@@ -162,6 +176,7 @@ export default function InterestRates() {
       setTargetDeactivateRate(null);
       setReplacementDefaultRateId("");
       fetchRates();
+      refreshActiveRatesCache();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to deactivate default rate";
       notify({ title: "Error", description: message, variant: "destructive" });

@@ -13,15 +13,10 @@ import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
 import { CreateRoleDialog } from "@/components/roles/CreateRoleDialog";
 import { EditRoleDialog } from "@/components/roles/EditRoleDialog";
-
-interface RoleData {
-  id: string;
-  name: string;
-  label: string;
-  description?: string | null;
-  isSystem: boolean;
-  isActive: boolean;
-}
+import { useRoles } from "@/hooks/useLookups";
+import { useAppDispatch } from "@/store/hooks";
+import { rolesLookup } from "@/store/lookupSlices";
+import type { Role as RoleData } from "@/store/lookupSlices";
 
 interface PermissionData {
   id: string;
@@ -45,7 +40,8 @@ function ModuleCheckbox({ allChecked, someChecked, onChange }: { allChecked: boo
 }
 
 export default function Roles() {
-  const [roles, setRoles] = useState<RoleData[]>([]);
+  const dispatch = useAppDispatch();
+  const roles = useRoles();
   const [grouped, setGrouped] = useState<Record<string, PermissionData[]>>({});
   const [selectedRole, setSelectedRole] = useState<RoleData | null>(null);
   const [grantedKeys, setGrantedKeys] = useState<Set<string>>(new Set());
@@ -56,18 +52,6 @@ export default function Roles() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [roleForEdit, setRoleForEdit] = useState<RoleData | null>(null);
-
-  const fetchRoles = async () => {
-    try {
-      const data = await apiClient.roles.getAll();
-      setRoles(data);
-      return data as RoleData[];
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load roles";
-      notify({ title: "Error", description: message, variant: "destructive" });
-      return [];
-    }
-  };
 
   const fetchPermissionCatalog = async () => {
     try {
@@ -80,12 +64,16 @@ export default function Roles() {
   };
 
   useEffect(() => {
-    (async () => {
-      const data = await fetchRoles();
-      await fetchPermissionCatalog();
-      if (data.length > 0) setSelectedRole(data[0]);
-    })();
+    fetchPermissionCatalog();
   }, []);
+
+  // Select the first role once the roles list has loaded (only while nothing is selected yet).
+  useEffect(() => {
+    if (roles.length > 0 && !selectedRole) {
+      setSelectedRole(roles[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roles]);
 
   useEffect(() => {
     if (!selectedRole) return;
@@ -144,7 +132,8 @@ export default function Roles() {
     try {
       await apiClient.roles.delete(role.id);
       notify({ title: "Success", description: "Role deleted", variant: "success" });
-      const data = await fetchRoles();
+      dispatch(rolesLookup.invalidate());
+      const data = await dispatch(rolesLookup.thunk()).unwrap();
       if (selectedRole?.id === role.id) setSelectedRole(data[0] || null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to delete role";
@@ -265,15 +254,23 @@ export default function Roles() {
         </div>
       </Page>
 
-      <CreateRoleDialog open={showCreate} onOpenChange={setShowCreate} onSuccess={fetchRoles} />
+      <CreateRoleDialog
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        onSuccess={() => {
+          dispatch(rolesLookup.invalidate());
+          dispatch(rolesLookup.thunk());
+        }}
+      />
       <EditRoleDialog
         role={roleForEdit}
         open={showEdit}
         onOpenChange={setShowEdit}
         onSuccess={async () => {
-          const data = await fetchRoles();
+          dispatch(rolesLookup.invalidate());
+          const data = await dispatch(rolesLookup.thunk()).unwrap();
           if (selectedRole) {
-            const refreshed = data.find((r: RoleData) => r.id === selectedRole.id);
+            const refreshed = data.find((r) => r.id === selectedRole.id);
             if (refreshed) setSelectedRole(refreshed);
           }
         }}

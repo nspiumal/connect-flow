@@ -161,9 +161,17 @@ export default function TransactionRedeem() {
       });
 
       if (result.isFullRedemption) {
-        notify({ title: "✓ Full Redemption Completed!", description: "Transaction marked as CLOSED. Gold will be released.", variant: "success" });
+        notify({
+          title: "✓ Full Redemption Completed!",
+          description: `Transaction marked as CLOSED. Gold will be released. Interest: Rs. ${result.interestPaid?.toLocaleString() || 0} · Charges: Rs. ${result.chargesPaid?.toLocaleString() || 0} · Principal: Rs. ${result.principalPaid?.toLocaleString() || 0}`,
+          variant: "success",
+        });
       } else {
-        notify({ title: "✓ Partial Payment Recorded!", description: `Remaining Principal: Rs. ${result.remainingPrincipal?.toLocaleString() || 0}`, variant: "success" });
+        notify({
+          title: "✓ Partial Payment Recorded!",
+          description: `Total Paid: Rs. ${parseFloat(redemptionAmount).toLocaleString()} · Interest: Rs. ${result.interestPaid?.toLocaleString() || 0} · Charges: Rs. ${result.chargesPaid?.toLocaleString() || 0} · Principal: Rs. ${result.principalPaid?.toLocaleString() || 0} · Remaining Principal: Rs. ${result.remainingPrincipal?.toLocaleString() || 0}`,
+          variant: "success",
+        });
       }
 
       navigate("/transactions");
@@ -258,6 +266,36 @@ export default function TransactionRedeem() {
           <div className="col-12 col-lg-6 d-flex flex-column gap-4">
             <Card>
               <CardHeader>
+                <CardTitle className="fs-6">Transaction Summary</CardTitle>
+              </CardHeader>
+              <CardBody className="pt-0">
+                <div className="row g-3 small">
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Loan Amount</div>
+                    <p className="fw-medium mb-0">Rs. {toNumber(transaction?.loanAmount).toLocaleString()}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Interest Rate</div>
+                    <p className="fw-medium mb-0">{toNumber(transaction?.interestRatePercent)}%</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Pawn Date</div>
+                    <p className="fw-medium mb-0">{String(transaction?.pawnDate || transaction?.pawn_date || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Maturity Date</div>
+                    <p className="fw-medium mb-0">{String(transaction?.maturityDate || transaction?.maturity_date || "N/A")}</p>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Status</div>
+                    <p className="fw-medium mb-0">{String(transaction?.status || "Active")}</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle className="fs-6">Calculation Period</CardTitle>
               </CardHeader>
               <CardBody className="pt-0 d-flex gap-4">
@@ -310,7 +348,7 @@ export default function TransactionRedeem() {
                 <CardTitle className="fs-6">Redemption Payment</CardTitle>
               </CardHeader>
               <CardBody className="pt-0">
-                <FormGroup id="redemptionAmount" label="Redemption Amount (LKR) *" formText="Payment allocation: Interest → Charges → Principal" className="mb-3">
+                <FormGroup id="redemptionAmount" label="Redemption Amount (LKR) *" formText="Payment allocation: Interest → Charges → Principal" className="mb-1">
                   <NumberInput
                     id="redemptionAmount"
                     value={redemptionAmount}
@@ -319,6 +357,9 @@ export default function TransactionRedeem() {
                     required
                   />
                 </FormGroup>
+                <p className="text-muted mb-3" style={{ fontSize: "0.75rem" }}>
+                  Interest is calculated weekly (Mon–Sun). Paying any day counts the full week.
+                </p>
 
                 {redemptionAmount && computedOutstandingTotal > 0 ? (
                   <div className="p-3 rounded border bg-body-tertiary mb-3">

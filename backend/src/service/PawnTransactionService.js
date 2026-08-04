@@ -144,7 +144,7 @@ const PawnTransactionService = {
         nic: request.customerNic.trim(),
         phone: request.customerPhone || null,
         address: request.customerAddress || null,
-        gender: request.customerGender || null,
+        gender: request.gender || null,
         customerType: request.customerType || 'Individual',
         isActive: true,
       });
@@ -154,6 +154,7 @@ const PawnTransactionService = {
       if (request.customerName && request.customerName !== customer.fullName) updates.fullName = request.customerName;
       if (request.customerPhone && request.customerPhone !== customer.phone) updates.phone = request.customerPhone;
       if (request.customerAddress && request.customerAddress !== customer.address) updates.address = request.customerAddress;
+      if (request.gender && request.gender.trim() !== '' && request.gender !== customer.gender) updates.gender = request.gender;
       if (Object.keys(updates).length > 0) {
         await CustomerRepository.update(customer.id, updates);
         customer = await CustomerRepository.findById(customer.id);

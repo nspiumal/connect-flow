@@ -10,7 +10,7 @@ import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
 import { formatWeight } from "@/lib/utils";
-import { TColor } from "@/vendor/facit/type/color-type";
+import { BLACKLISTED_STATUS, STATUS_COLOR, STATUS_LABEL } from "@/lib/transactionStatus";
 
 interface ItemDetail {
   description: string;
@@ -69,12 +69,14 @@ interface RawTransaction {
   maturityDate?: string; maturity_date?: string;
   status?: string;
   remarks?: string;
-  blockReason?: string; block_reason?: string;
-  policeReportNumber?: string;
-  policeReportDate?: string;
 }
 
-const STATUS_COLOR: Record<string, TColor> = { Active: "primary", Completed: "secondary", Profited: "warning" };
+interface BlacklistEntry {
+  reason?: string;
+  policeReportNumber?: string;
+  policeReportDate?: string;
+  createdAt?: string;
+}
 
 export default function TransactionInfo() {
   const { id } = useParams<{ id: string }>();
@@ -86,6 +88,7 @@ export default function TransactionInfo() {
   const [imageBlobUrls, setImageBlobUrls] = useState<{ [key: string]: string }>({});
   const [history, setHistory] = useState<TransactionHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [blacklistEntry, setBlacklistEntry] = useState<BlacklistEntry | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -125,6 +128,17 @@ export default function TransactionInfo() {
       setLoadingData(true);
       const response: RawTransaction = await apiClient.pawnTransactions.getById(transactionId);
       setTransaction(response);
+
+      // A blacklisted ticket renders as customer info only, and its reason /
+      // police report live on the blacklist entry rather than the transaction.
+      if (response.status === BLACKLISTED_STATUS) {
+        const nic = response.customerNic || response.customer_nic || response.customer?.nic;
+        if (nic) {
+          const result = await apiClient.blacklist.checkByNic(nic).catch(() => null);
+          setBlacklistEntry(result?.entries?.[0] || null);
+        }
+        return;
+      }
 
       const rawItems = response.itemDetails || response.items;
 
@@ -211,19 +225,100 @@ export default function TransactionInfo() {
   }
 
   const status = transaction?.status || "Active";
+  const isBlacklisted = status === BLACKLISTED_STATUS;
+
+  const customerInformation = (
+    <div className="row g-3 small">
+      <div className="col-6">
+        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Customer Name</div>
+        <p className="fw-medium mb-0">{transaction?.customerName || transaction?.customer_name || transaction?.customer?.fullName || "N/A"}</p>
+      </div>
+      <div className="col-6">
+        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Gender</div>
+        <p className="fw-medium mb-0">{transaction?.gender || transaction?.customer?.gender || "N/A"}</p>
+      </div>
+      <div className="col-6">
+        <div className="text-muted" style={{ fontSize: "0.75rem" }}>ID Type</div>
+        <p className="fw-medium mb-0">{transaction?.idType || transaction?.id_type || "NIC"}</p>
+      </div>
+      <div className="col-6">
+        <div className="text-muted" style={{ fontSize: "0.75rem" }}>ID Number</div>
+        <p className="fw-medium mb-0">{transaction?.customerNic || transaction?.customer_nic || transaction?.customer?.nic || "N/A"}</p>
+      </div>
+      <div className="col-6">
+        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Phone</div>
+        <p className="fw-medium mb-0">{transaction?.customerPhone || transaction?.customer_phone || transaction?.customer?.phone || "N/A"}</p>
+      </div>
+      <div className="col-6">
+        <div className="text-muted" style={{ fontSize: "0.75rem" }}>Address</div>
+        <p className="fw-medium text-truncate mb-0">{transaction?.customerAddress || transaction?.customer_address || transaction?.customer?.address || "N/A"}</p>
+      </div>
+    </div>
+  );
+
+  const breadcrumb = (
+    <SubHeader>
+      <SubHeaderLeft>
+        <Breadcrumb
+          list={[
+            { title: "Pawn Transactions", to: "/transactions" },
+            { title: transaction?.pawnId || transaction?.pawn_id || "Info", to: `/transactions/info/${id}` },
+          ]}
+        />
+      </SubHeaderLeft>
+    </SubHeader>
+  );
+
+  // A blacklisted ticket shows the customer's information and why they were
+  // blacklisted — nothing else, and no actions.
+  if (isBlacklisted) {
+    return (
+      <PageWrapper title="Transaction Info">
+        {breadcrumb}
+        <Page>
+          <div className="row g-4">
+            <div className="col-12 col-lg-6 d-flex flex-column gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="fs-6">Customer Information</CardTitle>
+                  <Badge color="danger">{STATUS_LABEL[BLACKLISTED_STATUS]}</Badge>
+                </CardHeader>
+                <CardBody className="pt-0">{customerInformation}</CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="fs-6">Blacklist Details</CardTitle>
+                </CardHeader>
+                <CardBody className="pt-0">
+                  <div className="row g-3 small">
+                    <div className="col-12">
+                      <div className="text-danger" style={{ fontSize: "0.75rem" }}>Reason</div>
+                      <p className="fw-medium text-danger mb-0">{blacklistEntry?.reason || "—"}</p>
+                    </div>
+                    <div className="col-6">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Police Report No.</div>
+                      <p className="fw-medium mb-0">{blacklistEntry?.policeReportNumber || "—"}</p>
+                    </div>
+                    <div className="col-6">
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>Police Report Date</div>
+                      <p className="fw-medium mb-0">
+                        {blacklistEntry?.policeReportDate ? new Date(blacklistEntry.policeReportDate).toLocaleDateString() : "—"}
+                      </p>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        </Page>
+      </PageWrapper>
+    );
+  }
 
   return (
     <PageWrapper title="Transaction Info">
-      <SubHeader>
-        <SubHeaderLeft>
-          <Breadcrumb
-            list={[
-              { title: "Pawn Transactions", to: "/transactions" },
-              { title: transaction?.pawnId || transaction?.pawn_id || "Info", to: `/transactions/info/${id}` },
-            ]}
-          />
-        </SubHeaderLeft>
-      </SubHeader>
+      {breadcrumb}
       <Page>
         <div className="row g-4">
           <div className="col-12 col-lg-6 d-flex flex-column gap-4">
@@ -231,34 +326,7 @@ export default function TransactionInfo() {
               <CardHeader>
                 <CardTitle className="fs-6">Customer Information</CardTitle>
               </CardHeader>
-              <CardBody className="pt-0">
-                <div className="row g-3 small">
-                  <div className="col-6">
-                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Customer Name</div>
-                    <p className="fw-medium mb-0">{transaction?.customerName || transaction?.customer_name || transaction?.customer?.fullName || "N/A"}</p>
-                  </div>
-                  <div className="col-6">
-                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Gender</div>
-                    <p className="fw-medium mb-0">{transaction?.gender || transaction?.customer?.gender || "N/A"}</p>
-                  </div>
-                  <div className="col-6">
-                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>ID Type</div>
-                    <p className="fw-medium mb-0">{transaction?.idType || transaction?.id_type || "NIC"}</p>
-                  </div>
-                  <div className="col-6">
-                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>ID Number</div>
-                    <p className="fw-medium mb-0">{transaction?.customerNic || transaction?.customer_nic || transaction?.customer?.nic || "N/A"}</p>
-                  </div>
-                  <div className="col-6">
-                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Phone</div>
-                    <p className="fw-medium mb-0">{transaction?.customerPhone || transaction?.customer_phone || transaction?.customer?.phone || "N/A"}</p>
-                  </div>
-                  <div className="col-6">
-                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>Address</div>
-                    <p className="fw-medium text-truncate mb-0">{transaction?.customerAddress || transaction?.customer_address || transaction?.customer?.address || "N/A"}</p>
-                  </div>
-                </div>
-              </CardBody>
+              <CardBody className="pt-0">{customerInformation}</CardBody>
             </Card>
 
             <Card>
@@ -351,8 +419,8 @@ export default function TransactionInfo() {
                   <div className="col-6">
                     <div className="text-muted" style={{ fontSize: "0.75rem" }}>Status</div>
                     <div>
-                      <Badge color={status === "Blocked" ? "danger" : STATUS_COLOR[status] ?? "danger"}>
-                        {status === "Profited" ? "Forfeited" : status}
+                      <Badge color={STATUS_COLOR[status] ?? "danger"}>
+                        {STATUS_LABEL[status] ?? status}
                       </Badge>
                     </div>
                   </div>
@@ -361,26 +429,6 @@ export default function TransactionInfo() {
                       <div className="text-muted" style={{ fontSize: "0.75rem" }}>Remarks</div>
                       <p className="fw-medium small mb-0">{transaction.remarks}</p>
                     </div>
-                  )}
-                  {status === "Blocked" && (
-                    <>
-                      <div className="col-12">
-                        <div className="text-danger" style={{ fontSize: "0.75rem" }}>Block Reason</div>
-                        <p className="fw-medium small text-danger mb-0">{transaction?.blockReason || transaction?.block_reason || "—"}</p>
-                      </div>
-                      {transaction?.policeReportNumber && (
-                        <div className="col-6">
-                          <div className="text-muted" style={{ fontSize: "0.75rem" }}>Police Report No.</div>
-                          <p className="fw-medium mb-0">{transaction.policeReportNumber}</p>
-                        </div>
-                      )}
-                      {transaction?.policeReportDate && (
-                        <div className="col-6">
-                          <div className="text-muted" style={{ fontSize: "0.75rem" }}>Police Report Date</div>
-                          <p className="fw-medium mb-0">{transaction.policeReportDate}</p>
-                        </div>
-                      )}
-                    </>
                   )}
                 </div>
               </CardBody>

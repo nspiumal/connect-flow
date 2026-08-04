@@ -16,6 +16,10 @@ import { notify } from "@/components/facit/notify";
 import { useAuth } from "@/hooks/useAuth";
 import apiClient from "@/integrations/api";
 import { formatWeight } from "@/lib/utils";
+import { useActiveInterestRates } from "@/hooks/useLookups";
+import { useAppSelector } from "@/store/hooks";
+import { interestRatesLookup } from "@/store/lookupSlices";
+import { STATUS_LABEL, BLACKLISTED_STATUS, statusLabel } from "@/lib/transactionStatus";
 
 interface ItemDetail {
   description: string;
@@ -33,10 +37,11 @@ export default function TransactionEdit() {
   const { user, role, branchId } = useAuth();
 
   const [loading, setLoading] = useState(false);
-  const [ratesLoading, setRatesLoading] = useState(true);
+  const rates = useActiveInterestRates();
+  const ratesStatus = useAppSelector((state) => interestRatesLookup.selectStatus(state.interestRates));
+  const ratesLoading = ratesStatus === "idle" || ratesStatus === "loading";
   const [transactionLoading, setTransactionLoading] = useState(true);
   const loadingData = ratesLoading || transactionLoading;
-  const [rates, setRates] = useState<Array<{ id: string; name: string; rate_percent: number; ratePercent?: number; isDefault?: boolean }>>([]);
 
   const [customerName, setCustomerName] = useState("");
   const [customerNic, setCustomerNic] = useState("");
@@ -61,6 +66,15 @@ export default function TransactionEdit() {
   const [pawnDate, setPawnDate] = useState("");
   const [maturityDate, setMaturityDate] = useState("");
   const [originalMaturityDate, setOriginalMaturityDate] = useState("");
+
+  // Ticket status. Setting it to "Blocked" (labelled "Black Listed" across the
+  // app) also adds the ticket's customer to the blacklist, so the reason and
+  // police report captured here are what the blacklist entry is created with.
+  const [status, setStatus] = useState("Active");
+  const [originalStatus, setOriginalStatus] = useState("Active");
+  const [blacklistReason, setBlacklistReason] = useState("");
+  const [policeReportNumber, setPoliceReportNumber] = useState("");
+  const [policeReportDate, setPoliceReportDate] = useState("");
 
   const [imageBlobUrls, setImageBlobUrls] = useState<{ [key: string]: string }>({});
 
@@ -94,22 +108,21 @@ export default function TransactionEdit() {
     }
   };
 
-  const fetchRates = async () => {
-    try {
-      const data = await apiClient.interestRates.getActive();
-      setRates(data || []);
-    } catch (error) {
-      console.error("Failed to fetch rates:", error);
-      notify({ title: "Error", description: "Failed to load interest rates", variant: "destructive" });
-    } finally {
-      setRatesLoading(false);
-    }
-  };
-
   const fetchTransaction = async () => {
     try {
       setTransactionLoading(true);
       const response = await apiClient.pawnTransactions.getById(id!);
+
+      // An already-blacklisted ticket is read-only — the Edit action is hidden
+      // for it in the list, so this only catches direct URL access.
+      if (response.status === BLACKLISTED_STATUS) {
+        notify({ title: "Black Listed", description: "This ticket is black listed and can no longer be edited", variant: "destructive" });
+        navigate(`/transactions/info/${id}`);
+        return;
+      }
+
+      setStatus(response.status || "Active");
+      setOriginalStatus(response.status || "Active");
 
       setCustomerName(response.customerName || "");
       setCustomerNic(response.customerNic || "");
@@ -171,7 +184,6 @@ export default function TransactionEdit() {
   };
 
   useEffect(() => {
-    fetchRates();
     if (id) {
       fetchTransaction();
     } else {
@@ -252,8 +264,15 @@ export default function TransactionEdit() {
       periodMonths !== originalPeriodMonths ||
       maturityDate !== originalMaturityDate;
 
-    if (detailsChanged && !pinVerified) {
+    const statusChanged = status !== originalStatus;
+
+    if ((detailsChanged || statusChanged) && !pinVerified) {
       notify({ title: "PIN Required", description: "Enter branch manager PIN to edit address and transaction details", variant: "destructive" });
+      return;
+    }
+
+    if (statusChanged && status === BLACKLISTED_STATUS && !blacklistReason.trim()) {
+      notify({ title: "Validation Error", description: "A reason is required to black list this ticket", variant: "destructive" });
       return;
     }
 
@@ -273,6 +292,46 @@ export default function TransactionEdit() {
       }
 
       await apiClient.pawnTransactions.updateRemarks(id!, remarks);
+
+      if (statusChanged) {
+        // Blacklisting the ticket blacklists its customer too. The blacklist
+        // entry is written first: a Blocked ticket can no longer be edited, so
+        // failing after the status flip would strand it un-blacklisted with no
+        // way to retry. This order leaves a failure retryable instead — the
+        // check below then skips the customer already on the list.
+        if (status === BLACKLISTED_STATUS) {
+          const existing = await apiClient.blacklist.checkByNic(customerNic).catch(() => null);
+          const alreadyBlacklisted = Boolean(existing?.isBlacklisted);
+
+          if (!alreadyBlacklisted) {
+            await apiClient.blacklist.create({
+              customerName,
+              customerNic,
+              reason: blacklistReason.trim(),
+              policeReportNumber: policeReportNumber || null,
+              policeReportDate: policeReportDate || null,
+              branchId: user?.branchId || branchId || null,
+              addedBy: user?.id,
+              isActive: true,
+            });
+          }
+
+          await apiClient.pawnTransactions.updateStatus(id!, status, blacklistReason.trim());
+
+          notify({
+            title: "Success",
+            description: alreadyBlacklisted
+              ? `Ticket black listed. ${customerName} was already on the blacklist.`
+              : `Ticket black listed and ${customerName} added to the blacklist`,
+            variant: "success",
+          });
+          navigate(`/transactions/info/${id}`);
+          return;
+        }
+
+        await apiClient.pawnTransactions.updateStatus(id!, status);
+      }
+
       notify({ title: "Success", description: "Transaction updated successfully", variant: "success" });
     } catch (error) {
       console.error("Failed to update transaction:", error);
@@ -468,6 +527,60 @@ export default function TransactionEdit() {
                       <Input type="text" value={maturityDate} disabled />
                     </FormGroup>
                   </div>
+                  <div className="col-12 col-sm-6">
+                    <FormGroup id="status" label="Status">
+                      <Select
+                        ariaLabel="Status"
+                        value={status}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatus(e.target.value)}
+                        disabled={!pinVerified}
+                      >
+                        <Option value={originalStatus}>{statusLabel(originalStatus)}</Option>
+                        <Option value={BLACKLISTED_STATUS}>{STATUS_LABEL[BLACKLISTED_STATUS]}</Option>
+                      </Select>
+                    </FormGroup>
+                  </div>
+
+                  {status === BLACKLISTED_STATUS && (
+                    <>
+                      <div className="col-12">
+                        <div className="alert alert-danger py-2 px-3 small mb-0">
+                          Black listing this ticket also adds <span className="fw-semibold">{customerName}</span> ({customerNic}) to the blacklist. This cannot be edited afterwards.
+                        </div>
+                      </div>
+                      <div className="col-12">
+                        <FormGroup id="blacklistReason" label="Reason *">
+                          <Input
+                            value={blacklistReason}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBlacklistReason(e.target.value)}
+                            placeholder="Describe the reason for blacklisting"
+                            disabled={!pinVerified}
+                          />
+                        </FormGroup>
+                      </div>
+                      <div className="col-12 col-sm-6">
+                        <FormGroup id="policeReportNumber" label="Police Report Number (Optional)">
+                          <Input
+                            value={policeReportNumber}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPoliceReportNumber(e.target.value)}
+                            placeholder="e.g. PR-2026-001"
+                            disabled={!pinVerified}
+                          />
+                        </FormGroup>
+                      </div>
+                      <div className="col-12 col-sm-6">
+                        <FormGroup id="policeReportDate" label="Police Report Date (Optional)">
+                          <Input
+                            type="date"
+                            value={policeReportDate}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPoliceReportDate(e.target.value)}
+                            disabled={!pinVerified}
+                          />
+                        </FormGroup>
+                      </div>
+                    </>
+                  )}
+
                   <div className="col-12">
                     <FormGroup id="remarks" label="Remarks / Notes">
                       <Textarea value={remarks} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRemarks(e.target.value)} placeholder="Add notes, payment details, or any other information..." rows={4} />

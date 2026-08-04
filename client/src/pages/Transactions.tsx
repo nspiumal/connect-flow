@@ -20,19 +20,14 @@ import { FilterPanel, FilterValue } from "@/components/facit/FilterPanel";
 import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
 import { usePermission } from "@/hooks/usePermission";
-import { TColor } from "@/vendor/facit/type/color-type";
+import { useActiveInterestRates, useItemTypes } from "@/hooks/useLookups";
+import { STATUS_LABEL, STATUS_COLOR, BLACKLISTED_STATUS } from "@/lib/transactionStatus";
 
-interface Rate { id: string; name: string; rate_percent?: number; ratePercent?: number }
-interface ItemType { id: string; name: string; description?: string }
 interface OutstandingBalance {
   total?: number;
   principal?: number;
   accrualInterest?: number;
   charges?: number;
-  ratePercent?: number;
-  pawnDate?: string;
-  maturityDate?: string;
-  loanStatus?: string;
 }
 interface Transaction {
   id: string;
@@ -45,22 +40,6 @@ interface Transaction {
   maturityDate?: string; maturity_date?: string;
   status: string;
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  Active: "Current",
-  Overdue: "Outstanding",
-  Completed: "Redemption",
-  Profited: "Forfeited",
-  Blocked: "Black Listed",
-};
-
-const STATUS_COLOR: Record<string, TColor> = {
-  Active: "primary",
-  Completed: "secondary",
-  Profited: "warning",
-  Overdue: "danger",
-  Blocked: "danger",
-};
 
 function isRowOverdue(t: Transaction) {
   const maturityDate = t.maturityDate || t.maturity_date;
@@ -101,10 +80,10 @@ export default function Transactions() {
     maxAmount: "",
     status: "all" as string | string[],
   });
-  const [rates, setRates] = useState<Rate[]>([]);
+  const rates = useActiveInterestRates();
+  const itemTypes = useItemTypes();
   const [outstandingBalances, setOutstandingBalances] = useState<Record<string, OutstandingBalance>>({});
 
-  const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
   const [selectedItemTypeId, setSelectedItemTypeId] = useState("");
 
   const [categoryFilter, setCategoryFilter] = useState<"A" | "ALL">("A");
@@ -145,15 +124,6 @@ export default function Transactions() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
-  // Redemption state
-  const [showRedemptionDialog, setShowRedemptionDialog] = useState(false);
-  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
-  const [outstandingBalance, setOutstandingBalance] = useState<OutstandingBalance | null>(null);
-  const [redemptionAmount, setRedemptionAmount] = useState("");
-  const [redemptionNotes, setRedemptionNotes] = useState("");
-  const [documentationAmount, setDocumentationAmount] = useState("0");
-  const [redemptionLoading, setRedemptionLoading] = useState(false);
-  const [balanceLoading, setBalanceLoading] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
 
   const fetchTransactions = async () => {
@@ -187,11 +157,15 @@ export default function Transactions() {
         : [];
       if (activeTransactions.length > 0) {
         const balances: Record<string, OutstandingBalance> = {};
-        for (const transaction of activeTransactions) {
-          try {
-            balances[transaction.id] = await apiClient.pawnRedemptions.getOutstandingBalance(transaction.id);
-          } catch (error) {
-            console.error(`Failed to fetch balance for transaction ${transaction.id}:`, error);
+        const results = await Promise.allSettled(
+          activeTransactions.map((transaction) => apiClient.pawnRedemptions.getOutstandingBalance(transaction.id))
+        );
+        results.forEach((result, index) => {
+          const transaction = activeTransactions[index];
+          if (result.status === "fulfilled") {
+            balances[transaction.id] = result.value;
+          } else {
+            console.error(`Failed to fetch balance for transaction ${transaction.id}:`, result.reason);
             balances[transaction.id] = {
               total: transaction.remainingBalance || transaction.loanAmount,
               principal: transaction.remainingBalance || transaction.loanAmount,
@@ -199,7 +173,7 @@ export default function Transactions() {
               charges: 0,
             };
           }
-        }
+        });
         setOutstandingBalances(balances);
       }
     } catch (error) {
@@ -210,31 +184,8 @@ export default function Transactions() {
     }
   };
 
-  const fetchRates = async () => {
-    try {
-      const data = await apiClient.interestRates.getActive();
-      setRates(data || []);
-    } catch (error) {
-      console.error("Failed to fetch rates:", error);
-    }
-  };
-
-  const fetchItemTypes = async () => {
-    try {
-      const data = await apiClient.itemTypes.getAll();
-      setItemTypes(data || []);
-    } catch (error) {
-      console.error("Failed to fetch item types:", error);
-    }
-  };
-
   useEffect(() => {
-    const loadData = async () => {
-      try { await fetchTransactions(); } catch (error) { console.error("Error loading transactions:", error); }
-      try { await fetchRates(); } catch (error) { console.error("Error loading rates:", error); }
-      try { await fetchItemTypes(); } catch (error) { console.error("Error loading item types:", error); }
-    };
-    loadData();
+    fetchTransactions().catch((error) => console.error("Error loading transactions:", error));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pageSize, appliedFilters, categoryFilter]);
 
@@ -376,74 +327,6 @@ export default function Transactions() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const fetchOutstandingBalance = async (transactionId: string) => {
-    try {
-      setBalanceLoading(true);
-      const balance = await apiClient.pawnRedemptions.getOutstandingBalance(transactionId);
-      setOutstandingBalance(balance);
-      setRedemptionAmount("");
-      setRedemptionNotes("");
-      setDocumentationAmount("0");
-    } catch (error) {
-      console.error("Failed to fetch outstanding balance:", error);
-      notify({ title: "Error", description: "Failed to load outstanding balance", variant: "destructive" });
-    } finally {
-      setBalanceLoading(false);
-    }
-  };
-
-  const handleOpenRedemption = async (transactionId: string) => {
-    setSelectedTransactionId(transactionId);
-    setShowRedemptionDialog(true);
-    await fetchOutstandingBalance(transactionId);
-  };
-
-  const handleRedeemTransaction = async () => {
-    if (!selectedTransactionId) return;
-
-    if (!redemptionAmount || parseFloat(redemptionAmount) <= 0) {
-      notify({ title: "Validation Error", description: "Please enter a valid redemption amount", variant: "destructive" });
-      return;
-    }
-
-    try {
-      setRedemptionLoading(true);
-      const result = await apiClient.pawnRedemptions.processRedemption(selectedTransactionId, {
-        redemptionAmount: parseFloat(redemptionAmount),
-        notes: redemptionNotes,
-        charges: effectiveCharges,
-      });
-
-      if (result.isFullRedemption) {
-        notify({
-          title: "✓ Full Redemption Completed!",
-          description: `Transaction marked as CLOSED. Gold will be released. Interest: Rs. ${result.interestPaid?.toLocaleString() || 0} · Charges: Rs. ${result.chargesPaid?.toLocaleString() || 0} · Principal: Rs. ${result.principalPaid?.toLocaleString() || 0}`,
-          variant: "success",
-        });
-      } else {
-        notify({
-          title: "✓ Partial Payment Recorded!",
-          description: `Total Paid: Rs. ${parseFloat(redemptionAmount).toLocaleString()} · Interest: Rs. ${result.interestPaid?.toLocaleString() || 0} · Charges: Rs. ${result.chargesPaid?.toLocaleString() || 0} · Principal: Rs. ${result.principalPaid?.toLocaleString() || 0} · Remaining Principal: Rs. ${result.remainingPrincipal?.toLocaleString() || 0}`,
-          variant: "success",
-        });
-      }
-
-      setShowRedemptionDialog(false);
-      setSelectedTransactionId(null);
-      setRedemptionAmount("");
-      setRedemptionNotes("");
-      setOutstandingBalance(null);
-
-      await fetchTransactions();
-    } catch (error) {
-      console.error("Failed to process redemption:", error);
-      const message = error instanceof Error ? error.message : "Failed to process redemption";
-      notify({ title: "Error", description: message, variant: "destructive" });
-    } finally {
-      setRedemptionLoading(false);
-    }
-  };
-
   const handleSearch = (filters: Record<string, FilterValue>) => {
     const pawnId = typeof filters.pawnId === "string" ? filters.pawnId : undefined;
     const customerNic = typeof filters.customerNic === "string" ? filters.customerNic : undefined;
@@ -490,14 +373,18 @@ export default function Transactions() {
       const allTransactions: Transaction[] = response.content || [];
       const activeTransactions = allTransactions.filter((t) => t.status === "Active");
       const balances: Record<string, OutstandingBalance> = {};
-      for (const transaction of activeTransactions) {
-        try {
-          balances[transaction.id] = await apiClient.pawnRedemptions.getOutstandingBalance(transaction.id);
-        } catch (error) {
-          console.error(`Failed to fetch balance for transaction ${transaction.id}:`, error);
+      const balanceResults = await Promise.allSettled(
+        activeTransactions.map((transaction) => apiClient.pawnRedemptions.getOutstandingBalance(transaction.id))
+      );
+      balanceResults.forEach((result, index) => {
+        const transaction = activeTransactions[index];
+        if (result.status === "fulfilled") {
+          balances[transaction.id] = result.value;
+        } else {
+          console.error(`Failed to fetch balance for transaction ${transaction.id}:`, result.reason);
           balances[transaction.id] = { total: transaction.remainingBalance || transaction.loanAmount };
         }
-      }
+      });
 
       const headers = ["Receipt No", "Customer", "NIC", "Loan Amount", "Remaining Balance", "Rate %", "Maturity", "Status"];
       const rows = allTransactions.map((t) => [
@@ -531,12 +418,6 @@ export default function Transactions() {
       setDownloadingCsv(false);
     }
   };
-
-  const fixedCharges = 50;
-  const documentationValue = Number(documentationAmount) || 0;
-  const effectiveCharges = fixedCharges + documentationValue;
-  const computedOutstandingTotal =
-    (Number(outstandingBalance?.principal) || 0) + (Number(outstandingBalance?.accrualInterest) || 0) + effectiveCharges;
 
   const columns: DataTableColumn<Transaction>[] = [
     { key: "pawnId", header: "Receipt No", className: "font-monospace fw-semibold", render: (t) => t.pawnId || t.pawn_id },
@@ -580,13 +461,13 @@ export default function Transactions() {
                 <Button color="dark" isLight onClick={() => navigate(`/transactions/info/${t.id}`)} isDisable={loading}>
                   Info
                 </Button>
-                {t.status !== "Completed" && t.status !== "Blocked" && t.status !== "Profited" && (
+                {t.status !== "Completed" && t.status !== BLACKLISTED_STATUS && t.status !== "Profited" && (
                   <Button color="dark" isLight onClick={() => navigate(`/transactions/edit/${t.id}`)} isDisable={loading}>
                     Edit
                   </Button>
                 )}
                 {t.status === "Active" && has("redemption.view.balance") && (
-                  <Button color="info" isLight onClick={() => handleOpenRedemption(t.id)} isDisable={loading}>
+                  <Button color="info" isLight onClick={() => navigate(`/transactions/redeem/${t.id}`)} isDisable={loading}>
                     Redeem
                   </Button>
                 )}
@@ -785,109 +666,6 @@ export default function Transactions() {
             </div>
           )}
         </div>
-      </FormModal>
-
-      {/* Redemption */}
-      <FormModal
-        isOpen={showRedemptionDialog}
-        setIsOpen={setShowRedemptionDialog}
-        title="Process Gold Redemption"
-        onSubmit={handleRedeemTransaction}
-        isSubmitting={redemptionLoading}
-        submitLabel="Confirm Redemption"
-        size="lg"
-      >
-        {balanceLoading ? (
-          <p className="text-muted text-center py-4 mb-0">Loading balance details...</p>
-        ) : outstandingBalance ? (
-          <>
-            <div className="bg-l10-info p-3 rounded border">
-              <h3 className="fs-6 fw-semibold mb-3">Transaction Summary</h3>
-              <div className="row g-3 small">
-                <div className="col-6">
-                  <p className="text-muted mb-0">Loan Amount</p>
-                  <p className="fw-semibold mb-0">Rs. {outstandingBalance.principal?.toLocaleString() || 0}</p>
-                </div>
-                <div className="col-6">
-                  <p className="text-muted mb-0">Interest Rate</p>
-                  <p className="fw-semibold mb-0">{outstandingBalance.ratePercent || "N/A"}%</p>
-                </div>
-                <div className="col-6">
-                  <p className="text-muted mb-0">Pawn Date (Created)</p>
-                  <p className="fw-semibold mb-0">{outstandingBalance.pawnDate || "N/A"}</p>
-                </div>
-                <div className="col-6">
-                  <p className="text-muted mb-0">Maturity Date</p>
-                  <p className="fw-semibold mb-0">{outstandingBalance.maturityDate || "N/A"}</p>
-                </div>
-                <div className="col-6">
-                  <p className="text-muted mb-0">Status</p>
-                  <p className="fw-semibold mb-0">{outstandingBalance.loanStatus || "Active"}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-body-tertiary p-3 rounded border mt-3">
-              <h3 className="fs-6 fw-semibold mb-3">Outstanding Balance Breakdown</h3>
-              <div className="d-flex justify-content-between small mb-2">
-                <span className="text-muted">Principal:</span>
-                <span className="fw-medium">Rs. {outstandingBalance.principal?.toLocaleString() || 0}</span>
-              </div>
-              <div className="d-flex justify-content-between small mb-2">
-                <span className="text-muted">Accrued Interest:</span>
-                <span className="fw-medium">Rs. {outstandingBalance.accrualInterest?.toLocaleString() || 0}</span>
-              </div>
-              <div className="d-flex justify-content-between small mb-2">
-                <span className="text-muted">Charges:</span>
-                <span className="fw-medium">Rs. {fixedCharges.toLocaleString()}</span>
-              </div>
-              <div className="d-flex justify-content-between align-items-center small mb-2">
-                <span className="text-muted">Documentation:</span>
-                <div style={{ width: 120 }}>
-                  <NumberInput value={documentationAmount} onChange={setDocumentationAmount} placeholder="0" />
-                </div>
-              </div>
-              <hr className="my-2" />
-              <div className="d-flex justify-content-between fw-bold">
-                <span>Total Outstanding:</span>
-                <span>Rs. {computedOutstandingTotal.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div className="mt-3">
-              <FormGroup id="txRedemptionAmount" label="Redemption Amount *">
-                <NumberInput value={redemptionAmount} onChange={setRedemptionAmount} placeholder="Enter amount to pay" required />
-              </FormGroup>
-
-              <div className="p-3 bg-body-tertiary rounded border small mb-2">
-                <p className="fw-semibold mb-1">Payment Allocation:</p>
-                <p className="mb-1">Interest → Charges → Principal</p>
-                <p className="text-muted small mb-0">Interest is calculated weekly (Mon-Sun). Paying any day counts the full week.</p>
-              </div>
-
-              {redemptionAmount && computedOutstandingTotal ? (
-                <div className="p-2 bg-body-tertiary rounded small mb-2">
-                  {parseFloat(redemptionAmount) === computedOutstandingTotal ? (
-                    <p className="text-success fw-semibold mb-0">✓ Full Redemption (Complete Settlement)</p>
-                  ) : parseFloat(redemptionAmount) < computedOutstandingTotal ? (
-                    <p className="text-info mb-0">
-                      Partial Payment - Remaining Principal: Rs.{" "}
-                      {(Number(outstandingBalance.principal || 0) - (parseFloat(redemptionAmount) - Number(outstandingBalance.accrualInterest || 0) - effectiveCharges)).toLocaleString()}
-                    </p>
-                  ) : (
-                    <p className="text-danger mb-0">⚠ Amount exceeds outstanding balance</p>
-                  )}
-                </div>
-              ) : null}
-
-              <FormGroup id="txRedemptionNotes" label="Notes (Optional)">
-                <Textarea value={redemptionNotes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRedemptionNotes(e.target.value)} placeholder="Add any notes about this redemption" rows={3} />
-              </FormGroup>
-            </div>
-          </>
-        ) : (
-          <p className="text-danger text-center py-4 mb-0">Failed to load balance details</p>
-        )}
       </FormModal>
     </PageWrapper>
   );

@@ -21,20 +21,9 @@ import { useAuth } from "@/hooks/useAuth";
 import apiClient from "@/integrations/api";
 import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
 import { formatAmount, formatWeight } from "@/lib/utils";
-
-interface Rate {
-  id: string;
-  name: string;
-  rate_percent?: number;
-  ratePercent?: number;
-  firstMonthRatePercent?: number;
-  isDefault?: boolean;
-}
-
-interface ItemType {
-  id: string;
-  name: string;
-}
+import { useActiveInterestRates, useItemTypes } from "@/hooks/useLookups";
+import { useAppDispatch } from "@/store/hooks";
+import { itemTypesLookup } from "@/store/lookupSlices";
 
 interface ItemDetail {
   description: string;
@@ -50,10 +39,11 @@ interface ItemDetail {
 export default function CreatePawning() {
   const { role, user, branchId } = useAuth();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const [loading, setLoading] = useState(false);
-  const [rates, setRates] = useState<Rate[]>([]);
-  const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
+  const rates = useActiveInterestRates();
+  const itemTypes = useItemTypes();
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
@@ -104,36 +94,14 @@ export default function CreatePawning() {
   const keySequenceRef = useRef<string[]>([]);
   const keyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchRates = async () => {
-    try {
-      const data = await apiClient.interestRates.getActive();
-      setRates(data || []);
-
-      if (data && data.length > 0) {
-        const defaultRate = data.find((rate: Rate) => rate.isDefault);
-        setSelectedRateId(defaultRate ? defaultRate.id : data[0].id);
-      }
-    } catch (error) {
-      console.error("Failed to fetch rates:", error);
-      notify({ title: "Error", description: "Failed to load interest rates", variant: "destructive" });
-    }
-  };
-
-  const fetchItemTypes = async () => {
-    try {
-      const data = await apiClient.itemTypes.getAll();
-      setItemTypes(data || []);
-    } catch (error) {
-      console.error("Failed to fetch item types:", error);
-      const message = error instanceof Error ? `: ${error.message}` : "";
-      notify({ title: "Warning", description: `Failed to load item types${message}. Using default options.`, variant: "destructive" });
-    }
-  };
-
+  // Pre-select the default rate once rates have loaded (only while nothing is selected yet).
   useEffect(() => {
-    fetchRates();
-    fetchItemTypes();
-  }, []);
+    if (rates.length > 0 && !selectedRateId) {
+      const defaultRate = rates.find((rate) => rate.isDefault);
+      setSelectedRateId(defaultRate ? defaultRate.id : rates[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rates]);
 
   // Hidden feature: T-N-D key sequence to reveal period field
   useEffect(() => {
@@ -945,7 +913,8 @@ export default function CreatePawning() {
         open={showAddItemTypeDialog}
         onOpenChange={setShowAddItemTypeDialog}
         onSuccess={(newItemType) => {
-          fetchItemTypes();
+          dispatch(itemTypesLookup.invalidate());
+          dispatch(itemTypesLookup.thunk());
           setItemContent(newItemType.name);
         }}
       />

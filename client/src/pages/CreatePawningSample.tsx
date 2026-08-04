@@ -16,6 +16,9 @@ import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
 import { AddItemTypeDialog } from "@/components/AddItemTypeDialog";
+import { useActiveInterestRates, useItemTypes, usePatternConfig } from "@/hooks/useLookups";
+import { useAppDispatch } from "@/store/hooks";
+import { itemTypesLookup } from "@/store/lookupSlices";
 
 type IdType = "NIC" | "Passport" | "DrivingLicense" | "Other";
 
@@ -24,15 +27,6 @@ const ID_TYPE_LABELS: Record<IdType, string> = {
   Passport: "Passport",
   DrivingLicense: "Driving License",
   Other: "ID Number",
-};
-
-type Rate = {
-  id: string;
-  name: string;
-  ratePercent?: number;
-  rate_percent?: number;
-  firstMonthRatePercent?: number;
-  isDefault?: boolean;
 };
 
 interface ItemDraft {
@@ -66,11 +60,6 @@ interface Customer {
   gender?: string;
 }
 
-interface ItemType {
-  id: string;
-  name: string;
-}
-
 const emptyItemDraft: ItemDraft = {
   description: "",
   content: "",
@@ -84,10 +73,11 @@ const emptyItemDraft: ItemDraft = {
 
 export default function CreatePawningSample() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const [loading, setLoading] = useState(false);
-  const [rates, setRates] = useState<Rate[]>([]);
-  const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
+  const rates = useActiveInterestRates();
+  const itemTypes = useItemTypes();
 
   // Customer fields
   const [customerName, setCustomerName] = useState("");
@@ -102,7 +92,7 @@ export default function CreatePawningSample() {
   const [blockedReason, setBlockedReason] = useState<string | null>(null);
 
   // Special pattern unlock
-  const [specialPattern, setSpecialPattern] = useState("TND");
+  const specialPattern = usePatternConfig();
   const [patternUnlocked, setPatternUnlocked] = useState(false);
   const [patternBuffer, setPatternBuffer] = useState("");
   const [lastKeyTime, setLastKeyTime] = useState(0);
@@ -151,46 +141,14 @@ export default function CreatePawningSample() {
 
   const identityLabel = ID_TYPE_LABELS[idType];
 
-  const fetchRatesCallback = async () => {
-    try {
-      const data = await apiClient.interestRates.getActive();
-      setRates(data || []);
-
-      if (data && data.length > 0) {
-        const defaultRate = data.find((rate: Rate) => rate.isDefault);
-        setSelectedRateId(defaultRate ? defaultRate.id : data[0].id);
-      }
-    } catch (error) {
-      notify({ title: "Error", description: "Failed to load interest rates", variant: "destructive" });
-    }
-  };
-
-  const fetchItemTypes = async () => {
-    try {
-      const data = await apiClient.itemTypes.getAll();
-      setItemTypes(data || []);
-    } catch (error) {
-      console.error("Failed to fetch item types:", error);
-      notify({ title: "Warning", description: `Failed to load item types${error instanceof Error ? `: ${error.message}` : ""}. Using default options.`, variant: "destructive" });
-    }
-  };
-
-  const fetchPatternConfig = async () => {
-    try {
-      const data = await apiClient.pawnTransactions.getPatternConfig();
-      if (data?.pattern && typeof data.pattern === "string") {
-        setSpecialPattern(data.pattern);
-      }
-    } catch {
-      setSpecialPattern("TND");
-    }
-  };
-
+  // Pre-select the default rate once rates have loaded (only while nothing is selected yet).
   useEffect(() => {
-    fetchRatesCallback();
-    fetchItemTypes();
-    fetchPatternConfig();
-  }, []);
+    if (rates.length > 0 && !selectedRateId) {
+      const defaultRate = rates.find((rate) => rate.isDefault);
+      setSelectedRateId(defaultRate ? defaultRate.id : rates[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rates]);
 
   useEffect(() => {
     // Skip reset when identity is changed by selecting from dropdown
@@ -1106,7 +1064,8 @@ export default function CreatePawningSample() {
         open={showAddItemTypeDialog}
         onOpenChange={setShowAddItemTypeDialog}
         onSuccess={(newItemType) => {
-          fetchItemTypes();
+          dispatch(itemTypesLookup.invalidate());
+          dispatch(itemTypesLookup.thunk());
           updateDraft({ content: newItemType.name });
         }}
       />

@@ -1,6 +1,7 @@
 import { ReactNotifications } from "react-notifications-component";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Provider as ReduxProvider } from "react-redux";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { store } from "@/store";
 import { ThemeContextProvider } from "@/vendor/facit/contexts/themeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout, AppLayoutNoSidebar } from "@/components/layout/AppLayout";
@@ -28,11 +29,9 @@ import AuditLogs from "./pages/AuditLogs";
 import ActivityLogs from "./pages/ActivityLogs";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
-
 const App = () => (
-  <ThemeContextProvider>
-    <QueryClientProvider client={queryClient}>
+  <ReduxProvider store={store}>
+    <ThemeContextProvider>
       <ReactNotifications />
       <BrowserRouter>
         <AuthProvider>
@@ -67,8 +66,8 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </BrowserRouter>
-    </QueryClientProvider>
-  </ThemeContextProvider>
+    </ThemeContextProvider>
+  </ReduxProvider>
 );
 
 export default App;

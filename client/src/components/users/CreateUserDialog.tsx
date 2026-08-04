@@ -6,6 +6,7 @@ import Select from "@/vendor/facit/components/bootstrap/forms/Select";
 import Option from "@/vendor/facit/components/bootstrap/Option";
 import { notify } from "@/components/facit/notify";
 import apiClient from "@/integrations/api";
+import { useActiveRoleOptions, useBranchOptions } from "@/hooks/useLookups";
 
 type AppRole = string;
 
@@ -20,41 +21,17 @@ export function CreateUserDialog({ open, onOpenChange }: Props) {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<AppRole>("STAFF");
   const [branchId, setBranchId] = useState("");
-  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
-  const [roleOptions, setRoleOptions] = useState<{ name: string; label: string }[]>([]);
+  const branches = useBranchOptions();
+  const roleOptions = useActiveRoleOptions();
   const [loading, setLoading] = useState(false);
 
-  const fetchRoleOptions = async () => {
-    try {
-      const data: { name: string; label: string; isActive: boolean }[] = await apiClient.roles.getAll();
-      const active = data.filter((r) => r.isActive);
-      setRoleOptions(active.map((r) => ({ name: r.name, label: r.label })));
-      if (active.length > 0 && !active.some((r) => r.name === role)) {
-        setRole(active[0].name);
-      }
-    } catch (error) {
-      console.error("Failed to fetch roles:", error);
-    }
-  };
-
-  const fetchBranches = async () => {
-    try {
-      const data: { id: string; name: string }[] = await apiClient.branches.getActive();
-      setBranches(data.map((b) => ({ id: b.id, name: b.name })));
-    } catch (error) {
-      console.error("Failed to fetch branches:", error);
-      notify({ title: "Error", description: "Failed to load branches", variant: "destructive" });
-    }
-  };
-
-  // Fetch branches and role options when dialog opens
+  // Default the role select to the first active role once loaded, same as before.
   useEffect(() => {
-    if (open) {
-      fetchBranches();
-      fetchRoleOptions();
+    if (roleOptions.length > 0 && !roleOptions.some((r) => r.name === role)) {
+      setRole(roleOptions[0].name);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [roleOptions]);
 
   const handleSubmit = async () => {
     setLoading(true);
